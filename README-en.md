@@ -111,7 +111,7 @@ Currently, FileCollector is a standalone desktop application. The next step is t
 
 This design separates **file exploration and code selection** (handled by the coding tool's model) from **complex reasoning** (handled by the web-side model), leveraging the strengths of different models while keeping costs manageable.
 
-> Contributions and MCP interface development ideas are welcome!
+> Contributions and development ideas are welcome!
 
 ---
 
@@ -131,14 +131,12 @@ Ensure all dependencies (`requirements.txt`) are installed before packaging.
 ## 🤝 Contributing
 
 This project is in its early stages. Issues and Pull Requests are welcome.  
-If you're interested in MCP integration, feature enhancements, or cross-platform testing, please start a discussion.
 
 ---
 
 ## 📄 License
 
 This project uses the **MIT License**, see the [LICENSE](LICENSE) file for details.  
-The MIT license is permissive and flexible, allowing commercial use and closed-source modifications with only the requirement to retain copyright notices.
 
 ---
 
