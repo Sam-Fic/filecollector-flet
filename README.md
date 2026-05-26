@@ -147,5 +147,3 @@ pyinstaller --onefile --windowed --name "FileCollector" file_collector.py
 
 - [PySide6](https://wiki.qt.io/Qt_for_Python) - 提供现代 GUI 框架
 - [chardet](https://github.com/chardet/chardet) - 编码检测库
-- TRAE / opencode
-- Deepseek v4 Flash / Gemini 3.5 Flash

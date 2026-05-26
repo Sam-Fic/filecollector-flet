@@ -145,5 +145,3 @@ This project uses the **MIT License**, see the [LICENSE](LICENSE) file for detai
 
 - [PySide6](https://wiki.qt.io/Qt_for_Python) - Modern GUI framework
 - [chardet](https://github.com/chardet/chardet) - Encoding detection library
-- TRAE / opencode
-- Deepseek v4 Flash / Gemini 3.5 Flash
