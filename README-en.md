@@ -52,6 +52,7 @@ It features a checkable directory tree, flexible organization list, text inserti
    ```
 3. Run the program
    ```bash
+   cd src
    python file_collector.py
    ```
 

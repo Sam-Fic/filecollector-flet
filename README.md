@@ -52,6 +52,7 @@ FileCollector 是一款跨平台的桌面小工具，用于高效收集、编排
    ```
 3. 运行程序
    ```bash
+   cd src
    python file_collector.py
    ```
 
