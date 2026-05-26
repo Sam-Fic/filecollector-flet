@@ -9,6 +9,8 @@ FileCollector 是一款跨平台的桌面小工具，用于高效收集、编排
 
 ![Python](https://img.shields.io/badge/Python-3.8+-blue) ![PySide6](https://img.shields.io/badge/GUI-PySide6-green) ![License](https://img.shields.io/badge/license-MIT-brightgreen)
 
+![FileCollector Screenshot](screenshots/screenshot.png)
+
 ---
 
 ## ✨ 功能特点
