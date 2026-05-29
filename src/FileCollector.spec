@@ -3,10 +3,11 @@
 
 a = Analysis(
     ['file_collector.py'],
-    pathex=[],
+    pathex=['.'],
     binaries=[],
     datas=[],
-    hiddenimports=[],
+    hiddenimports=['filecollector.models', 'filecollector.utils', 'filecollector.engine',
+                   'filecollector.cli', 'filecollector.gui.dialogs', 'filecollector.gui.main_window'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
