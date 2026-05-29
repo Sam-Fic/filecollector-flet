@@ -77,6 +77,27 @@ Visit the [Releases](https://github.com/Sam-Fic/FileCollector/releases) page to 
  -->
 ---
 
+## 📁 Project Structure
+
+```
+src/
+├── file_collector.py          # Legacy entry point (thin wrapper → delegates to package)
+├── FileCollector.spec         # PyInstaller build config
+└── filecollector/             # Core Python package
+    ├── __init__.py            # Package declaration, exports ItemData / FileCollectorEngine
+    ├── __main__.py            # python -m filecollector entry, CLI/GUI dispatch
+    ├── models.py              # Data model (ItemData: file/text items)
+    ├── utils.py               # Utility functions (encoding detection, safe read)
+    ├── engine.py              # Business engine (all core logic, Qt-free)
+    ├── cli.py                 # CLI mode (sequential argument parsing and execution)
+    └── gui/
+        ├── __init__.py
+        ├── dialogs.py         # Text edit dialog (TextEditDialog)
+        └── main_window.py     # Main window (FileCollectorApp, depends on PySide6)
+```
+
+---
+
 ## 📖 User Guide
 
 1. **Open Working Directory**  
@@ -96,6 +117,75 @@ Visit the [Releases](https://github.com/Sam-Fic/FileCollector/releases) page to 
    Click `📄 Generate TXT`, choose a save location, and get a merged text file in order.
 7. **Save/Restore Workspace**  
    Use `💾 Save Project` to store the current selection and organization as `.project.json`, then restore it later via `📂 Load Project`.
+
+---
+
+## 🖥️ CLI Mode
+
+FileCollector comes with a built-in command-line mode that lets you perform all core operations directly from the terminal, making it ideal for scripting and automation.
+
+### Usage
+
+Run `filecollector` with CLI arguments to enter command-line mode. If no CLI arguments are detected, the GUI launches normally.
+
+```bash
+filecollector [options...]
+```
+
+### Command Reference
+
+| Option               | Description                                     |
+| -------------------- | ----------------------------------------------- |
+| `--work-dir DIR`     | Set working directory                           |
+| `--select-file PATH` | Add file to the organization list (repeatable)  |
+| `--add-text "TEXT"`  | Add custom text (repeatable)                    |
+| `--move FROM TO`     | Move item at index FROM to index TO             |
+| `--remove INDEX`     | Remove item at INDEX                            |
+| `--clear`            | Clear the organization list                     |
+| `--list-items`       | List current organization items                 |
+| `--export PATH`      | Export merged text to file                      |
+| `--absolute`         | Use absolute paths                              |
+| `--header`           | Add header with working directory path          |
+| `--load FILE`        | Load state from project file                    |
+| `--save FILE`        | Save current state to project file              |
+| `--help`, `-h`       | Show help message                               |
+
+### Workflow Examples
+
+**Build and export:**
+
+```bash
+filecollector --work-dir ./project \
+    --select-file src/main.vala \
+    --select-file src/utils/helper.vala \
+    --add-text "=== Config files below ===" \
+    --select-file config.ini \
+    --move 3 2 \
+    --header \
+    --export output.txt
+```
+
+**Export from a project file:**
+
+```bash
+filecollector --load my.project.json --export output.txt
+```
+
+**Build and save project (for later use in GUI):**
+
+```bash
+filecollector --work-dir ./project \
+    --select-file file1.txt --select-file file2.txt \
+    --save my.project.json
+```
+
+**View the organization list:**
+
+```bash
+filecollector --load my.project.json --list-items
+```
+
+> CLI mode and GUI mode share the same data model and business logic — `.project.json` files are fully interchangeable between them.
 
 ---
 

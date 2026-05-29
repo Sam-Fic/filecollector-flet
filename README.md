@@ -79,6 +79,27 @@ FileCollector 是一款跨平台的桌面小工具，用于高效收集、编排
 
 ---
 
+## 📁 项目结构
+
+```
+src/
+├── file_collector.py          # 向后兼容入口（薄封装 → 委托到包）
+├── FileCollector.spec         # PyInstaller 构建配置
+└── filecollector/             # 核心 Python 包
+    ├── __init__.py            # 包声明，导出 ItemData / FileCollectorEngine
+    ├── __main__.py            # python -m filecollector 入口，分发 CLI/GUI
+    ├── models.py              # 数据模型（ItemData：文件/文字条目）
+    ├── utils.py               # 工具函数（编码检测、安全读取）
+    ├── engine.py              # 业务引擎（所有核心逻辑，不依赖 Qt）
+    ├── cli.py                 # CLI 模式（按序参数解析与执行）
+    └── gui/
+        ├── __init__.py
+        ├── dialogs.py         # 文字编辑对话框（TextEditDialog）
+        └── main_window.py     # 主窗口（FileCollectorApp，依赖 PySide6）
+```
+
+---
+
 ## 📖 使用指南
 
 1. **打开工作目录**  
@@ -98,6 +119,75 @@ FileCollector 是一款跨平台的桌面小工具，用于高效收集、编排
    点击 `📄 生成 TXT`，选择保存位置，即可得到按顺序合并的文本文件。
 7. **保存/恢复工作区**  
    使用 `💾 保存项目` 将当前勾选状态和编排列表存储为 `.project.json`，下次通过 `📂 加载项目` 恢复。
+
+---
+
+## 🖥️ CLI 命令行模式
+
+FileCollector 内置命令行模式，无需启动图形界面即可通过终端完成所有核心操作，适合脚本化和自动化集成。
+
+### 使用方式
+
+在终端中运行 `filecollector` 并附加 CLI 参数即可进入命令行模式。若未检测到 CLI 参数，则正常启动图形界面。
+
+```bash
+filecollector [选项...]
+```
+
+### 命令列表
+
+| 选项                 | 说明                              |
+| -------------------- | --------------------------------- |
+| `--work-dir DIR`     | 设置工作目录                      |
+| `--select-file PATH` | 添加文件到编排列表（可多次使用）  |
+| `--add-text "TEXT"`  | 添加自定义文字（可多次使用）      |
+| `--move FROM TO`     | 将索引 FROM 处的项目移动到索引 TO |
+| `--remove INDEX`     | 删除索引 INDEX 处的项目           |
+| `--clear`            | 清空编排列表                      |
+| `--list-items`       | 列出当前编排列表                  |
+| `--export PATH`      | 导出合并文本到文件                |
+| `--absolute`         | 使用绝对路径                      |
+| `--header`           | 添加头部信息（工作目录路径）      |
+| `--load FILE`        | 从项目文件加载状态                |
+| `--save FILE`        | 将当前状态保存到项目文件          |
+| `--help`, `-h`       | 显示帮助信息                      |
+
+### 完整工作流示例
+
+**构建并导出：**
+
+```bash
+filecollector --work-dir ./project \
+    --select-file src/main.vala \
+    --select-file src/utils/helper.vala \
+    --add-text "=== 以下为配置文件 ===" \
+    --select-file config.ini \
+    --move 3 2 \
+    --header \
+    --export output.txt
+```
+
+**从项目文件导出：**
+
+```bash
+filecollector --load my.project.json --export output.txt
+```
+
+**构建并保存项目（供 GUI 使用）：**
+
+```bash
+filecollector --work-dir ./project \
+    --select-file file1.txt --select-file file2.txt \
+    --save my.project.json
+```
+
+**查看编排列表：**
+
+```bash
+filecollector --load my.project.json --list-items
+```
+
+> CLI 模式与 GUI 模式共享同一套数据模型和业务逻辑，`.project.json` 文件可在两者之间互通使用。
 
 ---
 
