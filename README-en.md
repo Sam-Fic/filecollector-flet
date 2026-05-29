@@ -15,6 +15,9 @@ It features a checkable directory tree, flexible organization list, text inserti
 
 ## ✨ Features
 
+- 💻 **Command-Line Mode (CLI)**: Supports all core operations via terminal commands, ideal for scripting and automation.
+- 🤖 **MCP Service**: Packaged as an MCP (Model Context Protocol) service, directly callable by coding tools like Cursor, VS Code + Copilot.
+- 🔄 **Progressive Experience**: Seamless integration of CLI and GUI — after AI-driven exploration in the background, the graphical interface is always available for manual adjustment.
 - 📂 **Lazy-loaded Directory Tree**: Automatically displays an expandable file tree when opening a folder, with easy file checkbox selection.
 - 📋 **Visual Organization List**: Checked files automatically appear in the list, freely reorderable via drag-and-drop, move up/down, or delete.
 - ✏️ **Custom Text Insertion**: Insert explanatory text at any position, double-click to edit.
@@ -37,6 +40,17 @@ It features a checkable directory tree, flexible organization list, text inserti
 
 ## 🛠️ Installation & Usage
 
+### 🐧 GNOME Users
+
+If you are using the **GNOME desktop environment**, we recommend using the GNOME-optimized version for a more native integration experience:
+
+👉 [filecollector-gnome](https://github.com/Sam-Fic/filecollector-gnome)
+
+This version is adapted and optimized for GNOME, including:
+- Native GNOME-style interface
+- Better desktop integration and interaction experience
+- Special optimizations for the GNOME environment
+
 ### Run from Source
 
 **Requirements**: Python 3.8+.
@@ -55,17 +69,6 @@ It features a checkable directory tree, flexible organization list, text inserti
    cd src
    python file_collector.py
    ```
-
-### 🐧 GNOME Users
-
-If you are using the **GNOME desktop environment**, we recommend using the GNOME-optimized version for a more native integration experience:
-
-👉 [filecollector-gnome](https://github.com/Sam-Fic/filecollector-gnome)
-
-This version is adapted and optimized for GNOME, including:
-- Native GNOME-style interface
-- Better desktop integration and interaction experience
-- Special optimizations for the GNOME environment
 
 <!-- ### Download Pre-built Packages (Recommended)
 
@@ -189,20 +192,34 @@ filecollector --load my.project.json --list-items
 
 ---
 
-## 🗺️ Future Roadmap
+## 🗺️ MCP (Model Context Protocol) Service
 
-Currently, FileCollector is a standalone desktop application. The next step is to package it as an **MCP (Model Context Protocol) service** or **Skill**, enabling large language models in coding tools (like Cursor, VS Code + Copilot) to directly invoke it for the following workflow:
+FileCollector is already packaged as an MCP service. Large language models in coding tools (such as Cursor, VS Code + Copilot) can now directly invoke it to complete the following workflow:
 
-1. User gives an instruction to the model in the coding tool (e.g., "This project has an xx issue, help me find related files and export them as a single TXT file").
+1. The user gives the model an instruction (e.g., "This project has an xx issue, help me find related files and export them as a single TXT file").
 2. The model explores files and uses this tool to check and select key files related to the issue.
 3. The model inserts the instruction (the problem to solve) at an appropriate position.
-4. Invokes the tool to generate a structured TXT file.
-5. User uploads this TXT file to a web-side LLM (like Claude, ChatGPT, etc.) for deep reasoning and problem-solving.
-6. Based on the model's response, users can execute actual problem-solving operations using low-cost models in the coding tool.
+4. The tool generates a structured TXT file.
+5. The user uploads this TXT file to a web-side LLM (like Claude, ChatGPT, etc.) for deep reasoning and problem-solving.
+6. Based on the model's response, the user can execute actual problem-solving operations using low-cost models in the coding tool.
 
-This design separates **file exploration and code selection** (handled by the coding tool's model) from **complex reasoning** (handled by the web-side model), leveraging the strengths of different models while keeping costs manageable.
+This design separates **file exploration and code selection** (handled by the model in the coding tool) from **complex reasoning** (handled by the web-side model), leveraging the strengths of different models while keeping costs manageable.
 
-> Contributions and development ideas are welcome!
+> See [filecollector-mcp-server](https://github.com/Sam-Fic/filecollector-mcp-server) for details, installation, and usage.
+
+---
+
+## 🔄 Progressive Experience
+
+GUI and CLI combine to deliver a seamless human-AI collaborative workflow:
+
+1. In Cursor, let the large model auto-explore and organize project files via the MCP service.
+2. When the generated file list needs manual fine-tuning, run in terminal:
+   ```bash
+   filecollector --load ~/.config/filecollector/mcp_state.json
+   ```
+3. A graphical interface pops up, showing the model-selected file list. You can continue to check, reorder, and save.
+4. Return to Cursor and the model continues with the next steps.
 
 ---
 

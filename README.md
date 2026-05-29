@@ -15,6 +15,9 @@ FileCollector 是一款跨平台的桌面小工具，用于高效收集、编排
 
 ## ✨ 功能特点
 
+- 💻 **命令行模式 (CLI)**：支持通过终端命令完成所有核心操作，便于脚本化和自动化。
+- 🤖 **MCP 服务**：封装为 MCP (Model Context Protocol) 服务，可直接被 Cursor、VS Code + Copilot 等编程工具调用。
+- 🔄 **渐进式体验**：CLI 处理与 GUI 微调无缝衔接，AI 后台自动探索编排后，可随时用图形界面人工接管调整。
 - 📂 **懒加载目录树**：打开文件夹后自动展示可展开的文件树，轻松勾选文件。
 - 📋 **可视化编排列表**：勾选的文件自动进入列表，可自由拖拽排序、上移下移、删除。
 - ✏️ **自定义文字插入**：在任意位置插入自己的说明文字，双击即可编辑。
@@ -37,6 +40,18 @@ FileCollector 是一款跨平台的桌面小工具，用于高效收集、编排
 
 ## 🛠️ 安装与运行
 
+### 🐧 GNOME 用户
+
+如果您使用的是 **GNOME 桌面环境**，推荐使用专为 GNOME 优化的版本，提供更原生的集成体验：
+
+👉 [filecollector-gnome](https://github.com/Sam-Fic/filecollector-gnome)
+
+该版本针对 GNOME 进行了适配和优化，包括：
+
+- 原生 GNOME 风格界面
+- 更好的桌面集成与交互体验
+- 针对 GNOME 环境的特殊优化
+
 ### 从源码运行
 
 **要求**：Python 3.8 及以上。
@@ -55,18 +70,6 @@ FileCollector 是一款跨平台的桌面小工具，用于高效收集、编排
    cd src
    python file_collector.py
    ```
-
-### 🐧 GNOME 用户
-
-如果您使用的是 **GNOME 桌面环境**，推荐使用专为 GNOME 优化的版本，提供更原生的集成体验：
-
-👉 [filecollector-gnome](https://github.com/Sam-Fic/filecollector-gnome)
-
-该版本针对 GNOME 进行了适配和优化，包括：
-
-- 原生 GNOME 风格界面
-- 更好的桌面集成与交互体验
-- 针对 GNOME 环境的特殊优化
 
 <!-- ### 直接下载打包版（推荐）
 
@@ -191,11 +194,11 @@ filecollector --load my.project.json --list-items
 
 ---
 
-## 🗺️ 未来规划
+## 🗺️ MCP (Model Context Protocol) 服务
 
-目前 FileCollector 是一个独立运行的桌面工具。下一步计划是将其封装为 **MCP (Model Context Protocol) 服务** 或 **技能 (Skills)**，让编程工具（如 Cursor、VS Code + Copilot）中的大语言模型能够直接调用它完成以下工作流：
+FileCollector 已经封装为 MCP 服务，现在编程工具（如 Cursor、VS Code + Copilot）中的大语言模型可以直接调用它完成以下工作流：
 
-1. 用户对编程工具中的模型下达问题指令（例如“此项目有xx问题，请帮我寻找与此相关的文件并导出单个 TXT 文件”）。
+1. 用户对编程工具中的模型下达问题指令（例如"此项目有 xx 问题，请帮我寻找与此相关的文件并导出单个 TXT 文件"）。
 2. 模型执行文件探索，利用该工具勾选出与问题相关的关键文件。
 3. 模型在合适的位置插入指令（要解决的问题）。
 4. 调用工具生成一份结构化的 TXT 文件。
@@ -204,7 +207,21 @@ filecollector --load my.project.json --list-items
 
 这种设计将 **文件探索与代码挑选**（由编程工具内的模型完成）与 **复杂推理**（由网页端模型完成）分离，充分利用不同模型的优势，同时保持成本可控。
 
-> 欢迎贡献想法或参与开发！
+> 查看 [filecollector-mcp-server](https://github.com/Sam-Fic/filecollector-mcp-server) 了解更多详情和安装使用方法。
+
+---
+
+## 🔄 渐进式体验
+
+GUI 与 CLI 结合，实现了无缝的人机协同工作流：
+
+1. 在 Cursor 中通过 MCP 服务让大模型自动探索和编排项目文件。
+2. 当生成的文件列表需要人工微调时，在终端运行：
+   ```bash
+   filecollector --load ~/.config/filecollector/mcp_state.json
+   ```
+3. 弹出图形界面，展示模型选定的文件列表。可继续勾选、排序、保存。
+4. 回到 Cursor 中，模型继续后续工作。
 
 ---
 
