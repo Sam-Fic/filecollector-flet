@@ -151,6 +151,7 @@ filecollector [options...]
 | `--header`           | Add header with working directory path          |
 | `--load FILE`        | Load state from project file                    |
 | `--save FILE`        | Save current state to project file              |
+| `--gui`              | Open GUI after initializing with CLI arguments  |
 | `--help`, `-h`       | Show help message                               |
 
 ### Workflow Examples
@@ -188,7 +189,19 @@ filecollector --work-dir ./project \
 filecollector --load my.project.json --list-items
 ```
 
-> CLI mode and GUI mode share the same data model and business logic — `.project.json` files are fully interchangeable between them.
+**Load project and open GUI for manual adjustment:**
+
+```bash
+filecollector --load my.project.json --gui
+```
+
+**Initialize state with CLI args then open GUI:**
+
+```bash
+filecollector --work-dir ./project --select-file src/main.vala --gui
+```
+
+> CLI mode and GUI mode share the same data model and business logic — `.project.json` files are fully interchangeable between them. Add `--gui` to pop up the graphical interface after initializing state via CLI arguments, enabling seamless switching between automation and manual review.
 
 ---
 
@@ -216,8 +229,9 @@ GUI and CLI combine to deliver a seamless human-AI collaborative workflow:
 1. In Cursor, let the large model auto-explore and organize project files via the MCP service.
 2. When the generated file list needs manual fine-tuning, run in terminal:
    ```bash
-   filecollector --load ~/.config/filecollector/mcp_state.json
+   filecollector --load ~/.config/filecollector/mcp_state.json --gui
    ```
+   The `--gui` flag ensures the GUI opens (without it, the CLI commands are executed directly).
 3. A graphical interface pops up, showing the model-selected file list. You can continue to check, reorder, and save.
 4. Return to Cursor and the model continues with the next steps.
 

@@ -153,6 +153,7 @@ filecollector [选项...]
 | `--header`           | 添加头部信息（工作目录路径）      |
 | `--load FILE`        | 从项目文件加载状态                |
 | `--save FILE`        | 将当前状态保存到项目文件          |
+| `--gui`              | 使用 CLI 参数初始化后打开图形界面 |
 | `--help`, `-h`       | 显示帮助信息                      |
 
 ### 完整工作流示例
@@ -190,7 +191,19 @@ filecollector --work-dir ./project \
 filecollector --load my.project.json --list-items
 ```
 
-> CLI 模式与 GUI 模式共享同一套数据模型和业务逻辑，`.project.json` 文件可在两者之间互通使用。
+**加载项目后用 GUI 手动调整：**
+
+```bash
+filecollector --load my.project.json --gui
+```
+
+**用 CLI 参数初始化状态后打开 GUI：**
+
+```bash
+filecollector --work-dir ./project --select-file src/main.vala --gui
+```
+
+> CLI 模式与 GUI 模式共享同一套数据模型和业务逻辑，`.project.json` 文件可在两者之间互通使用。添加 `--gui` 参数可在 CLI 参数初始化状态后直接弹出图形界面供人工微调，实现自动化与人工审查的无缝切换。
 
 ---
 
@@ -218,8 +231,9 @@ GUI 与 CLI 结合，实现了无缝的人机协同工作流：
 1. 在 Cursor 中通过 MCP 服务让大模型自动探索和编排项目文件。
 2. 当生成的文件列表需要人工微调时，在终端运行：
    ```bash
-   filecollector --load ~/.config/filecollector/mcp_state.json
+   filecollector --load ~/.config/filecollector/mcp_state.json --gui
    ```
+   `--gui` 参数确保打开图形界面（不带 `--gui` 则仅执行 CLI 命令）。
 3. 弹出图形界面，展示模型选定的文件列表。可继续勾选、排序、保存。
 4. 回到 Cursor 中，模型继续后续工作。
 
