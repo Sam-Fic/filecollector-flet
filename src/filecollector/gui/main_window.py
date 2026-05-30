@@ -1,9 +1,10 @@
 import os
+import queue
 import sys
 import traceback
 from pathlib import Path
 
-from PySide6.QtCore import Qt, Signal, QMimeData, QUrl
+from PySide6.QtCore import Qt, Signal, QTimer, QMimeData, QUrl
 from PySide6.QtGui import QAction, QFont, QDragEnterEvent, QDropEvent
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QMenuBar, QMenu, QToolBar, QStatusBar,
@@ -45,6 +46,43 @@ class FileCollectorApp(QMainWindow):
 
         self._update_path_mode_ui()
         self._refresh_tree()
+
+        # IPC server: receive CLI commands from other instances
+        self.ipc_queue = queue.Queue()
+        self.ipc_stop = None
+        self._start_ipc_server()
+
+    # ------------------------------------------------------------------
+    # IPC: single-instance communication
+    # ------------------------------------------------------------------
+    def _start_ipc_server(self):
+        from filecollector.ipc import start_ipc_server
+
+        self.ipc_stop = start_ipc_server(self.ipc_queue.put)
+
+        self.ipc_timer = QTimer(self)
+        self.ipc_timer.timeout.connect(self._process_ipc_queue)
+        self.ipc_timer.start(100)
+
+    def _process_ipc_queue(self):
+        while not self.ipc_queue.empty():
+            try:
+                args = self.ipc_queue.get_nowait()
+                self._handle_ipc_args(args)
+            except queue.Empty:
+                break
+
+    def _handle_ipc_args(self, args):
+        """Apply CLI args received from another process to this instance."""
+        from filecollector.cli import apply_cli_args
+
+        if apply_cli_args(self.engine, args, print_feedback=False):
+            self.initialize_from_engine(self.engine)
+            self.status_bar.showMessage(
+                f"已从外部命令更新 ({len(self.engine.items)} 项)"
+            )
+        else:
+            self.status_bar.showMessage("外部命令解析失败")
 
     def initialize_from_engine(self, engine):
         """Initialize GUI state from a pre-configured engine (used by CLI --gui)."""
@@ -642,6 +680,8 @@ class FileCollectorApp(QMainWindow):
                           "功能：目录树勾选、拖放排序、文字编排、编码检测、项目保存")
 
     def closeEvent(self, event):
+        if self.ipc_stop:
+            self.ipc_stop()
         if self.engine.items:
             reply = QMessageBox.question(self, "确认退出", "编排列表不为空，确定退出吗？",
                                          QMessageBox.Yes | QMessageBox.No)

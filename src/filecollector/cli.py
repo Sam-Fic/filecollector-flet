@@ -4,122 +4,169 @@ from pathlib import Path
 from filecollector.engine import FileCollectorEngine
 
 
-def parse_to_engine(argv):
-    """Parse CLI args into a FileCollectorEngine.
+def apply_cli_args(engine, args, print_feedback=True):
+    """Apply CLI operations to an existing engine in-place.
 
-    Returns (engine, show_help, save_path, export_path) or (None, False, None, None) on error.
+    Handles all state-modifying args: --work-dir, --select-file, --add-text,
+    --move, --remove, --clear, --absolute, --header, --load, --list-items.
+    Skips --help, --export, --save (those are handled by CLI mode only).
+
+    Returns True on success, False on error.
+    """
+    i = 0
+    while i < len(args):
+        arg = args[i]
+
+        if arg in ("--help", "-h", "--gui"):
+            pass
+        elif arg == "--work-dir":
+            i += 1
+            if i >= len(args):
+                if print_feedback:
+                    print("--work-dir 需要参数", file=sys.stderr)
+                return False
+            engine.work_dir = Path(args[i]).resolve()
+            if print_feedback:
+                print(f"工作目录: {engine.work_dir}")
+        elif arg == "--select-file":
+            i += 1
+            if i >= len(args):
+                if print_feedback:
+                    print("--select-file 需要参数", file=sys.stderr)
+                return False
+            abs_path = str(Path(args[i]).resolve())
+            engine.add_file(abs_path)
+            engine.checked_paths.add(abs_path)
+            if print_feedback:
+                print(f"已添加文件: {abs_path}")
+        elif arg == "--add-text":
+            i += 1
+            if i >= len(args):
+                if print_feedback:
+                    print("--add-text 需要参数", file=sys.stderr)
+                return False
+            text = args[i]
+            engine.add_text(text)
+            if print_feedback:
+                preview = text[:40] + ('...' if len(text) > 40 else '')
+                print(f"已添加文字: {preview}")
+        elif arg == "--move":
+            i += 1
+            if i + 1 >= len(args):
+                if print_feedback:
+                    print("--move 需要两个参数", file=sys.stderr)
+                return False
+            from_idx = int(args[i])
+            to_idx = int(args[i + 1])
+            engine.move_item(from_idx, to_idx)
+            if print_feedback:
+                print(f"已将 [{from_idx}] 移动到 [{to_idx}]")
+            i += 2
+            continue
+        elif arg == "--remove":
+            i += 1
+            if i >= len(args):
+                if print_feedback:
+                    print("--remove 需要参数", file=sys.stderr)
+                return False
+            idx = int(args[i])
+            if 0 <= idx < len(engine.items):
+                data = engine.items[idx]
+                if data.type == "file" and not data.force_absolute:
+                    engine.checked_paths.discard(data.path)
+            engine.remove_item(idx)
+            if print_feedback:
+                print(f"已删除索引 [{idx}]")
+        elif arg == "--clear":
+            engine.clear()
+            engine.checked_paths.clear()
+            if print_feedback:
+                print("已清空编排列表")
+        elif arg == "--list-items":
+            items = engine.list_items()
+            if not items:
+                if print_feedback:
+                    print("编排列表为空")
+            elif print_feedback:
+                print(f"\n编排列表 ({len(items)} 项):")
+                print("-" * 50)
+                for idx, typ, desc in items:
+                    print(f"  [{idx}] [{typ}] {desc}")
+                print()
+        elif arg == "--absolute":
+            engine.use_absolute = True
+            if print_feedback:
+                print("路径模式: 绝对路径")
+        elif arg == "--header":
+            engine.show_header = True
+            if print_feedback:
+                print("头部信息: 已启用")
+        elif arg == "--load":
+            i += 1
+            if i >= len(args):
+                if print_feedback:
+                    print("--load 需要参数", file=sys.stderr)
+                return False
+            try:
+                engine.load(args[i])
+                if print_feedback:
+                    print(f"已加载项目: {args[i]}")
+            except Exception as e:
+                if print_feedback:
+                    print(f"加载项目失败: {e}", file=sys.stderr)
+                return False
+        elif arg in ("--export", "--save"):
+            i += 1
+            if i >= len(args):
+                return False
+        else:
+            if print_feedback:
+                print(f"未知选项: {arg}", file=sys.stderr)
+                if print_feedback:
+                    print("使用 --help 查看帮助", file=sys.stderr)
+            return False
+
+        i += 1
+    return True
+
+
+def parse_to_engine(argv):
+    """Parse CLI args into a new FileCollectorEngine.
+
+    Returns (engine, show_help, save_path, export_path).
+    Returns (None, False, None, None) on error.
     """
     engine = FileCollectorEngine()
     show_help = False
     save_path = None
     export_path = None
 
+    # First pass: extract special flags that are not engine state.
+    filtered = []
     i = 1
     while i < len(argv):
         arg = argv[i]
-
         if arg in ("--help", "-h"):
             show_help = True
-            i += 1
-        elif arg == "--work-dir":
-            i += 1
-            if i >= len(argv):
-                print("--work-dir 需要参数", file=sys.stderr)
-                return None, False, None, None
-            engine.work_dir = Path(argv[i]).resolve()
-            print(f"工作目录: {engine.work_dir}")
-            i += 1
-        elif arg == "--select-file":
-            i += 1
-            if i >= len(argv):
-                print("--select-file 需要参数", file=sys.stderr)
-                return None, False, None, None
-            abs_path = str(Path(argv[i]).resolve())
-            engine.add_file(abs_path)
-            print(f"已添加文件: {abs_path}")
-            i += 1
-        elif arg == "--add-text":
-            i += 1
-            if i >= len(argv):
-                print("--add-text 需要参数", file=sys.stderr)
-                return None, False, None, None
-            text = argv[i]
-            engine.add_text(text)
-            preview = text[:40] + ('...' if len(text) > 40 else '')
-            print(f"已添加文字: {preview}")
-            i += 1
-        elif arg == "--move":
-            i += 1
-            if i + 1 >= len(argv):
-                print("--move 需要两个参数", file=sys.stderr)
-                return None, False, None, None
-            from_idx = int(argv[i])
-            to_idx = int(argv[i + 1])
-            engine.move_item(from_idx, to_idx)
-            print(f"已将 [{from_idx}] 移动到 [{to_idx}]")
-            i += 2
-        elif arg == "--remove":
-            i += 1
-            if i >= len(argv):
-                print("--remove 需要参数", file=sys.stderr)
-                return None, False, None, None
-            idx = int(argv[i])
-            engine.remove_item(idx)
-            print(f"已删除索引 [{idx}]")
-            i += 1
-        elif arg == "--clear":
-            engine.clear()
-            print("已清空编排列表")
-            i += 1
-        elif arg == "--list-items":
-            items = engine.list_items()
-            if not items:
-                print("编排列表为空")
-            else:
-                print(f"\n编排列表 ({len(items)} 项):")
-                print("-" * 50)
-                for idx, typ, desc in items:
-                    print(f"  [{idx}] [{typ}] {desc}")
-            print()
-            i += 1
+            filtered.append(argv[i])
         elif arg == "--export":
             i += 1
             if i >= len(argv):
                 print("--export 需要参数", file=sys.stderr)
                 return None, False, None, None
             export_path = argv[i]
-            i += 1
-        elif arg == "--absolute":
-            engine.use_absolute = True
-            print("路径模式: 绝对路径")
-            i += 1
-        elif arg == "--header":
-            engine.show_header = True
-            print("头部信息: 已启用")
-            i += 1
-        elif arg == "--load":
-            i += 1
-            if i >= len(argv):
-                print("--load 需要参数", file=sys.stderr)
-                return None, False, None, None
-            try:
-                engine.load(argv[i])
-                print(f"已加载项目: {argv[i]}")
-            except Exception as e:
-                print(f"加载项目失败: {e}", file=sys.stderr)
-                return None, False, None, None
-            i += 1
         elif arg == "--save":
             i += 1
             if i >= len(argv):
                 print("--save 需要参数", file=sys.stderr)
                 return None, False, None, None
             save_path = argv[i]
-            i += 1
         else:
-            print(f"未知选项: {arg}", file=sys.stderr)
-            print(f"使用 --help 查看帮助", file=sys.stderr)
-            return None, False, None, None
+            filtered.append(argv[i])
+        i += 1
+
+    if not apply_cli_args(engine, filtered):
+        return None, False, None, None
 
     return engine, show_help, save_path, export_path
 

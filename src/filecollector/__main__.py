@@ -20,11 +20,20 @@ def main():
         else:
             filtered_args.append(arg)
 
+    has_cli_args = len(filtered_args) > 1
+
+    # If there are CLI args, try to send them to a running GUI instance.
+    # When connected, the running GUI applies the operations live.
+    if has_cli_args:
+        from filecollector.ipc import send_to_running_instance
+        if send_to_running_instance(filtered_args[1:]):
+            sys.exit(0)
+
     if not force_gui and is_cli_mode(sys.argv):
-        # Pure CLI mode: no --gui, has CLI args
+        # Pure CLI mode: no --gui, has CLI args, no running GUI
         sys.exit(run_cli())
 
-    if force_gui and len(filtered_args) > 1:
+    if force_gui and has_cli_args:
         # --gui with other CLI args: parse args, then launch GUI with state
         engine, show_help, _, _ = parse_to_engine(filtered_args)
         if engine is None:
@@ -45,7 +54,7 @@ def main():
         sys.exit(app.exec())
 
     if GUI_AVAILABLE:
-        # Normal GUI mode
+        # Normal GUI mode (no CLI args, or --gui alone)
         app = QApplication(sys.argv)
         app.setStyle("Fusion")
         window = FileCollectorApp()

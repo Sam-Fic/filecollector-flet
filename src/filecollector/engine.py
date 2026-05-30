@@ -17,6 +17,8 @@ class FileCollectorEngine:
 
     def add_file(self, abs_path_str, force_absolute=False):
         self.items.append(ItemData(type_="file", path=abs_path_str, force_absolute=force_absolute))
+        if not force_absolute:
+            self.checked_paths.add(abs_path_str)
 
     def add_text(self, content, index=None):
         item_data = ItemData(type_="text", content=content)
