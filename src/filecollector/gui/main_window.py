@@ -46,6 +46,29 @@ class FileCollectorApp(QMainWindow):
         self._update_path_mode_ui()
         self._refresh_tree()
 
+    def initialize_from_engine(self, engine):
+        """Initialize GUI state from a pre-configured engine (used by CLI --gui)."""
+        self.engine = engine
+
+        if self.engine.work_dir:
+            self.work_dir_label.setText(f"当前工作目录: {self.engine.work_dir}")
+        else:
+            self.work_dir_label.setText("当前工作目录: 未设置")
+
+        self._refresh_tree()
+
+        for p_str in self.engine.checked_paths:
+            self._set_tree_item_check(p_str, Qt.Checked)
+
+        self.radio_abs.setChecked(self.engine.use_absolute)
+        self.radio_rel.setChecked(not self.engine.use_absolute)
+        self.check_header.setChecked(self.engine.show_header)
+        self._update_path_mode_ui()
+
+        self._refresh_list()
+
+        self.status_bar.showMessage(f"已从 CLI 参数加载 {len(self.engine.items)} 个项目")
+
     # ==================================================================
     # 菜单栏
     # ==================================================================
