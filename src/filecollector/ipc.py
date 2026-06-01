@@ -30,7 +30,7 @@ if sys.platform == "win32":
 elif sys.platform == "darwin":
     _CACHE_DIR = os.path.expanduser("~/Library/Caches/filecollector")
 else:
-    _CACHE_DIR = os.path.expanduser("~/.cache/filecollector")
+    _CACHE_DIR = os.path.expanduser("~/.config/filecollector")
 
 _ADDR_FILE = os.path.join(_CACHE_DIR, "ipc_addr.txt")
 _UNIX_SOCK_PATH = os.path.join(_CACHE_DIR, "ipc.sock")

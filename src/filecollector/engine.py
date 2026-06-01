@@ -1,47 +1,53 @@
+from __future__ import annotations
+
 import os
 import json
 from pathlib import Path
 
 from filecollector.models import ItemData
 from filecollector.utils import safe_read_file
+from filecollector.config import get_settings_path, load_settings, save_settings, get_common_phrases_path, load_common_phrases, save_common_phrases, get_merged_txt_path
 
 
 class FileCollectorEngine:
     def __init__(self):
-        self.work_dir = None
-        self.items = []
-        self.checked_paths = set()
-        self.use_absolute = False
-        self.show_header = False
-        self.project_file = None
+        self.work_dir: Path | None = None
+        self.items: list[ItemData] = []
+        self.checked_paths: set[str] = set()
+        self.use_absolute: bool = False
+        self.show_header: bool = False
+        self.common_phrases: list[str] = []
+        self.project_file: str | None = None
 
-    def add_file(self, abs_path_str, force_absolute=False):
+    # ------------------------------------------------------------------ Items
+    def add_file(self, abs_path_str: str, force_absolute: bool = False) -> None:
         self.items.append(ItemData(type_="file", path=abs_path_str, force_absolute=force_absolute))
         if not force_absolute:
             self.checked_paths.add(abs_path_str)
 
-    def add_text(self, content, index=None):
+    def add_text(self, content: str, index: int | None = None) -> None:
         item_data = ItemData(type_="text", content=content)
         if index is None or index >= len(self.items):
             self.items.append(item_data)
         else:
             self.items.insert(index, item_data)
 
-    def move_item(self, from_idx, to_idx):
+    def move_item(self, from_idx: int, to_idx: int) -> None:
         if 0 <= from_idx < len(self.items) and 0 <= to_idx < len(self.items):
             item = self.items.pop(from_idx)
             self.items.insert(to_idx, item)
 
-    def remove_item(self, index):
+    def remove_item(self, index: int) -> None:
         if 0 <= index < len(self.items):
             self.items.pop(index)
 
-    def remove_items_by_path(self, abs_path_str):
+    def remove_items_by_path(self, abs_path_str: str) -> None:
         self.items = [it for it in self.items if not (it.type == "file" and it.path == abs_path_str)]
 
-    def clear(self):
+    def clear(self) -> None:
         self.items.clear()
         self.checked_paths.clear()
+        self.common_phrases = []
 
     def list_items(self):
         result = []
@@ -51,12 +57,30 @@ class FileCollectorEngine:
                 tag = "绝对路径" if data.force_absolute else "相对路径"
                 result.append((i, "文件", f"{p.name} ({tag})"))
             else:
-                preview = data.content[:50] + ('...' if len(data.content) > 50 else '')
+                preview = data.content[:50] + ("..." if len(data.content) > 50 else "")
                 result.append((i, "文字", preview))
         return result
 
-    def export(self, file_path):
-        with open(file_path, 'w', encoding='utf-8') as f:
+    # ------------------------------------------------------------------ Undo helpers
+    def snapshot(self) -> dict:
+        return {
+            "items": [ItemData(type_=it.type, path=it.path, content=it.content, force_absolute=it.force_absolute) for it in self.items],  # deep copy
+            "checked_paths": set(self.checked_paths),
+            "use_absolute": self.use_absolute,
+            "show_header": self.show_header,
+        }
+
+    def restore(self, state: dict) -> None:
+        self.items = list(state["items"])
+        self.checked_paths = set(state["checked_paths"])
+        self.use_absolute = bool(state["use_absolute"])
+        self.show_header = bool(state["show_header"])
+
+    # ------------------------------------------------------------------ Export / clipboard target file
+    def export(self, file_path: str) -> None:
+        out_path = Path(file_path)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        with out_path.open("w", encoding="utf-8", errors="replace") as f:  # encoding容错
             if not self.use_absolute and self.show_header and self.work_dir:
                 f.write(f"# 工作目录绝对路径: {self.work_dir}\n\n")
 
@@ -84,52 +108,67 @@ class FileCollectorEngine:
                 else:
                     f.write(data.content)
 
-    def save(self, file_path):
+    # ------------------------------------------------------------------ Project I/O (Qt default: .project.json / GNOME: .fcol)
+    def _normalize_project_path(self, file_path: str) -> str:
+        if file_path.endswith(".project.json"):
+            return file_path
+        if not (file_path.endswith(".fcol") or file_path.endswith(".fcol.json")):
+            file_path += ".project.json" if not file_path.endswith(".json") else ""
+        return file_path
+
+    def save_project(self, file_path: str) -> None:
+        file_path = self._normalize_project_path(file_path)
         data = {
             "work_dir": str(self.work_dir) if self.work_dir else None,
             "use_absolute": self.use_absolute,
             "show_header": self.show_header,
-            "checked_files": list(self.checked_paths),
-            "items": []
+            "checked_entries": sorted(self.checked_paths),  # GNOME 联调用名
+            "items": [
+                {"type": "file", "path": it.path, "force_absolute": it.force_absolute}
+                if it.type == "file"
+                else {"type": "text", "content": it.content}
+                for it in self.items
+            ],
+            "common_phrases": self.common_phrases,  # 随项目保存，GNOME 兼容
         }
-        for item_data in self.items:
-            if item_data.type == "file":
-                data["items"].append({
-                    "type": "file",
-                    "path": item_data.path,
-                    "force_absolute": item_data.force_absolute
-                })
-            else:
-                data["items"].append({
-                    "type": "text",
-                    "content": item_data.content
-                })
-        with open(file_path, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
+        Path(file_path).write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        self.project_file = file_path
 
-    def load(self, file_path):
-        with open(file_path, 'r', encoding='utf-8') as f:
+    def load_project(self, file_path: str) -> None:
+        with open(file_path, "r", encoding="utf-8") as f:
             data = json.load(f)
+        self._apply_project_dict(data)
+        self.project_file = file_path
 
-        wd = data.get("work_dir")
+    def _apply_project_dict(self, data: dict) -> None:
+        wd = data.get("work_dir") or data.get("work_directory")  # GNOME v3 兼容字段
         self.work_dir = Path(wd).resolve() if wd and Path(wd).exists() else None
-
-        self.checked_paths = set()
-        for p_str in data.get("checked_files", []):
-            if os.path.exists(p_str):
-                self.checked_paths.add(p_str)
-
-        self.use_absolute = data.get("use_absolute", False)
-        self.show_header = data.get("show_header", False)
-
-        self.items.clear()
+        self.checked_paths = {p for p in data.get("checked_entries", data.get("checked_files", [])) if os.path.exists(p)}  # GNOME 兼容字段名
+        self.use_absolute = bool(data.get("use_absolute", False))
+        self.show_header = bool(data.get("show_header", False))
+        self.items = []
         for item_dict in data.get("items", []):
             if item_dict["type"] == "file":
                 p = item_dict["path"]
                 if not os.path.exists(p):
-                    it = ItemData("text", content=f"[缺失文件: {p}]")
+                    self.items.append(ItemData("text", content=f"[缺失文件: {p}]"))
                 else:
-                    it = ItemData("file", path=p, force_absolute=item_dict.get("force_absolute", False))
-                self.items.append(it)
+                    self.items.append(ItemData("file", path=p, force_absolute=item_dict.get("force_absolute", False)))
             else:
                 self.items.append(ItemData("text", content=item_dict["content"]))
+        phrases = data.get("common_phrases")
+        self.common_phrases = list(phrases) if isinstance(phrases, list) else []
+
+    # ------------------------------------------------------------------ Persistence helpers (not project file)
+    def save_settings(self, payload: dict | None = None) -> None:
+        if payload is not None:
+            save_settings(payload)
+
+    def load_settings(self) -> dict:
+        return load_settings()
+
+    def save_common_phrases_to_disk(self) -> None:
+        save_common_phrases(self.common_phrases)
+
+    def load_common_phrases_from_disk(self) -> None:
+        self.common_phrases = load_common_phrases()

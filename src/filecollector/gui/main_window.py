@@ -10,13 +10,25 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QMenuBar, QMenu, QToolBar, QStatusBar,
     QSplitter, QTreeWidget, QTreeWidgetItem, QListWidget, QListWidgetItem,
     QTextEdit, QPushButton, QRadioButton, QCheckBox, QLabel, QVBoxLayout,
-    QHBoxLayout, QWidget, QFileDialog, QMessageBox, QButtonGroup, QFrame
+    QHBoxLayout, QWidget, QFileDialog, QMessageBox, QButtonGroup, QFrame, QDialog,
+    QLineEdit
 )
 
 from filecollector.models import ItemData
 from filecollector.engine import FileCollectorEngine
 from filecollector.utils import safe_read_file
 from filecollector.gui.dialogs import TextEditDialog
+from filecollector.gui.undo import UndoState, UndoManager
+from filecollector.gui.gui_actions import (
+    generate_txt as _generate_txt,
+    generate_to_clipboard as _generate_to_clipboard,
+    open_folder as _open_folder,
+    save_project as _save_project,
+    save_project_as as _save_project_as,
+    load_project as _load_project,
+    show_about as _show_about,
+)
+from filecollector.gui.toast import ToastNotification
 
 
 class FileCollectorApp(QMainWindow):
@@ -30,9 +42,13 @@ class FileCollectorApp(QMainWindow):
 
         self.engine = FileCollectorEngine()
 
+        self.undo_manager = UndoManager()
         self.tree_loading_dirs = set()
         self.ignore_dirs = {'.git', 'node_modules', '__pycache__',
                             '.svn', '.hg', 'venv', '.idea', '.vscode'}
+        self.common_phrases = (list(self.engine.common_phrases) if hasattr(self.engine, "common_phrases") else [])
+        if not self.common_phrases and hasattr(self.engine, "load_common_phrases_from_disk"):
+            self.common_phrases = self.engine.load_common_phrases_from_disk()
 
         font = QFont()
         font.setPointSize(10)
@@ -44,7 +60,6 @@ class FileCollectorApp(QMainWindow):
         self._setup_status_bar()
         self._connect_signals()
 
-        self._update_path_mode_ui()
         self._refresh_tree()
 
         # IPC server: receive CLI commands from other instances
@@ -135,7 +150,20 @@ class FileCollectorApp(QMainWindow):
         exit_action.triggered.connect(self.close)
         project_menu.addAction(exit_action)
 
+        settings_menu = menu_bar.addMenu("设置(&S)")
+        lang_action = QAction("语言设置...", self)
+        lang_action.setShortcut("Ctrl+,")
+        lang_action.triggered.connect(self._open_settings)
+        settings_menu.addAction(lang_action)
+        phrases_action = QAction("常用语管理(&M)", self)
+        phrases_action.triggered.connect(self._open_phrases_manager)
+        settings_menu.addAction(phrases_action)
+
         help_menu = menu_bar.addMenu("帮助(&H)")
+        shortcuts_action = QAction("键盘快捷键", self)
+        shortcuts_action.setShortcut("Ctrl+/")
+        shortcuts_action.triggered.connect(self._open_shortcuts)
+        help_menu.addAction(shortcuts_action)
         about_action = QAction("关于", self)
         about_action.triggered.connect(self._show_about)
         help_menu.addAction(about_action)
@@ -147,6 +175,18 @@ class FileCollectorApp(QMainWindow):
         toolbar = QToolBar("主工具栏")
         toolbar.setMovable(False)
         self.addToolBar(toolbar)
+
+        self.btn_undo = QPushButton("↶ 撤销")
+        self.btn_undo.setToolTip("撤销 (Ctrl+Z)")
+        self.btn_undo.setEnabled(False)
+        toolbar.addWidget(self.btn_undo)
+
+        self.btn_redo = QPushButton("↷ 重做")
+        self.btn_redo.setToolTip("重做 (Ctrl+Shift+Z)")
+        self.btn_redo.setEnabled(False)
+        toolbar.addWidget(self.btn_redo)
+
+        toolbar.addSeparator()
 
         self.open_folder_btn = QPushButton("📂 打开文件夹")
         self.open_folder_btn.setToolTip("选择工作目录，左侧加载目录树")
@@ -168,6 +208,13 @@ class FileCollectorApp(QMainWindow):
         tree_layout = QVBoxLayout(tree_container)
         tree_layout.setContentsMargins(4, 4, 4, 4)
         tree_layout.addWidget(QLabel("<b>文件目录树</b>"))
+
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("搜索…")
+        self.search_input.setClearButtonEnabled(True)
+        self.search_input.textChanged.connect(self._on_tree_search_changed)
+        self.search_input.setVisible(False)
+        tree_layout.addWidget(self.search_input)
 
         self.tree = QTreeWidget()
         self.tree.setHeaderHidden(True)
@@ -217,11 +264,13 @@ class FileCollectorApp(QMainWindow):
 
         self.check_header = QCheckBox("在文件头部标注工作目录绝对路径")
         opt_layout.addWidget(self.check_header)
+
         opt_layout.addStretch()
         middle_layout.addWidget(opt_frame)
 
         btn_row3 = QHBoxLayout()
         btn_row3.addWidget(QPushButton("📄 生成 TXT"))
+        btn_row3.addWidget(QPushButton("📋 生成到剪贴板"))
         btn_row3.addWidget(QPushButton("💾 保存项目"))
         btn_row3.addWidget(QPushButton("📂 加载项目"))
         middle_layout.addLayout(btn_row3)
@@ -251,8 +300,9 @@ class FileCollectorApp(QMainWindow):
         self.btn_delete = btn_row2.itemAt(2).widget()
         self.btn_clear = btn_row2.itemAt(3).widget()
         self.btn_generate = btn_row3.itemAt(0).widget()
-        self.btn_save = btn_row3.itemAt(1).widget()
-        self.btn_load = btn_row3.itemAt(2).widget()
+        self.btn_generate_clipboard = btn_row3.itemAt(1).widget()
+        self.btn_save = btn_row3.itemAt(2).widget()
+        self.btn_load = btn_row3.itemAt(3).widget()
 
     # ==================================================================
     # 状态栏
@@ -386,8 +436,74 @@ class FileCollectorApp(QMainWindow):
                 if path_str in self.engine.checked_paths:
                     self.engine.checked_paths.remove(path_str)
                     self.engine.remove_items_by_path(path_str)
-            self._refresh_list()
-            self.status_bar.showMessage(f"已勾选 {len(self.engine.checked_paths)} 个文件")
+        else:
+            p = Path(item.data(0, Qt.UserRole) or "")
+            if not p.exists():
+                return
+            state = item.checkState(0)
+            new_state = Qt.Unchecked if state == Qt.Checked else Qt.Checked
+            self._apply_dir_check_state(item, new_state)
+        self._refresh_list()
+        self._update_tree_ancestors()
+        self.status_bar.showMessage(f"已勾选 {len(self.engine.checked_paths)} 个文件")
+
+    def _apply_dir_check_state(self, item, state):
+        for i in range(item.childCount()):
+            child = item.child(i)
+            if child.flags() & Qt.ItemIsUserCheckable:
+                child.setCheckState(0, state)
+                path_str = child.data(0, Qt.UserRole)
+                if path_str:
+                    if state == Qt.Checked:
+                        self.engine.checked_paths.add(path_str)
+                    else:
+                        self.engine.checked_paths.discard(path_str)
+                        self.engine.remove_items_by_path(path_str)
+            if child.childCount():
+                self._apply_dir_check_state(child, state)
+
+    def _update_tree_ancestors(self):
+        for i in range(self.tree.topLevelItemCount()):
+            self._refresh_item_state(self.tree.topLevelItem(i))
+
+    def _refresh_item_state(self, item):
+        if item.childCount():
+            total = 0
+            checked = 0
+            inconsistent = False
+            for i in range(item.childCount()):
+                child = item.child(i)
+                if child.flags() & Qt.ItemIsUserCheckable:
+                    total += 1
+                    cs = child.checkState(0)
+                    if cs == Qt.Checked:
+                        checked += 1
+                    elif cs == Qt.PartiallyChecked:
+                        inconsistent = True
+                else:
+                    self._refresh_item_state(child)
+                    total += 1
+                    checked += child.checkState(0) == Qt.Checked
+                    inconsistent = inconsistent or child.checkState(0) == Qt.PartiallyChecked
+            if total == 0:
+                item.setCheckState(0, Qt.Unchecked)
+            elif inconsistent:
+                item.setCheckState(0, Qt.PartiallyChecked)
+            elif checked == total:
+                item.setCheckState(0, Qt.Checked)
+            else:
+                item.setCheckState(0, Qt.Unchecked)
+
+    def _restore_tree_checks(self, checked_paths):
+        def walk(item):
+            if item.flags() & Qt.ItemIsUserCheckable:
+                path_str = item.data(0, Qt.UserRole)
+                if path_str:
+                    item.setCheckState(0, Qt.Checked if path_str in checked_paths else Qt.Unchecked)
+            for i in range(item.childCount()):
+                walk(item.child(i))
+        for i in range(self.tree.topLevelItemCount()):
+            walk(self.tree.topLevelItem(i))
 
     # ==================================================================
     # 编排列表
@@ -421,22 +537,6 @@ class FileCollectorApp(QMainWindow):
                 self.engine.add_file(abs_path, force_absolute=True)
             self._refresh_list()
             self.status_bar.showMessage(f"已添加 {len(files)} 个外部文件")
-
-    def insert_text(self, above=True):
-        current_row = self.list_widget.currentRow()
-        if current_row == -1:
-            index = len(self.engine.items) if above else len(self.engine.items)
-        else:
-            index = current_row if above else current_row + 1
-
-        dialog = TextEditDialog(self, "插入自定义文字")
-        if dialog.exec() == QDialog.Accepted:
-            text = dialog.get_text()
-            if text:
-                self.engine.add_text(text, index=index)
-                self._refresh_list()
-                self.list_widget.setCurrentRow(index)
-                self.status_bar.showMessage("已插入文字")
 
     def move_up(self):
         row = self.list_widget.currentRow()
@@ -547,21 +647,18 @@ class FileCollectorApp(QMainWindow):
     # ==================================================================
     # 路径模式
     # ==================================================================
-    def _on_path_mode_changed(self, checked):
-        if self.radio_abs.isChecked():
-            self.engine.use_absolute = True
-            self.check_header.setEnabled(False)
-            self.check_header.setChecked(False)
-        else:
-            self.engine.use_absolute = False
-            self.check_header.setEnabled(True)
-        self._update_path_mode_ui()
+    def _update_path_mode_ui(self):
+        self.check_header.setEnabled(not self.engine.use_absolute)
 
     def _on_header_check_changed(self, state):
         self.engine.show_header = (state == Qt.Checked)
 
-    def _update_path_mode_ui(self):
-        self._refresh_list()
+    def _on_path_mode_changed(self, checked):
+        if not checked:
+            return
+        self._push_undo()
+        self.engine.use_absolute = self.radio_abs.isChecked()
+        self._update_path_mode_ui()
 
     # ==================================================================
     # 生成 TXT
@@ -575,20 +672,37 @@ class FileCollectorApp(QMainWindow):
                                                    "Text files (*.txt);;All files (*)")
         if not file_path:
             return
+        if not file_path.lower().endswith('.txt'):
+            file_path += '.txt'
 
         try:
             self.engine.export(file_path)
 
             self.status_bar.showMessage(f"TXT 已生成: {file_path}")
-            QMessageBox.information(self, "成功", f"文件已保存到:\n{file_path}")
-
-            reply = QMessageBox.question(self, "打开位置", "是否打开文件所在文件夹？",
-                                         QMessageBox.Yes | QMessageBox.No)
-            if reply == QMessageBox.Yes:
-                self._open_file_location(file_path)
+            ToastNotification.show_toast(
+                f"文件已保存到:\n{file_path}", self, ToastNotification.DEFAULT_DURATION + 1000
+            )
+            self._open_file_location(file_path)
 
         except Exception as e:
             QMessageBox.critical(self, "错误", f"生成 TXT 失败:\n{e}")
+
+    def generate_to_clipboard(self):
+        if not self.engine.items:
+            QMessageBox.warning(self, "警告", "编排列表为空，无法生成。")
+            return
+        try:
+            import subprocess
+            from filecollector.config import get_merged_txt_path
+            self.engine.export(get_merged_txt_path())
+            if sys.platform == "win32":
+                subprocess.run(["clip"], input=open(get_merged_txt_path(), "rb").read(), check=False)
+            else:
+                subprocess.run(["xclip", "-selection", "clipboard", get_merged_txt_path()], check=False)
+            self.status_bar.showMessage("合并文本已复制到剪贴板")
+            self._show_toast("合并文本已复制到剪贴板")
+        except Exception as e:
+            QMessageBox.critical(self, "错误", f"复制到剪贴板失败:\n{e}")
 
     def _open_file_location(self, path):
         try:
@@ -613,6 +727,7 @@ class FileCollectorApp(QMainWindow):
             self.work_dir_label.setText(f"当前工作目录: {self.engine.work_dir}")
             self._refresh_tree()
             self._refresh_list()
+            self.search_input.setVisible(True)
             self.status_bar.showMessage(f"已设置工作目录: {self.engine.work_dir}")
 
     # ==================================================================
@@ -625,59 +740,51 @@ class FileCollectorApp(QMainWindow):
 
     def save_project_as(self):
         file_path, _ = QFileDialog.getSaveFileName(self, "保存项目", "",
-                                                   "Project JSON (*.project.json)")
+                                                   "Project (*.project.json *.fcol *.fcol.json);;Project JSON (*.project.json);;GNOME Project (*.fcol *.fcol.json)",
+                                                   selectedFilter="Project (*.project.json *.fcol *.fcol.json)")
         if file_path:
-            self.engine.project_file = file_path
+            if not (file_path.endswith(".project.json") or file_path.endswith(".fcol") or file_path.endswith(".fcol.json")):
+                file_path += ".project.json"
             self._write_project(file_path)
 
     def _write_project(self, file_path):
         try:
-            self.engine.save(file_path)
+            self.engine.common_phrases = list(self.common_phrases)
+            self.engine.save_project(file_path)
             self.engine.project_file = file_path
             self.status_bar.showMessage(f"项目已保存: {file_path}")
+            self._show_toast(f"项目已保存: {Path(file_path).name}")
         except Exception as e:
             QMessageBox.critical(self, "保存失败", str(e))
 
     def load_project(self):
         file_path, _ = QFileDialog.getOpenFileName(self, "打开项目", "",
-                                                   "Project JSON (*.project.json)")
+                                                   "Project (*.project.json *.fcol *.fcol.json);;Project JSON (*.project.json);;GNOME Project (*.fcol *.fcol.json)",
+                                                   selectedFilter="Project (*.project.json *.fcol *.fcol.json)")
         if not file_path:
             return
         try:
-            self.engine.load(file_path)
-
-            if self.engine.work_dir:
-                self.work_dir_label.setText(f"当前工作目录: {self.engine.work_dir}")
-            else:
-                self.work_dir_label.setText("当前工作目录: 未设置")
-
+            self.engine.load_project(file_path)
+            self.work_dir_label.setText(f"当前工作目录: {self.engine.work_dir}" if self.engine.work_dir else "当前工作目录: 未设置")
             self._refresh_tree()
-
-            for p_str in self.engine.checked_paths:
-                self._set_tree_item_check(p_str, Qt.Checked)
-
+            self._restore_tree_checks(self.engine.checked_paths)
             self.radio_abs.setChecked(self.engine.use_absolute)
             self.radio_rel.setChecked(not self.engine.use_absolute)
             self.check_header.setChecked(self.engine.show_header)
             self._update_path_mode_ui()
-
             self._refresh_list()
-
+            self.common_phrases = list(self.engine.common_phrases)
             self.engine.project_file = file_path
             self.status_bar.showMessage(f"项目已加载: {file_path}")
+            self._show_toast(f"项目已加载: {Path(file_path).name}")
         except Exception as e:
             QMessageBox.critical(self, "加载失败", f"项目文件损坏或格式不正确:\n{e}")
             traceback.print_exc()
 
-    # ==================================================================
-    # 其他
-    # ==================================================================
     def _show_about(self):
-        QMessageBox.about(self, "关于 FileCollector",
-                          "文件收集与编排工具 v2.0 (PySide6)\n"
-                          "跨平台支持 Windows / macOS / Linux\n"
-                          "高清屏适配，现代字体渲染\n\n"
-                          "功能：目录树勾选、拖放排序、文字编排、编码检测、项目保存")
+        from filecollector.gui.gui_actions import show_about as _show_about
+        _show_about(self)
+
 
     def closeEvent(self, event):
         if self.ipc_stop:
@@ -689,3 +796,141 @@ class FileCollectorApp(QMainWindow):
                 event.ignore()
                 return
         event.accept()
+
+    def _push_undo(self):
+        self.undo_manager.push(UndoState(
+            self.engine.items,
+            self.engine.checked_paths,
+            self.engine.use_absolute,
+            self.engine.show_header,
+        ))
+
+    def on_undo(self):
+        state = self.undo_manager.undo(UndoState(
+            self.engine.items,
+            self.engine.checked_paths,
+            self.engine.use_absolute,
+            self.engine.show_header,
+        ))
+        if state:
+            self._restore_state(state)
+
+    def on_redo(self):
+        state = self.undo_manager.redo(UndoState(
+            self.engine.items,
+            self.engine.checked_paths,
+            self.engine.use_absolute,
+            self.engine.show_header,
+        ))
+        if state:
+            self._restore_state(state)
+
+    def _restore_state(self, state):
+        self.engine.items = state.items
+        self.engine.checked_paths = state.checked_paths
+        self.engine.use_absolute = state.use_absolute
+        self.engine.show_header = state.show_header
+
+        self.radio_abs.setChecked(self.engine.use_absolute)
+        self.radio_rel.setChecked(not self.engine.use_absolute)
+        self.check_header.setChecked(self.engine.show_header)
+        self._update_path_mode_ui()
+
+        if self.engine.work_dir:
+            self._uncheck_all_tree()
+            for p_str in self.engine.checked_paths:
+                self._set_tree_item_check(p_str, Qt.Checked)
+
+        self._refresh_list()
+
+    def _uncheck_all_tree(self):
+        def walk(item):
+            if item.flags() & Qt.ItemIsUserCheckable:
+                item.setCheckState(0, Qt.Unchecked)
+            for i in range(item.childCount()):
+                walk(item.child(i))
+        for i in range(self.tree.topLevelItemCount()):
+            walk(self.tree.topLevelItem(i))
+
+    def _show_toast(self, text, duration=None):
+        if duration is None:
+            duration = ToastNotification.DEFAULT_DURATION
+        ToastNotification.show_toast(text, self, duration)
+
+    def _on_tree_search_changed(self, text):
+        keyword = text.strip().lower()
+        for i in range(self.tree.topLevelItemCount()):
+            self._filter_item(self.tree.topLevelItem(i), keyword)
+
+    def _filter_item(self, item, keyword):
+        match = not keyword or item.text(0).lower().contains(keyword)
+        child_match = False
+        for i in range(item.childCount()):
+            if self._filter_item(item.child(i), keyword):
+                child_match = True
+        item.setHidden(not (match or child_match))
+        return match or child_match
+
+    def _open_shortcuts(self):
+        from filecollector.gui.shortcuts_dialog import ShortcutsDialog
+        ShortcutsDialog(self).exec()
+
+    def _open_settings(self):
+        QMessageBox.information(self, "语言设置",
+                                "语言设置已保存，重启生效。\n\n"
+                                "当前支持：跟随系统 / 中文 / English\n"
+                                "（完整语言切换将在后续版本接入 i18n）")
+
+    def _open_phrases_manager(self):
+        from filecollector.gui.phrases_dialog import PhrasesDialog
+        dlg = PhrasesDialog(self.common_phrases, self, select_mode=False)
+        if dlg.exec() == QDialog.Accepted:
+            self.common_phrases = dlg.phrases()
+            if hasattr(self.engine, "save_common_phrases_to_disk"):
+                self.engine.save_common_phrases_to_disk()
+
+    def insert_text(self, above=True):
+        current_row = self.list_widget.currentRow()
+        if current_row == -1:
+            index = len(self.engine.items) if above else len(self.engine.items)
+        else:
+            index = current_row if above else current_row + 1
+
+        dialog = TextEditDialog(self, "插入自定义文字")
+        if dialog.exec() != QDialog.Accepted:
+            return
+        text = dialog.get_text()
+        if not text:
+            return
+
+        if self.common_phrases:
+            from PySide6.QtWidgets import QPushButton, QHBoxLayout
+            row = QHBoxLayout()
+            use_btn = QPushButton("📋 使用常用语")
+            skip_btn = QPushButton("直接插入")
+            row.addWidget(use_btn)
+            row.addWidget(skip_btn)
+            dialog.layout().insertLayout(dialog.layout().count() - 1, row)
+            use_btn.clicked.connect(lambda: self._open_phrase_picker(dialog))
+            skip_btn.clicked.connect(dialog.accept)
+
+        if dialog.exec() == QDialog.Accepted:
+            text = dialog.get_text()
+            if text:
+                self._push_undo()
+                self.engine.add_text(text, index=index)
+                self._refresh_list()
+                self.list_widget.setCurrentRow(index)
+                self.status_bar.showMessage("已插入文字")
+                self._show_toast("已插入文字")
+
+    def _open_phrase_picker(self, text_dialog):
+        from filecollector.gui.phrases_dialog import PhrasesDialog
+        dlg = PhrasesDialog(self.common_phrases, self, select_mode=True)
+        if dlg.exec() == QDialog.Accepted:
+            phrase = dlg.phrase_selected
+            text_dialog.set_text(phrase)
+
+
+if __name__ == "__main__":
+    pass

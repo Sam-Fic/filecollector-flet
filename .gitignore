@@ -2,6 +2,7 @@
 __pycache__/
 *.py[cod]
 *$py.class
+*.pyo
 *.so
 .Python
 build/
@@ -27,3 +28,18 @@ Thumbs.db
 
 # Project specific
 *.project.json
+
+# Build & packaging
+*.spec
+*.manifest
+
+# Testing & coverage
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+
+# Lint / type-check caches
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
