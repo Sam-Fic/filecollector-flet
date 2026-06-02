@@ -15,7 +15,7 @@ def generate_txt(window, engine):
         QMessageBox.warning(window, "警告", "编排列表为空，无法生成。")
         return
 
-    file_path, _ = QFileDialog.getSaveFileName(
+    file_path, _selected = QFileDialog.getSaveFileName(
         window, "保存合并文本", "",
         "Text files (*.txt);;All files (*)"
     )
@@ -109,7 +109,7 @@ _OPEN_FILTER = "Project (*.project.json *.fcol *.fcol.json);;Project JSON (*.pro
 
 
 def _pick_save_path(window, engine):
-    file_path, _ = QFileDialog.getSaveFileName(
+    file_path, _selected = QFileDialog.getSaveFileName(
         window, "保存项目", engine.project_file or "",
         _SAVE_FILTER,
         selectedFilter="Project (*.project.json *.fcol *.fcol.json)"
@@ -143,7 +143,7 @@ def _write_project(window, engine, file_path):
 
 
 def load_project(window, engine):
-    file_path, _ = QFileDialog.getOpenFileName(
+    file_path, _selected = QFileDialog.getOpenFileName(
         window, "打开项目", "",
         _OPEN_FILTER,
         selectedFilter="Project (*.project.json *.fcol *.fcol.json)"
