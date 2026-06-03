@@ -13,6 +13,10 @@ It features a checkable directory tree, flexible organization list, text inserti
 
 ---
 
+## 📖 Usage Guide
+
+For the usage process and tips of the graphical interface, please refer to the [Usage Guide](docs/USAGE_EN.md).
+
 ## ✨ Features
 
 - 💻 **Command-Line Mode (CLI)**: Supports all core operations via terminal commands, ideal for scripting and automation.
