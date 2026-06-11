@@ -1,19 +1,14 @@
-"""语言设置对话框 (替换原有占位 MessageBox).
+"""语言设置对话框.
 
-提供 跟随系统 / 中文 / English 三个互斥选项, 选中后写入配置文件.
-选择立即重启时使用 QProcess 启动新进程并退出当前进程.
+提供 跟随系统 / 中文 / English 三个互斥选项, 选中后写入配置文件并立即生效.
 """
 
 from __future__ import annotations
 
-import os
-import sys
-from pathlib import Path
-
-from PySide6.QtCore import Qt, QProcess
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QButtonGroup, QRadioButton,
-    QDialogButtonBox, QLabel, QFrame, QMessageBox, QApplication,
+    QDialogButtonBox, QLabel, QFrame,
 )
 
 from filecollector.i18n import _, get_language, set_language
@@ -103,32 +98,4 @@ class SettingsDialog(QDialog):
         settings["language"] = new_lang
         save_settings(settings)
         set_language(new_lang, notify=True)
-
-        reply = QMessageBox.question(
-            self,
-            _("提示"),
-            _("语言设置已保存，重启应用后生效。是否现在重启？"),
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.Yes,
-        )
-        if reply == QMessageBox.Yes:
-            self._restart_application()
-            return
         self.accept()
-
-    def _restart_application(self) -> None:
-        """使用 QProcess 启动新进程并退出当前进程."""
-        try:
-            self.accept()
-            python = sys.executable
-            script = os.path.abspath(
-                os.path.join(os.path.dirname(__file__), "..", "__main__.py")
-            )
-            src_dir = os.path.abspath(
-                os.path.join(os.path.dirname(__file__), "..", "..")
-            )
-            code = "import site,sys;site.addsitedir(r'" + src_dir + "');exec(open(r'" + script + "').read())"
-            QProcess.startDetached(python, ["-c", code])
-        except Exception:
-            pass
-        QApplication.quit()
