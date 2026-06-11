@@ -15,6 +15,14 @@ def get_merged_txt_path() -> str:
     return os.path.join(_ensure_dir(), "merged.txt")
 
 
+def get_clipboard_staging_path(work_dir: Path | None) -> str:
+    if work_dir is None:
+        work_dir = Path(_ensure_dir())
+    staging_dir = Path(work_dir) / ".fc-clipboard"
+    staging_dir.mkdir(parents=True, exist_ok=True)
+    return str(staging_dir / "merged.txt")
+
+
 def get_settings_path() -> str:
     return os.path.join(_ensure_dir(), "settings.json")
 

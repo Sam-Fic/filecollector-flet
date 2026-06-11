@@ -1,6 +1,5 @@
 import os
 import sys
-import tempfile
 import traceback
 from pathlib import Path
 
@@ -47,19 +46,9 @@ def generate_to_clipboard(window, engine):
         return
     try:
         import subprocess
+        from filecollector.config import get_clipboard_staging_path
 
-        if sys.platform == "linux":
-            file_path = os.path.join(
-                os.path.expanduser("~/.config/filecollector"), "merged.txt"
-            )
-        else:
-            tmp = tempfile.NamedTemporaryFile(
-                delete=False, suffix=".txt", mode="w", encoding="utf-8"
-            )
-            file_path = tmp.name
-            tmp.close()
-
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        file_path = get_clipboard_staging_path(engine.work_dir)
         engine.export(file_path)
 
         if sys.platform == "win32":

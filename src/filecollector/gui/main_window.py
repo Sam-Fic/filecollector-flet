@@ -799,8 +799,8 @@ class FileCollectorApp(QMainWindow):
             QMessageBox.warning(self, _("警告"), _("编排列表为空，无法生成。"))
             return
         try:
-            from filecollector.config import get_merged_txt_path
-            file_path = get_merged_txt_path()
+            from filecollector.config import get_clipboard_staging_path
+            file_path = get_clipboard_staging_path(self.engine.work_dir)
             self.engine.export(file_path)
             import subprocess
             if sys.platform == "win32":
