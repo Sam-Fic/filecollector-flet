@@ -908,9 +908,8 @@ class FileCollectorApp(QMainWindow):
         QMessageBox.about(
             self, _("关于 FileCollector"),
             "<h3>FileCollector</h3>"
-            "<p>" + _("文件收集与编排工具 (PySide6 + GNOME UX 移植版)") + "</p>"
-            "<p>" + _("跨平台支持 Windows / macOS / Linux，"
-                     "基于 PySide6 与 GTK4 UX 移植，提供原生 GNOME 风格体验。") + "</p>"
+            "<p>" + _("文件收集与编排工具") + "</p>"
+            "<p>" + _("跨平台支持 Windows / macOS / Linux。") + "</p>"
             "<p><b>" + _("主要功能：") + "</b></p>"
             "<ul>"
             "<li>" + _("📂 目录树浏览 + 多选勾选") + "</li>"

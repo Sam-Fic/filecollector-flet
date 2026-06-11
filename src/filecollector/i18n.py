@@ -131,10 +131,9 @@ _lock = threading.Lock()
     "立即重启": "Restart Now",
     "语言设置已保存，重启生效。\n\n当前支持：跟随系统 / 中文 / English": "Language setting saved. Restart to apply.\n\nSupported: Follow System / 中文 / English",
     "关于 FileCollector": "About FileCollector",
-    "文件收集与编排工具 (PySide6 + GNOME UX 移植版)": "File collection & arrangement tool (PySide6 + GNOME UX port)",
-    "跨平台支持 Windows / macOS / Linux，"
-    "基于 PySide6 与 GTK4 UX 移植，提供原生 GNOME 风格体验。":
-        "Cross-platform: Windows / macOS / Linux. PySide6 + GTK4 UX port with native GNOME look & feel.",
+    "文件收集与编排工具": "File collection & arrangement tool",
+    "跨平台支持 Windows / macOS / Linux。":
+        "Cross-platform: Windows / macOS / Linux.",
     "主要功能：": "Key features:",
     "📂 目录树浏览 + 多选勾选": "📂 Directory tree browsing with multi-select",
     "📋 拖放排序 + 撤销 / 重做": "📋 Drag & drop reordering with undo/redo",
