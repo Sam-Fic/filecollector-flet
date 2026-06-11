@@ -675,6 +675,25 @@ class FileTreeWidget(QTreeWidget):
             self._loading = False
         self.checked_files_changed.emit()
 
+    def refresh_all_ancestor_states(self) -> None:
+        """从叶子向上重新计算所有文件夹的三态状态."""
+        self._loading = True
+        try:
+            self._refresh_ancestors_recursive(self.invisibleRootItem())
+        finally:
+            self._loading = False
+
+    def _refresh_ancestors_recursive(self, item: QTreeWidgetItem) -> None:
+        for i in range(item.childCount()):
+            child = item.child(i)
+            if child.data(0, ROLE_IS_PLACEHOLDER):
+                continue
+            if child.data(0, ROLE_IS_DIR):
+                self._refresh_ancestors_recursive(child)
+                new_state = self._calculate_dir_state(child)
+                if child.checkState(0) != new_state:
+                    child.setCheckState(0, new_state)
+
     def _set_all_states_recursive(
         self, item: QTreeWidgetItem, state: Qt.CheckState
     ) -> None:

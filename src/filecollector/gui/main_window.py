@@ -670,6 +670,7 @@ class FileCollectorApp(QMainWindow):
         self._push_undo()
         for path in list(self.engine.checked_paths):
             self._set_tree_item_check(path, Qt.Unchecked)
+        self.tree.refresh_all_ancestor_states()
         self.engine.clear()
         self._refresh_list()
         self.status_bar.showMessage(_("编排列表已清空"))
@@ -677,7 +678,7 @@ class FileCollectorApp(QMainWindow):
     def _set_tree_item_check(self, abs_path: str, state: Qt.CheckState):
         def search(item):
             if item.flags() & Qt.ItemIsUserCheckable:
-                if item.data(0, Qt.UserRole) == abs_path:
+                if item.data(0, Qt.UserRole + 1) == abs_path:
                     item.setCheckState(0, state)
                     return True
             for i in range(item.childCount()):
