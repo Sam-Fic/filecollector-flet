@@ -198,9 +198,8 @@ QListWidget::item:selected {
 
 /* ---- 预览文本 ---- */
 QTextEdit#PreviewView {
-    background-color: #fafaf9;
-    border: 1px solid #ece9e5;
-    border-radius: 6px;
+    background: transparent;
+    border: none;
     padding: 8px 12px;
     font-family: 'Monospace', 'Courier New';
     font-size: 12px;
