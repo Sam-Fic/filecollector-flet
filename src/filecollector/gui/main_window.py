@@ -802,7 +802,7 @@ class FileCollectorApp(QMainWindow):
             return
         try:
             from filecollector.config import get_clipboard_staging_path
-            file_path = get_clipboard_staging_path(self.engine.work_dir)
+            file_path = get_clipboard_staging_path()
             self.engine.export(file_path)
             import subprocess
             if sys.platform == "win32":

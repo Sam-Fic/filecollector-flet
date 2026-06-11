@@ -48,7 +48,7 @@ def generate_to_clipboard(window, engine):
         import subprocess
         from filecollector.config import get_clipboard_staging_path
 
-        file_path = get_clipboard_staging_path(engine.work_dir)
+        file_path = get_clipboard_staging_path()
         engine.export(file_path)
 
         if sys.platform == "win32":
