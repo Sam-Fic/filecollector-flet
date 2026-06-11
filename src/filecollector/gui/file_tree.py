@@ -529,11 +529,23 @@ class FileTreeWidget(QTreeWidget):
             if not child.text(0):
                 continue
             if child.data(0, ROLE_IS_DIR):
+                self._eagerly_load_dir(child)
                 self._propagate_dir_state_impl(child, state, changed_items)
             if child.checkState(0) != state:
                 child.setCheckState(0, state)
                 if changed_items is not None:
                     changed_items.append(child)
+
+    def _eagerly_load_dir(self, dir_item: QTreeWidgetItem) -> None:
+        dir_path_str = dir_item.data(0, ROLE_PATH)
+        if not dir_path_str or dir_path_str in self._loaded_dirs:
+            return
+        dir_path = Path(dir_path_str)
+        if not dir_path.is_dir():
+            return
+        self._remove_placeholder(dir_item)
+        self._populate_dir(dir_item, dir_path)
+        self._loaded_dirs.add(dir_path_str)
 
     def _update_ancestor_states(self, item: QTreeWidgetItem) -> None:
         """反向计算所有祖先文件夹的状态 (系统级, 静默)."""
