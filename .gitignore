@@ -28,6 +28,7 @@ Thumbs.db
 
 # Project specific
 *.project.json
+.fc-clipboard/
 
 # Build & packaging
 *.spec
