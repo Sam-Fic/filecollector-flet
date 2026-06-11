@@ -28,6 +28,7 @@ QLabel#PanelTitle {
     padding: 12px 12px 8px 12px;
     background: transparent;
     border: none;
+    qproperty-alignment: AlignCenter;
 }
 
 /* ---- 工具栏 ---- */
