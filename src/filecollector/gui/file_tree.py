@@ -63,14 +63,10 @@ class _TriStateCheckBoxDelegate(QStyledItemDelegate):
             check_state = opt.checkState
 
         rect = opt.rect
-        bg_brush = None
         if opt.state & QStyle.State_Selected:
-            bg_brush = QColor(28, 113, 216, 40)
+            painter.fillRect(rect, QColor(28, 113, 216, 40))
         elif opt.state & QStyle.State_MouseOver:
-            bg_brush = QColor(28, 113, 216, 16)
-
-        if bg_brush is not None:
-            painter.fillRect(rect, bg_brush)
+            painter.fillRect(rect, QColor(28, 113, 216, 16))
 
         if is_checkable:
             cb_size = self.SIZE
@@ -237,8 +233,12 @@ class FileTreeWidget(QTreeWidget):
     # Branch indicator (折叠/展开箭头) 自绘
     # ------------------------------------------------------------------
     def drawBranches(self, painter: QPainter, rect: QRect, index) -> None:
+        painter.fillRect(rect, QColor("#ffffff"))
+
         item = self.itemFromIndex(index)
-        if item is None or not item.data(0, ROLE_IS_DIR):
+        if item is None:
+            return
+        if not item.data(0, ROLE_IS_DIR):
             return
         if item.childCount() == 0:
             return
@@ -246,11 +246,10 @@ class FileTreeWidget(QTreeWidget):
         painter.save()
         painter.setRenderHint(QPainter.Antialiasing, True)
 
-        if item is self._hovered_item:
-            painter.fillRect(rect, QColor(28, 113, 216, 16))
-
         is_expanded = item.isExpanded()
-        cx = rect.x() + int(rect.width() * 0.45)
+        padding = _TriStateCheckBoxDelegate.PADDING
+        arrow_size = 6
+        cx = rect.right() - padding - arrow_size // 2
         cy = rect.y() + rect.height() // 2
         painter.setPen(Qt.NoPen)
         painter.setBrush(QColor("#8a8a8a"))
@@ -286,12 +285,7 @@ class FileTreeWidget(QTreeWidget):
         QTreeWidget::item {
             padding: 4px 4px;
             border-radius: 4px;
-        }
-        QTreeWidget::item:hover {
-            background-color: rgba(28, 113, 216, 0.08);
-        }
-        QTreeWidget::item:selected {
-            background-color: rgba(28, 113, 216, 0.20);
+            background: transparent;
         }
         QTreeView::branch {
             background: transparent;
