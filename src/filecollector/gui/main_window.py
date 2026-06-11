@@ -438,9 +438,9 @@ class FileCollectorApp(QMainWindow):
         self.status_bar.showMessage(_("就绪"))
 
     def _apply_button_height(self):
-        """统一所有按钮的最小高度, 避免不同 padding 导致视觉高度不一."""
+        """统一所有按钮高度, 避免不同 padding 导致视觉高度不一."""
         for btn in self.findChildren(QPushButton):
-            btn.setMinimumHeight(self.BUTTON_HEIGHT)
+            btn.setFixedHeight(self.BUTTON_HEIGHT)
 
     # ==================================================================
     # 信号连接
