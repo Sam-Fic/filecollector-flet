@@ -25,7 +25,7 @@ QFrame#RightPanel {
 QLabel#PanelTitle {
     font-weight: bold;
     color: #2e2e2e;
-    padding: 12px 12px 8px 12px;
+    padding: 10px 12px 10px 12px;
     background: transparent;
     border: none;
     qproperty-alignment: AlignCenter;
@@ -179,13 +179,12 @@ QListWidget {
     background: transparent;
     border: none;
     outline: 0;
-    padding: 2px;
+    padding: 0px;
 }
 
 QListWidget::item {
     padding: 6px 8px;
     border-radius: 6px;
-    margin: 1px 0;
 }
 
 QListWidget::item:hover {
@@ -201,7 +200,7 @@ QListWidget::item:selected {
 QTextEdit#PreviewView {
     background: transparent;
     border: none;
-    padding: 8px 12px;
+    padding: 0px 12px;
     font-size: 12px;
     color: #2e2e2e;
     selection-background-color: #1c71d8;
