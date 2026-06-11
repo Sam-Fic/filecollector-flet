@@ -82,7 +82,9 @@ class SettingsDialog(QDialog):
 
     def _load_current(self) -> None:
         settings = load_settings()
-        lang = settings.get("language", "") or get_language()
+        lang = settings.get("language", None)
+        if lang is None:
+            lang = get_language()
         if lang == "zh_CN":
             self._radio_zh.setChecked(True)
         elif lang == "en":
@@ -122,7 +124,11 @@ class SettingsDialog(QDialog):
             script = os.path.abspath(
                 os.path.join(os.path.dirname(__file__), "..", "__main__.py")
             )
-            QProcess.startDetached(python, [script])
+            src_dir = os.path.abspath(
+                os.path.join(os.path.dirname(__file__), "..", "..")
+            )
+            code = "import site,sys;site.addsitedir(r'" + src_dir + "');exec(open(r'" + script + "').read())"
+            QProcess.startDetached(python, ["-c", code])
         except Exception:
             pass
         QApplication.quit()
