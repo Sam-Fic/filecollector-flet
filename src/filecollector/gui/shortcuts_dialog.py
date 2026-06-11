@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 
 from filecollector.i18n import _
+from filecollector.config import BUTTON_HEIGHT
 
 
 def _build_shortcut_groups():
@@ -80,5 +81,6 @@ class ShortcutsDialog(QDialog):
 
         close_btn = QDialogButtonBox(QDialogButtonBox.Close)
         close_btn.button(QDialogButtonBox.Close).setText(_("关闭"))
+        close_btn.button(QDialogButtonBox.Close).setFixedHeight(BUTTON_HEIGHT)
         close_btn.clicked.connect(self.accept)
         root.addWidget(close_btn)

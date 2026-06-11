@@ -49,7 +49,7 @@ QToolBar QPushButton {
     background: transparent;
     border: 1px solid transparent;
     border-radius: 6px;
-    padding: 4px 10px;
+    padding: 4px 12px;
 }
 
 QToolBar QPushButton:hover {
@@ -70,7 +70,7 @@ QPushButton#SuggestedAction {
     color: #ffffff;
     border: 1px solid #1a68c2;
     border-radius: 6px;
-    padding: 6px 14px;
+    padding: 6px 12px;
     font-weight: 600;
 }
 
@@ -94,7 +94,7 @@ QPushButton#DestructiveAction {
     color: #ffffff;
     border: 1px solid #b01a25;
     border-radius: 6px;
-    padding: 6px 14px;
+    padding: 6px 12px;
 }
 
 QPushButton#DestructiveAction:hover {
@@ -116,7 +116,7 @@ QPushButton#FlatButton {
     background: transparent;
     border: 1px solid transparent;
     border-radius: 6px;
-    padding: 4px 10px;
+    padding: 4px 12px;
 }
 
 QPushButton#FlatButton:hover {

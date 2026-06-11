@@ -4,6 +4,7 @@ from pathlib import Path
 
 
 APP_DIR = os.path.join(os.path.expanduser("~/.config"), "filecollector")
+BUTTON_HEIGHT = 28
 
 
 def _ensure_dir() -> str:

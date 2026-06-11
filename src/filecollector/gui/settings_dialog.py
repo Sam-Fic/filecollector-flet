@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
 )
 
 from filecollector.i18n import _, get_language, set_language
-from filecollector.config import save_settings, load_settings
+from filecollector.config import save_settings, load_settings, BUTTON_HEIGHT
 
 
 class SettingsDialog(QDialog):
@@ -74,6 +74,8 @@ class SettingsDialog(QDialog):
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         buttons.button(QDialogButtonBox.Ok).setText(_("确定"))
         buttons.button(QDialogButtonBox.Cancel).setText(_("取消"))
+        for btn in buttons.buttons():
+            btn.setFixedHeight(BUTTON_HEIGHT)
         buttons.accepted.connect(self._on_accept)
         buttons.rejected.connect(self.reject)
         root.addWidget(buttons)

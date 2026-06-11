@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 )
 
 from filecollector.i18n import _
+from filecollector.config import BUTTON_HEIGHT
 
 
 class TextEditDialog(QDialog):
@@ -53,13 +54,16 @@ class TextEditDialog(QDialog):
         if self._show_phrases_button:
             self.phrases_btn = QPushButton(_("常用语"))
             self.phrases_btn.setObjectName("FlatButton")
+            self.phrases_btn.setFixedHeight(BUTTON_HEIGHT)
             self.phrases_btn.clicked.connect(self._open_phrases_picker)
             row.addWidget(self.phrases_btn)
         row.addStretch()
         self.cancel_btn = QPushButton(_("取消"))
+        self.cancel_btn.setFixedHeight(BUTTON_HEIGHT)
         self.cancel_btn.clicked.connect(self.reject)
         self.ok_btn = QPushButton(_("确定"))
         self.ok_btn.setObjectName("SuggestedAction")
+        self.ok_btn.setFixedHeight(BUTTON_HEIGHT)
         self.ok_btn.setDefault(True)
         self.ok_btn.clicked.connect(self.accept)
         row.addWidget(self.cancel_btn)

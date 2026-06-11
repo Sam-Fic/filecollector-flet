@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
 )
 
 from filecollector.i18n import _
-from filecollector.config import get_common_phrases_path
+from filecollector.config import get_common_phrases_path, BUTTON_HEIGHT
 
 
 class PhrasesDialog(QDialog):
@@ -61,11 +61,14 @@ class PhrasesDialog(QDialog):
         if self._select_mode:
             row = QHBoxLayout()
             self._btn_new = QPushButton(_("添加"))
+            self._btn_new.setFixedHeight(BUTTON_HEIGHT)
             self._btn_new.clicked.connect(self._on_add)
             cancel_btn = QPushButton(_("取消"))
+            cancel_btn.setFixedHeight(BUTTON_HEIGHT)
             cancel_btn.clicked.connect(self.reject)
             ok_btn = QPushButton(_("确定"))
             ok_btn.setObjectName("SuggestedAction")
+            ok_btn.setFixedHeight(BUTTON_HEIGHT)
             ok_btn.clicked.connect(self._on_accept)
             row.addWidget(self._btn_new)
             row.addStretch()
@@ -75,13 +78,17 @@ class PhrasesDialog(QDialog):
         else:
             row = QHBoxLayout()
             self._btn_new = QPushButton(_("添加"))
+            self._btn_new.setFixedHeight(BUTTON_HEIGHT)
             self._btn_new.clicked.connect(self._on_add)
             self._btn_edit = QPushButton(_("编辑"))
+            self._btn_edit.setFixedHeight(BUTTON_HEIGHT)
             self._btn_edit.clicked.connect(self._on_edit)
             self._btn_delete = QPushButton(_("删除"))
             self._btn_delete.setObjectName("DestructiveAction")
+            self._btn_delete.setFixedHeight(BUTTON_HEIGHT)
             self._btn_delete.clicked.connect(self._on_delete)
             self._btn_close = QPushButton(_("关闭"))
+            self._btn_close.setFixedHeight(BUTTON_HEIGHT)
             self._btn_close.clicked.connect(self.accept)
             row.addWidget(self._btn_new)
             row.addWidget(self._btn_edit)
@@ -178,9 +185,11 @@ class PhrasesDialog(QDialog):
         row = QHBoxLayout()
         row.addStretch()
         cancel_btn = QPushButton(_("取消"))
+        cancel_btn.setFixedHeight(BUTTON_HEIGHT)
         cancel_btn.clicked.connect(dlg.reject)
         ok_btn = QPushButton(_("确定"))
         ok_btn.setObjectName("SuggestedAction")
+        ok_btn.setFixedHeight(BUTTON_HEIGHT)
         ok_btn.setDefault(True)
         ok_btn.clicked.connect(dlg.accept)
         row.addWidget(cancel_btn)
