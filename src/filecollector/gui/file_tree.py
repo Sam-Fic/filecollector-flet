@@ -417,6 +417,7 @@ class FileTreeWidget(QTreeWidget):
             self._apply_pending_to_loaded(item)
         finally:
             self._loading = False
+        self._update_ancestor_states(item)
 
     def _apply_pending_to_loaded(self, item: QTreeWidgetItem) -> None:
         """将 _pending_checked 中已可见的路径应用到树."""
@@ -508,12 +509,18 @@ class FileTreeWidget(QTreeWidget):
         """将文件夹 state 递归应用到所有后代文件 (系统级, 静默)."""
         self.blockSignals(True)
         try:
-            self._propagate_dir_state_impl(dir_item, state)
+            changed_items: list[QTreeWidgetItem] = []
+            self._propagate_dir_state_impl(dir_item, state, changed_items)
         finally:
             self.blockSignals(False)
+        for item in changed_items:
+            idx = self.indexFromItem(item, 0)
+            if idx.isValid():
+                self.model().dataChanged.emit(idx, idx, [Qt.CheckStateRole])
 
     def _propagate_dir_state_impl(
-        self, dir_item: QTreeWidgetItem, state: Qt.CheckState
+        self, dir_item: QTreeWidgetItem, state: Qt.CheckState,
+        changed_items: list[QTreeWidgetItem] | None = None,
     ) -> None:
         for i in range(dir_item.childCount()):
             child = dir_item.child(i)
@@ -522,46 +529,54 @@ class FileTreeWidget(QTreeWidget):
             if not child.text(0):
                 continue
             if child.data(0, ROLE_IS_DIR):
-                self._propagate_dir_state_impl(child, state)
-            child.setCheckState(0, state)
+                self._propagate_dir_state_impl(child, state, changed_items)
+            if child.checkState(0) != state:
+                child.setCheckState(0, state)
+                if changed_items is not None:
+                    changed_items.append(child)
 
     def _update_ancestor_states(self, item: QTreeWidgetItem) -> None:
         """反向计算所有祖先文件夹的状态 (系统级, 静默)."""
         parent = item.parent()
         if parent is None:
             return
+        changed_items: list[QTreeWidgetItem] = []
         self.blockSignals(True)
         try:
             while parent is not None and parent.data(0, ROLE_IS_DIR):
                 new_state = self._calculate_dir_state(parent)
                 if parent.checkState(0) != new_state:
                     parent.setCheckState(0, new_state)
+                    changed_items.append(parent)
                 parent = parent.parent()
         finally:
             self.blockSignals(False)
+        for ci in changed_items:
+            idx = self.indexFromItem(ci, 0)
+            if idx.isValid():
+                self.model().dataChanged.emit(idx, idx, [Qt.CheckStateRole])
+                self.update(idx)
 
     def _calculate_dir_state(self, dir_item: QTreeWidgetItem) -> Qt.CheckState:
-        """基于所有后代文件 (叶子) 的状态计算文件夹状态.
-
-        如果存在尚未加载的子目录, 其状态视为未知, 父目录应展示为
-        PartiallyChecked.
-        """
+        """基于所有已加载后代文件 (叶子) 的状态计算文件夹状态."""
         states: list[Qt.CheckState] = []
-        if not self._collect_leaf_states(dir_item, states):
-            return Qt.PartiallyChecked
+        all_loaded = self._collect_leaf_states(dir_item, states)
         if not states:
             return Qt.Unchecked
         checked = sum(1 for s in states if s == Qt.Checked)
         if checked == 0:
             return Qt.Unchecked
         if checked == len(states):
+            if not all_loaded:
+                return Qt.PartiallyChecked
             return Qt.Checked
         return Qt.PartiallyChecked
 
     def _collect_leaf_states(
         self, item: QTreeWidgetItem, states: list[Qt.CheckState]
     ) -> bool:
-        """返回 False 表示存在未加载的子目录, 状态不确定."""
+        """收集已加载子项的叶子状态. 跳过未加载的子目录."""
+        all_loaded = True
         for i in range(item.childCount()):
             child = item.child(i)
             if child.data(0, ROLE_IS_PLACEHOLDER):
@@ -571,12 +586,13 @@ class FileTreeWidget(QTreeWidget):
             if child.data(0, ROLE_IS_DIR):
                 path_str = child.data(0, ROLE_PATH)
                 if path_str not in self._loaded_dirs:
-                    return False
+                    all_loaded = False
+                    continue
                 if not self._collect_leaf_states(child, states):
-                    return False
+                    all_loaded = False
             else:
                 states.append(child.checkState(0))
-        return True
+        return all_loaded
 
     # ------------------------------------------------------------------
     # 公共 API: 状态查询
