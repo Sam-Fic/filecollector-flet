@@ -143,6 +143,7 @@ _lock = threading.Lock()
     "🌐 中英文切换 (跟随系统 / 中文 / English)": "🌐 English / 中文 switch (Follow System / 中文 / English)",
     "⌨️ 完整键盘快捷键支持": "⌨️ Full keyboard shortcut support",
     "开发者：Sam-Fic | License: MIT": "Developer: Sam-Fic | License: MIT",
+    "访问 GitHub 仓库": "Visit GitHub Repository",
     "请查看菜单栏 键盘快捷键 或关于对话框中查看所有快捷键。": "See all shortcuts in the menu bar or About dialog.",
     "常用操作": "Common Operations",
     "列表操作": "List Operations",

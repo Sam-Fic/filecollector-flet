@@ -923,6 +923,9 @@ class FileCollectorApp(QMainWindow):
             "<p style='color:#5e5c64;'>"
             + _("开发者：Sam-Fic | License: MIT") +
             "</p>"
+            "<p><a href='https://github.com/Sam-Fic/filecollector'>"
+            + _("访问 GitHub 仓库") +
+            "</a></p>"
         )
 
     def _open_shortcuts(self):
