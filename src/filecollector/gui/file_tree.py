@@ -22,7 +22,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 
-from PySide6.QtCore import Qt, Signal, QRect, QPoint
+from PySide6.QtCore import Qt, Signal, QRect, QRectF, QPoint
 from PySide6.QtGui import QColor, QPainter, QBrush, QPen, QPolygon
 from PySide6.QtWidgets import (
     QTreeWidget, QTreeWidgetItem, QStyledItemDelegate, QStyleOptionViewItem,
@@ -62,23 +62,20 @@ class _TriStateCheckBoxDelegate(QStyledItemDelegate):
         if is_checkable:
             check_state = opt.checkState
 
-        widget = opt.widget
-        style = widget.style() if widget else QApplication.style()
+        rect = opt.rect
         bg_brush = None
         if opt.state & QStyle.State_Selected:
             bg_brush = QColor(28, 113, 216, 40)
         elif opt.state & QStyle.State_MouseOver:
             bg_brush = QColor(28, 113, 216, 16)
 
-        rect = opt.rect
         if bg_brush is not None:
             painter.fillRect(rect, bg_brush)
 
         if is_checkable:
             cb_size = self.SIZE
-            cb_rect = rect.adjusted(self.PADDING, (rect.height() - cb_size) // 2, 0, 0)
-            cb_rect.setWidth(cb_size)
-            cb_rect.setHeight(cb_size)
+            cb_x = rect.x() + self.PADDING
+            cb_y = rect.y() + (rect.height() - cb_size) // 2
 
             if not (opt.state & QStyle.State_Enabled):
                 accent = QColor(CheckBoxStyle.ACCENT_DISABLED)
@@ -96,33 +93,37 @@ class _TriStateCheckBoxDelegate(QStyledItemDelegate):
             pen = QPen(border)
             pen.setWidthF(1.5)
             painter.setPen(pen)
-            painter.drawRoundedRect(cb_rect.adjusted(0, 0, -1, -1), 3, 3)
+            painter.drawRoundedRect(QRectF(cb_x, cb_y, cb_size - 1, cb_size - 1), 3, 3)
 
             if check_state == Qt.Checked:
                 pen = QPen(QColor(CheckBoxStyle.CHECK))
-                pen.setWidthF(2.2)
+                pen.setWidthF(2.0)
                 pen.setCapStyle(Qt.RoundCap)
                 pen.setJoinStyle(Qt.RoundJoin)
                 painter.setPen(pen)
-                p1 = cb_rect.adjusted(int(cb_size * 0.20), int(cb_size * 0.50), 0, 0).topLeft()
-                p2 = cb_rect.adjusted(int(cb_size * 0.42), int(cb_size * 0.72), 0, 0).bottomLeft()
-                p3 = cb_rect.adjusted(int(cb_size * 0.78), int(cb_size * 0.30), 0, 0).topRight()
-                painter.drawLine(p1, p2)
-                painter.drawLine(p2, p3)
+                s = float(cb_size)
+                painter.drawLine(
+                    QPoint(cb_x + int(s * 0.22), cb_y + int(s * 0.50)),
+                    QPoint(cb_x + int(s * 0.42), cb_y + int(s * 0.68)),
+                )
+                painter.drawLine(
+                    QPoint(cb_x + int(s * 0.42), cb_y + int(s * 0.68)),
+                    QPoint(cb_x + int(s * 0.78), cb_y + int(s * 0.30)),
+                )
             elif check_state == Qt.PartiallyChecked:
                 pen = QPen(QColor(CheckBoxStyle.PARTIAL))
-                pen.setWidthF(2.2)
+                pen.setWidthF(2.0)
                 pen.setCapStyle(Qt.RoundCap)
                 painter.setPen(pen)
-                line_y = cb_rect.center().y()
+                mid_y = cb_y + cb_size // 2
                 painter.drawLine(
-                    cb_rect.adjusted(int(cb_size * 0.25), line_y - cb_rect.y(), 0, 0).topLeft(),
-                    cb_rect.adjusted(int(cb_size * 0.75), line_y - cb_rect.y(), 0, 0).topRight(),
+                    QPoint(cb_x + int(cb_size * 0.25), mid_y),
+                    QPoint(cb_x + int(cb_size * 0.75), mid_y),
                 )
             painter.restore()
 
-            text_x = cb_rect.right() + self.PADDING * 2
-            text_rect = rect.adjusted(text_x - rect.x(), 0, -self.PADDING, 0)
+            text_x = cb_x + cb_size + self.PADDING * 2
+            text_rect = QRect(text_x, rect.y(), rect.right() - self.PADDING - text_x, rect.height())
         else:
             text_rect = rect.adjusted(self.PADDING, 0, -self.PADDING, 0)
 
@@ -147,9 +148,9 @@ class _TriStateCheckBoxDelegate(QStyledItemDelegate):
             return False
         if event.type() == event.Type.MouseButtonRelease and event.button() == Qt.LeftButton:
             cb_size = self.SIZE
-            cb_rect = opt.rect.adjusted(self.PADDING, (opt.rect.height() - cb_size) // 2, 0, 0)
-            cb_rect.setWidth(cb_size)
-            cb_rect.setHeight(cb_size)
+            cb_x = opt.rect.x() + self.PADDING
+            cb_y = opt.rect.y() + (opt.rect.height() - cb_size) // 2
+            cb_rect = QRect(cb_x, cb_y, cb_size, cb_size)
             if cb_rect.contains(event.pos()):
                 current = opt.checkState
                 if current == Qt.Checked:
@@ -179,7 +180,7 @@ class FileTreeWidget(QTreeWidget):
 
         self.setHeaderHidden(True)
         self.setColumnCount(1)
-        self.setAnimated(True)
+        self.setAnimated(False)
         self.setIndentation(20)
         self.setExpandsOnDoubleClick(False)
         self.setMinimumWidth(200)
@@ -197,6 +198,7 @@ class FileTreeWidget(QTreeWidget):
         self._loaded_dirs: set[str] = set()
         self._all_items: dict[str, QTreeWidgetItem] = {}
         self._pending_checked: set[str] = set()
+        self._hovered_item: QTreeWidgetItem | None = None
 
         self.setStyleSheet(self._build_stylesheet())
 
@@ -205,7 +207,34 @@ class FileTreeWidget(QTreeWidget):
         self.itemClicked.connect(self._on_item_clicked)
 
     # ------------------------------------------------------------------
-    # Branch indicator (折叠/展开箭头) 自绘, 避免依赖平台主题
+    # Mouse hover tracking (for unified branch + item hover)
+    # ------------------------------------------------------------------
+    def mouseMoveEvent(self, event):
+        item = self.itemAt(event.pos())
+        if item is not self._hovered_item:
+            old = self._hovered_item
+            self._hovered_item = item
+            if old:
+                idx = self.indexFromItem(old)
+                if idx.isValid():
+                    self.update(idx)
+            if item:
+                idx = self.indexFromItem(item)
+                if idx.isValid():
+                    self.update(idx)
+        super().mouseMoveEvent(event)
+
+    def leaveEvent(self, event):
+        if self._hovered_item:
+            old = self._hovered_item
+            self._hovered_item = None
+            idx = self.indexFromItem(old)
+            if idx.isValid():
+                self.update(idx)
+        super().leaveEvent(event)
+
+    # ------------------------------------------------------------------
+    # Branch indicator (折叠/展开箭头) 自绘
     # ------------------------------------------------------------------
     def drawBranches(self, painter: QPainter, rect: QRect, index) -> None:
         item = self.itemFromIndex(index)
@@ -213,24 +242,29 @@ class FileTreeWidget(QTreeWidget):
             return
         if item.childCount() == 0:
             return
-        is_expanded = item.isExpanded()
-        cx = rect.x() + rect.width() // 2
-        cy = rect.y() + rect.height() // 2
+
         painter.save()
         painter.setRenderHint(QPainter.Antialiasing, True)
+
+        if item is self._hovered_item:
+            painter.fillRect(rect, QColor(28, 113, 216, 16))
+
+        is_expanded = item.isExpanded()
+        cx = rect.x() + int(rect.width() * 0.45)
+        cy = rect.y() + rect.height() // 2
         painter.setPen(Qt.NoPen)
-        painter.setBrush(QColor(CheckBoxStyle.BORDER))
+        painter.setBrush(QColor("#8a8a8a"))
         try:
             if is_expanded:
                 poly = QPolygon([
-                    QPoint(cx - 4, cy - 2),
-                    QPoint(cx + 4, cy - 2),
+                    QPoint(cx - 3, cy - 1),
+                    QPoint(cx + 3, cy - 1),
                     QPoint(cx, cy + 3),
                 ])
             else:
                 poly = QPolygon([
-                    QPoint(cx - 2, cy - 4),
-                    QPoint(cx - 2, cy + 4),
+                    QPoint(cx - 1, cy - 3),
+                    QPoint(cx - 1, cy + 3),
                     QPoint(cx + 3, cy),
                 ])
             painter.drawPolygon(poly)
@@ -259,7 +293,22 @@ class FileTreeWidget(QTreeWidget):
         QTreeWidget::item:selected {
             background-color: rgba(28, 113, 216, 0.20);
         }
-        QTreeWidget::branch {
+        QTreeView::branch {
+            background: transparent;
+        }
+        QTreeView::branch:open {
+            background: transparent;
+        }
+        QTreeView::branch:closed {
+            background: transparent;
+        }
+        QTreeView::branch:selected {
+            background: transparent;
+        }
+        QTreeView::branch:pressed {
+            background: transparent;
+        }
+        QTreeView::branch:hover {
             background: transparent;
         }
         """
