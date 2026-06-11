@@ -609,8 +609,7 @@ class FileCollectorApp(QMainWindow):
             if data.force_absolute:
                 return f"{idx+1}. 📌 {p.name}  {_('(绝对路径)')}"
             else:
-                mode = _("(绝对)") if self.engine.use_absolute else _("(相对)")
-                return f"{idx+1}. 📄 {p.name}  {mode}"
+                return f"{idx+1}. 📄 {p.name}"
         else:
             preview = data.content
             if len(preview) > 30:
