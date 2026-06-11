@@ -1,9 +1,21 @@
 import json
 import os
+import sys
 from pathlib import Path
 
 
-APP_DIR = os.path.join(os.path.expanduser("~/.config"), "filecollector")
+if sys.platform == "win32":
+    APP_DIR = os.path.join(
+        os.environ.get(
+            "APPDATA",
+            os.path.join(os.path.expanduser("~"), "AppData", "Roaming"),
+        ),
+        "filecollector",
+    )
+elif sys.platform == "darwin":
+    APP_DIR = os.path.expanduser("~/Library/Application Support/filecollector")
+else:
+    APP_DIR = os.path.expanduser("~/.config/filecollector")
 BUTTON_HEIGHT = 32
 
 

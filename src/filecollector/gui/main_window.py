@@ -69,9 +69,8 @@ class FileCollectorApp(QMainWindow):
         if hasattr(self.engine, "common_phrases") and self.engine.common_phrases:
             self.common_phrases = list(self.engine.common_phrases)
         if hasattr(self.engine, "load_common_phrases_from_disk"):
-            loaded = self.engine.load_common_phrases_from_disk()
-            if loaded:
-                self.common_phrases = list(loaded)
+            self.engine.load_common_phrases_from_disk()
+            self.common_phrases = list(self.engine.common_phrases)
 
         font = QFont()
         font.setPointSize(10)
