@@ -50,7 +50,7 @@ from filecollector.gui.toast import ToastNotification
 class FileCollectorApp(QMainWindow):
     status_message = Signal(str)
 
-    BUTTON_HEIGHT = 28  # synced with config.BUTTON_HEIGHT
+    BUTTON_HEIGHT = 32  # synced with config.BUTTON_HEIGHT
 
     def __init__(self):
         super().__init__()
