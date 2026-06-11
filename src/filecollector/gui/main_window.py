@@ -275,7 +275,12 @@ class FileCollectorApp(QMainWindow):
         splitter = QSplitter(Qt.Horizontal)
         splitter.setChildrenCollapsible(False)
         splitter.setHandleWidth(6)
-        self.setCentralWidget(splitter)
+
+        wrapper = QWidget()
+        wrapper_layout = QVBoxLayout(wrapper)
+        wrapper_layout.setContentsMargins(8, 0, 8, 0)
+        wrapper_layout.addWidget(splitter)
+        self.setCentralWidget(wrapper)
 
         # --- 左栏: 文件树 ---
         tree_panel = QFrame()
