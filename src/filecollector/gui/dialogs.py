@@ -30,7 +30,7 @@ class TextEditDialog(QDialog):
         self.setMinimumSize(360, 240)
 
         self._common_phrases = list(common_phrases or [])
-        self._show_phrases_button = bool(show_phrases_button) and bool(self._common_phrases)
+        self._show_phrases_button = bool(show_phrases_button)
 
         self._build_ui(initial_text)
 
@@ -53,7 +53,6 @@ class TextEditDialog(QDialog):
         row = QHBoxLayout()
         if self._show_phrases_button:
             self.phrases_btn = QPushButton(_("常用语"))
-            self.phrases_btn.setObjectName("FlatButton")
             self.phrases_btn.setFixedHeight(BUTTON_HEIGHT)
             self.phrases_btn.clicked.connect(self._open_phrases_picker)
             row.addWidget(self.phrases_btn)
