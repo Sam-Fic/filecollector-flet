@@ -9,7 +9,7 @@ It features a checkable directory tree, flexible organization list, text inserti
 
 ![Python](https://img.shields.io/badge/Python-3.8+-blue) ![PySide6](https://img.shields.io/badge/GUI-PySide6-green) ![License](https://img.shields.io/badge/license-MIT-brightgreen)
 
-![FileCollector Screenshot](screenshots/screenshot.png)
+![FileCollector Screenshot](screenshots/screenshot-en.png)
 
 ---
 
