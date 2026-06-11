@@ -202,7 +202,6 @@ QTextEdit#PreviewView {
     background: transparent;
     border: none;
     padding: 8px 12px;
-    font-family: 'Monospace', 'Courier New';
     font-size: 12px;
     color: #2e2e2e;
     selection-background-color: #1c71d8;
