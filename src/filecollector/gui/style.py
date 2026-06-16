@@ -16,10 +16,11 @@ QMainWindow, QDialog {
 /* ---- 三栏卡片 ---- */
 QFrame#LeftPanel,
 QFrame#MiddlePanel,
-QFrame#RightPanel {
+QFrame#RightPanel,
+QFrame#AIPanel {
     background-color: #ffffff;
-    border: 1px solid #dcd9d6;
-    border-radius: 9px;
+    border: none;
+    border-radius: 10px;
 }
 
 QLabel#PanelTitle {
@@ -31,12 +32,17 @@ QLabel#PanelTitle {
     qproperty-alignment: AlignCenter;
 }
 
-/* ---- 工具栏 ---- */
+/* ---- 工具栏 (顶部操作区, 模仿 GNOME HeaderBar) ---- */
 QToolBar {
     background: transparent;
     border: none;
     spacing: 4px;
-    padding: 4px 8px;
+    padding: 0px 8px;
+    margin: 0px;
+}
+
+QToolBar::separator {
+    width: 6px;
 }
 
 QToolBar QLabel#WorkDirLabel {
@@ -88,6 +94,25 @@ QPushButton#SuggestedAction:disabled {
     background-color: #b6d4f1;
     color: #ffffff;
     border-color: #b6d4f1;
+}
+
+/* ---- 停止按钮 (stop) ---- */
+QPushButton#StopAction {
+    background-color: #c01c28;
+    color: #ffffff;
+    border: 1px solid #a81822;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-weight: 600;
+    text-align: center;
+}
+
+QPushButton#StopAction:hover {
+    background-color: #a81822;
+}
+
+QPushButton#StopAction:pressed {
+    background-color: #90151d;
 }
 
 /* ---- 危险操作按钮 (destructive-action) ---- */
@@ -322,6 +347,71 @@ QMenu::item {
 
 QMenu::item:selected {
     background-color: rgba(28, 113, 216, 0.15);
+}
+
+/* ---- 工具栏 AI 切换按钮 (checkable) ---- */
+QToolBar QPushButton:checked {
+    background-color: rgba(28, 113, 216, 0.18);
+    border: 1px solid rgba(28, 113, 216, 0.55);
+    color: #1c71d8;
+}
+
+/* ---- AI 边栏 ---- */
+QFrame#AIChatOuter {
+    background: transparent;
+    border: none;
+}
+
+QTextBrowser#AIChatView,
+QWebEngineView#AIChatView {
+    background: transparent;
+    border: none;
+    padding: 10px 16px 6px 16px;
+    font-size: 12px;
+    color: #2e2e2e;
+    selection-background-color: #1c71d8;
+    selection-color: #ffffff;
+}
+
+QFrame#AIInputFrame {
+    background: transparent;
+    border-top: 1px solid #dcd9d6;
+}
+
+QPlainTextEdit#AIInput {
+    background-color: #ffffff;
+    border: 1px solid #dcd9d6;
+    border-radius: 6px;
+    padding: 6px 8px;
+    color: #2e2e2e;
+    font-size: 12px;
+}
+
+QPlainTextEdit#AIInput:focus {
+    border-color: #1c71d8;
+}
+
+QLabel#AIModelLabel {
+    color: #5e5c64;
+    font-size: 11px;
+    padding: 0 2px;
+}
+
+QLabel#AIStatusLabel {
+    color: #5e5c64;
+    font-size: 11px;
+    padding: 0 2px;
+}
+
+/* ---- 聊天气泡 ----
+   气泡的具体样式由 ai_panel.py 的 _CHAT_CSS 在 setHtml 时注入,
+   这里只定义 QWebEngineView 容器自身的外观 (边框 / 背景 / 滚动条). */
+QTextBrowser#AIChatView,
+QWebEngineView#AIChatView {
+    background-color: #fafaf9;
+    border: 1px solid #dcd9d6;
+    border-radius: 6px;
+    padding: 0;
 }
 """
 

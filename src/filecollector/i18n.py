@@ -21,7 +21,8 @@ DEFAULT_LANG = ""
 
 _translator: Optional[gettext.NullTranslations] = None
 _current_lang: str = ""
-_lock = threading.Lock()
+# 用 RLock 防止 _() 内部调 set_language 时重入死锁
+_lock = threading.RLock()
 
 内置_中文翻译 = {
     "FileCollector - 文件收集与编排工具": "FileCollector - File Collection & Arrangement Tool",
@@ -174,6 +175,71 @@ _lock = threading.Lock()
     "↶": "↶",
     "↷": "↷",
     "%d. %s": "%d. %s",
+    # ---- AI 助手 ----
+    "AI 助手": "AI Assistant",
+    "AI 助手设置": "AI Assistant Settings",
+    "AI 设置": "AI Settings",
+    "启用 AI 助手": "Enable AI Assistant",
+    "API 基础地址:": "API Base URL:",
+    "API 密钥:": "API Key:",
+    "模型名称:": "Model Name:",
+    "请求超时:": "Request Timeout:",
+    "自定义提示词:": "Custom System Prompt:",
+    "留空则使用默认系统提示词": "Leave empty to use the default system prompt",
+    "测试连接": "Test Connection",
+    "正在测试...": "Testing...",
+    "✓ 连接成功": "✓ Connected",
+    "✗ 失败: %s": "✗ Failed: %s",
+    "请先填写 API 基础地址、密钥和模型名称。": "Please fill in API base URL, key, and model name first.",
+    "配置 OpenAI 兼容 API, 即可在右侧 AI 边栏使用自然语言编排文件。\n"
+    "支持 OpenAI、Azure OpenAI、Microsoft Foundry 上的 Fast Context 等特化模型, "
+    "以及任何兼容端点 (例如本地 Ollama)。":
+        "Configure an OpenAI-compatible API to drive the AI sidebar.\n"
+        "Works with OpenAI, Azure OpenAI, Microsoft Foundry models (e.g. Fast Context), "
+        "and any compatible endpoint (e.g. local Ollama).",
+    "请先在 设置 → AI 设置 中启用并配置 API。":
+        "Please enable and configure the API in Settings → AI Settings first.",
+    "你好, 我是 AI 编排助手。告诉我你想收集哪些文件, 我来帮你编排。\n"
+    "例如: \"把 src 目录下所有 Python 文件加进去, 然后在开头插入一段任务说明。\"":
+        "Hi! I'm your AI arrangement assistant. Tell me which files you want to collect and I'll handle the orchestration.\n"
+        "Example: \"Add all Python files under src to the list, and prepend a task description.\"",
+    "输入指令, Ctrl+Enter 发送": "Type a request. Press Ctrl+Enter to send.",
+    "发送": "Send",
+    "清空对话": "Clear Chat",
+    "正在思考...": "Thinking...",
+    "未配置": "Not configured",
+    "未配置模型": "No model configured",
+    "就绪": "Ready",
+    "调用失败: %s": "API call failed: %s",
+    "响应解析失败: %s": "Failed to parse response: %s",
+    "执行出错: %s": "Tool execution error: %s",
+    "未配置工具执行器": "Tool executor not configured",
+    "已添加 %d 个文件 (跳过 %d 个无效路径)": "Added %d file(s), skipped %d invalid path(s)",
+    "已跳过所有 %d 个路径 (文件不存在)": "Skipped all %d path(s) (files do not exist)",
+    "错误: 尚未设置工作目录, 也未提供 directory 参数":
+        "Error: no work directory set and no 'directory' argument provided",
+    "错误: 目录不存在: %s": "Error: directory does not exist: %s",
+    "在 %s 下未找到匹配 '%s' 的文件":
+        "No files matching '%s' were found under %s",
+    "%s 下没有可列出的文件": "No files to list under %s",
+    "错误: path 不能为空": "Error: 'path' must not be empty",
+    "错误: 文件不存在: %s": "Error: file does not exist: %s",
+    "错误: 不是普通文件: %s": "Error: not a regular file: %s",
+    "错误: 读取失败: %s": "Error: failed to read: %s",
+    "错误: 文件看起来是二进制, 不支持读取: %s":
+        "Error: file looks binary, reading is not supported: %s",
+    "更多行请用 start_line / max_lines 分段读取":
+        "Read further in chunks via start_line / max_lines",
+    "内容被 max_bytes 截断": "content truncated by max_bytes",
+    "编排列表为空 (0 项)": "Orchestration list is empty (0 items)",
+    "错误: kind 必须是 'file' 或 'text', 得到: %s":
+        "Error: kind must be 'file' or 'text', got: %s",
+    "(无匹配项)": "(no matching items)",
+    "… 仅显示前 %d 项, 完整列表请用 kind 过滤":
+        "… showing the first %d item(s); use kind to filter for a complete view",
+    "停止": "Stop",
+    "已停止": "Stopped",
+    "正在思考...": "Thinking...",
 }
 
 _LISTENERS: list[Callable[[str], None]] = []
@@ -182,7 +248,8 @@ _LISTENERS: list[Callable[[str], None]] = []
 def detect_system_language() -> str:
     """探测系统语言并返回支持的语言代码."""
     try:
-        lang_env = os.environ.get("FILECOLLECTOR_LANG") or os.environ.get("LANGUAGE") or os.environ.get("LC_ALL") or os.environ.get("LANG") or ""
+        lang_env = os.environ.get("FILECOLLECTOR_LANG") or os.environ.get(
+            "LANGUAGE") or os.environ.get("LC_ALL") or os.environ.get("LANG") or ""
         if lang_env:
             code = lang_env.split(":")[0].split(".")[0].strip()
             if code.startswith("zh"):

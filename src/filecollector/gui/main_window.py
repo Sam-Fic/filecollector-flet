@@ -17,20 +17,21 @@ UX 设计目标: 与 GNOME 版本保持一致, 同时遵循 Qt 最佳实践.
 
 from __future__ import annotations
 
+import fnmatch
 import os
 import queue
 import sys
 import traceback
 from pathlib import Path
 
-from PySide6.QtCore import Qt, Signal, QTimer, QSize
+from PySide6.QtCore import Qt, Signal, QTimer, QSize, QSignalBlocker
 from PySide6.QtGui import QAction, QFont, QDragEnterEvent, QDropEvent, QIcon
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QMenuBar, QMenu, QToolBar, QStatusBar,
     QSplitter, QTreeWidgetItem, QListWidget, QListWidgetItem,
     QTextEdit, QPushButton, QRadioButton, QCheckBox, QLabel, QVBoxLayout,
     QHBoxLayout, QFrame, QDialog, QLineEdit, QWidget, QFileDialog,
-    QMessageBox, QButtonGroup,
+    QMessageBox, QButtonGroup, QSizePolicy,
 )
 
 from filecollector.models import ItemData
@@ -45,6 +46,9 @@ from filecollector.gui.file_tree import FileTreeWidget
 from filecollector.gui.undo import UndoState, UndoManager
 from filecollector.gui.style import get_stylesheet
 from filecollector.gui.toast import ToastNotification
+from filecollector.gui.ai_panel import AIPanel
+from filecollector.gui.ai_settings_dialog import load_ai_settings, AISettingsDialog
+from filecollector.cli import apply_cli_args
 
 
 class FileCollectorApp(QMainWindow):
@@ -88,6 +92,13 @@ class FileCollectorApp(QMainWindow):
         self._update_subtitle()
         self._refresh_list()
 
+        # AI 边栏: 注入当前 settings + 工具执行器 + 状态快照回调
+        self.ai_panel.configure(
+            load_ai_settings(),
+            tool_executor=self._execute_ai_tool,
+            state_provider=self._ai_state_snapshot,
+        )
+
         add_listener(self._on_language_changed)
 
         self.ipc_queue: queue.Queue = queue.Queue()
@@ -127,6 +138,8 @@ class FileCollectorApp(QMainWindow):
         self.act_phrases.setText(_("常用语管理(&M)"))
         self.act_shortcuts.setText(_("键盘快捷键"))
         self.act_about.setText(_("关于"))
+        self.act_ai_settings.setText(_("AI 设置"))
+        self.btn_ai_toggle.setText("🤖 " + _("AI"))
         self.menuBar().actions()[0].menu().setTitle(_("项目(&P)"))
         self.menuBar().actions()[1].menu().setTitle(_("设置(&S)"))
         self.menuBar().actions()[2].menu().setTitle(_("帮助(&H)"))
@@ -219,6 +232,10 @@ class FileCollectorApp(QMainWindow):
         self.act_phrases.triggered.connect(self._open_phrases_manager)
         settings_menu.addAction(self.act_phrases)
 
+        self.act_ai_settings = QAction(_("AI 设置"), self)
+        self.act_ai_settings.triggered.connect(self._open_ai_settings)
+        settings_menu.addAction(self.act_ai_settings)
+
         help_menu = menu_bar.addMenu(_("帮助(&H)"))
         self.act_shortcuts = QAction(_("键盘快捷键"), self)
         self.act_shortcuts.setShortcut("Ctrl+/")
@@ -237,6 +254,7 @@ class FileCollectorApp(QMainWindow):
         toolbar = QToolBar(_("主工具栏"))
         toolbar.setMovable(False)
         toolbar.setIconSize(QSize(18, 18))
+        toolbar.setContentsMargins(0, 0, 0, 0)
         self.addToolBar(toolbar)
 
         self.btn_undo = QPushButton("↶ " + _("撤销"))
@@ -267,6 +285,19 @@ class FileCollectorApp(QMainWindow):
         self.work_dir_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
         toolbar.addWidget(self.work_dir_label)
 
+        # 弹性占位, 将 AI 按钮推到最右
+        spacer = QWidget()
+        spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        spacer.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+        toolbar.addWidget(spacer)
+
+        self.btn_ai_toggle = QPushButton("🤖 " + _("AI"))
+        self.btn_ai_toggle.setCheckable(True)
+        self.btn_ai_toggle.setObjectName("FlatButton")
+        self.btn_ai_toggle.setToolTip(_("展开 / 收起 AI 助手边栏"))
+        self.btn_ai_toggle.toggled.connect(self._on_ai_toggle)
+        toolbar.addWidget(self.btn_ai_toggle)
+
     # ==================================================================
     # 中央区域 (三栏分割器, 卡片式)
     # ==================================================================
@@ -277,7 +308,8 @@ class FileCollectorApp(QMainWindow):
 
         wrapper = QWidget()
         wrapper_layout = QVBoxLayout(wrapper)
-        wrapper_layout.setContentsMargins(8, 0, 8, 0)
+        # 顶部 0px (紧贴工具栏), 底部 8px (避免卡片底圆角被切), 左右 8px
+        wrapper_layout.setContentsMargins(8, 0, 8, 8)
         wrapper_layout.addWidget(splitter)
         self.setCentralWidget(wrapper)
 
@@ -425,10 +457,18 @@ class FileCollectorApp(QMainWindow):
 
         splitter.addWidget(preview_panel)
 
+        # --- 右栏: AI 助手 (默认隐藏, 通过工具栏按钮展开) ---
+        self.ai_panel = AIPanel()
+        self.ai_panel.setMinimumWidth(300)
+        self.ai_panel.setVisible(False)
+        splitter.addWidget(self.ai_panel)
+
         splitter.setStretchFactor(0, 2)
         splitter.setStretchFactor(1, 3)
         splitter.setStretchFactor(2, 2)
-        splitter.setSizes([280, 520, 380])
+        splitter.setStretchFactor(3, 3)
+        splitter.setSizes([280, 520, 380, 360])
+        self._splitter = splitter
 
     # ==================================================================
     # 状态栏
@@ -448,8 +488,10 @@ class FileCollectorApp(QMainWindow):
     # ==================================================================
     def _connect_signals(self):
         self.btn_add_external.clicked.connect(self.add_external_files)
-        self.btn_add_text_above.clicked.connect(lambda: self.insert_text(above=True))
-        self.btn_add_text_below.clicked.connect(lambda: self.insert_text(above=False))
+        self.btn_add_text_above.clicked.connect(
+            lambda: self.insert_text(above=True))
+        self.btn_add_text_below.clicked.connect(
+            lambda: self.insert_text(above=False))
         self.btn_move_up.clicked.connect(self.move_up)
         self.btn_move_down.clicked.connect(self.move_down)
         self.btn_delete.clicked.connect(self.delete_item)
@@ -460,8 +502,10 @@ class FileCollectorApp(QMainWindow):
         self.radio_rel.toggled.connect(self._on_path_mode_changed)
         self.check_header.stateChanged.connect(self._on_header_check_changed)
 
-        self.list_widget.currentItemChanged.connect(self._on_list_selection_changed)
-        self.list_widget.itemDoubleClicked.connect(self._on_list_item_double_clicked)
+        self.list_widget.currentItemChanged.connect(
+            self._on_list_selection_changed)
+        self.list_widget.itemDoubleClicked.connect(
+            self._on_list_item_double_clicked)
 
         self.list_widget.setAcceptDrops(True)
         self.list_widget.installEventFilter(self)
@@ -489,7 +533,8 @@ class FileCollectorApp(QMainWindow):
         self.btn_add_text_above.setEnabled(has_sel)
         self.btn_add_text_below.setEnabled(has_sel)
         self.btn_move_up.setEnabled(has_sel and many and sel > 0)
-        self.btn_move_down.setEnabled(has_sel and many and sel < len(self.engine.items) - 1)
+        self.btn_move_down.setEnabled(
+            has_sel and many and sel < len(self.engine.items) - 1)
         self.btn_delete.setEnabled(has_sel)
 
         self.btn_undo.setEnabled(self.undo_manager.can_undo)
@@ -712,7 +757,8 @@ class FileCollectorApp(QMainWindow):
                 if new_text:
                     data.content = new_text
                     self._refresh_list()
-                    self.list_widget.setCurrentRow(self.list_widget.currentRow())
+                    self.list_widget.setCurrentRow(
+                        self.list_widget.currentRow())
                     self._show_preview(data)
                     self.status_bar.showMessage(_("文字已更新"))
 
@@ -743,7 +789,8 @@ class FileCollectorApp(QMainWindow):
                 return
             try:
                 content, enc = safe_read_file(data.path, max_preview_lines=50)
-                preview_text = _("--- 文件预览 (编码: %s) ---" + chr(10) + " %s") % (enc, content)
+                preview_text = _("--- 文件预览 (编码: %s) ---" +
+                                 chr(10) + " %s") % (enc, content)
                 self.preview.setPlainText(preview_text)
             except Exception as e:
                 self.preview.setPlainText(_("读取错误: %s") % e)
@@ -759,7 +806,9 @@ class FileCollectorApp(QMainWindow):
     def _on_header_check_changed(self, state: int):
         if self._loading_state:
             return
-        self.engine.show_header = (state == Qt.Checked)
+        # PySide6 中 Qt.Checked 是枚举, 直接与 int 比较会得到 False,
+        # 必须用 int() 转一次. 该 bug 之前让 GUI 勾选无法写入 engine.
+        self.engine.show_header = int(state) == int(Qt.Checked.value)
 
     def _on_path_mode_changed(self, checked: bool):
         if not checked or self._loading_state:
@@ -793,7 +842,8 @@ class FileCollectorApp(QMainWindow):
             )
             self._open_file_location(file_path)
         except Exception as e:
-            QMessageBox.critical(self, _("错误"), _("生成 TXT 失败:" + chr(10) + "%s") % e)
+            QMessageBox.critical(self, _("错误"), _(
+                "生成 TXT 失败:" + chr(10) + "%s") % e)
 
     def generate_to_clipboard(self):
         if not self.engine.items:
@@ -818,13 +868,15 @@ class FileCollectorApp(QMainWindow):
             self.status_bar.showMessage(_("合并文本已复制到剪贴板"))
             self._show_toast(_("合并文本已复制到剪贴板"))
         except Exception as e:
-            QMessageBox.critical(self, _("错误"), _("复制到剪贴板失败:" + chr(10) + "%s") % e)
+            QMessageBox.critical(self, _("错误"), _(
+                "复制到剪贴板失败:" + chr(10) + "%s") % e)
 
     def _open_file_location(self, path: str):
         try:
             import subprocess
             if sys.platform == "win32":
-                subprocess.Popen(['explorer', '/select,', path.replace('/', '\\')])
+                subprocess.Popen(
+                    ['explorer', '/select,', path.replace('/', '\\')])
             elif sys.platform == "darwin":
                 subprocess.Popen(['open', '-R', path])
             else:
@@ -947,6 +999,488 @@ class FileCollectorApp(QMainWindow):
                 self.engine.save_common_phrases_to_disk()
 
     # ==================================================================
+    # AI 助手
+    # ==================================================================
+    def _open_ai_settings(self):
+        dlg = AISettingsDialog(self)
+        if dlg.exec() == QDialog.Accepted:
+            # 用户改完设置后, 重新配置 AI 面板
+            self.ai_panel.configure(
+                load_ai_settings(),
+                tool_executor=self._execute_ai_tool,
+                state_provider=self._ai_state_snapshot,
+            )
+            self.status_bar.showMessage(_("AI 设置已更新"))
+
+    def _on_ai_toggle(self, checked: bool) -> None:
+        self.ai_panel.setVisible(checked)
+        if checked:
+            sizes = self._splitter.sizes()
+            # 若 AI 面板拿到的宽度为 0, 给一个合理默认
+            if len(sizes) >= 4 and sizes[3] < 100:
+                sizes[3] = 360
+                self._splitter.setSizes(sizes)
+
+    def _ai_state_snapshot(self) -> tuple:
+        """供 system prompt 使用: 返回 (work_dir, items 列表, use_absolute, show_header)."""
+        items = []
+        for it in self.engine.items:
+            if it.type == "file":
+                items.append({
+                    "type": "file",
+                    "path": it.path,
+                    "force_absolute": bool(it.force_absolute),
+                })
+            else:
+                items.append({
+                    "type": "text",
+                    "content": it.content or "",
+                })
+        work_dir = str(self.engine.work_dir) if self.engine.work_dir else None
+        return work_dir, items, bool(self.engine.use_absolute), bool(self.engine.show_header)
+
+    def _execute_ai_tool(self, name: str, arguments: dict) -> str:
+        """AI 边栏工具调用入口: 把 LLM 决策映射到 ``apply_cli_args`` / engine 直接修改,
+        统一走和 CLI / IPC / MCP 相同的 mutation 语义."""
+        try:
+            return self._dispatch_ai_tool(name, arguments or {})
+        except Exception as e:  # noqa: BLE001
+            return _("执行出错: %s") % e
+
+    def _dispatch_ai_tool(self, name: str, args: dict) -> str:
+        if name == "set_work_dir":
+            path = (args.get("path") or "").strip()
+            if not path:
+                return _("错误: path 不能为空")
+            self._push_undo()
+            ok = apply_cli_args(
+                self.engine, ["--work-dir", path], print_feedback=False)
+            if not ok:
+                return _("错误: 切换工作目录失败")
+            # 工作目录变化需要重建 tree, 清空 checked paths
+            self.engine.checked_paths.clear()
+            self._update_subtitle()
+            self._refresh_tree()
+            self._refresh_list()
+            self._update_button_states()
+            return _("工作目录已切换到 %s") % self.engine.work_dir
+
+        if name == "add_files":
+            paths = args.get("paths") or []
+            if not isinstance(paths, list) or not paths:
+                return _("错误: paths 必须是非空数组")
+            self._push_undo()
+            added, skipped = [], []
+            added_external: list[str] = []
+            work_dir = self.engine.work_dir
+
+            for p in paths:
+                if not isinstance(p, str) or not p.strip():
+                    skipped.append(str(p))
+                    continue
+                if not os.path.isfile(p):
+                    skipped.append(p)
+                    continue
+                abs_path = str(Path(p).resolve())
+
+                # 决定路径模式:
+                #   - 在 work_dir 内 → 相对路径 (force_absolute=False),
+                #     同步到 tree 的勾选状态, 用户在文件树里也能看到勾;
+                #   - 在 work_dir 外 → 绝对路径 (force_absolute=True),
+                #     这类文件不会出现在文件树里.
+                inside_work_dir = False
+                if work_dir is not None:
+                    try:
+                        inside_work_dir = Path(
+                            abs_path).is_relative_to(work_dir)
+                    except (ValueError, AttributeError):
+                        inside_work_dir = False
+
+                if inside_work_dir:
+                    # 树是懒加载的, 即便文件在 work_dir 内, 如果它所在
+                    # 的子目录尚未展开, 它就不在 _all_items 中. 先按需
+                    # 自顶向下展开父目录链, 然后再走 --select-file 路径.
+                    if self.tree._all_items.get(abs_path) is None:
+                        self.tree._eager_load_for_path(abs_path)
+                    apply_cli_args(
+                        self.engine, ["--select-file", abs_path],
+                        print_feedback=False)
+                    added.append(abs_path)
+                else:
+                    from filecollector.models import ItemData as _ID
+                    self.engine.items.append(
+                        _ID(type_="file", path=abs_path, force_absolute=True)
+                    )
+                    added_external.append(abs_path)
+
+            # 批量勾选 tree 项. 用 QSignalBlocker 抑制循环期间的
+            # checked_files_changed — 否则 _on_tree_check_changed 会
+            # 用 tree.get_checked_paths() 覆盖 engine.checked_paths,
+            # 把尚未勾选的文件从 items 中误删.
+            with QSignalBlocker(self.tree):
+                for p in added:
+                    self._set_tree_item_check(p, Qt.Checked)
+            # 解开 blocker 后, 主动 emit 一次, 让 main_window 把当前
+            # tree 状态正确同步到 engine.items
+            self.tree.checked_files_changed.emit()
+            self.tree.refresh_all_ancestor_states()
+            self._refresh_list()
+            total_added = len(added) + len(added_external)
+            if total_added and not skipped:
+                return _("已添加 %d 个文件") % total_added
+            if total_added and skipped:
+                return _("已添加 %d 个文件 (跳过 %d 个无效路径)") % (
+                    total_added, len(skipped))
+            return _("已跳过所有 %d 个路径 (文件不存在)") % len(skipped)
+
+        if name == "add_text":
+            text = args.get("text") or ""
+            position = args.get("position")
+            if not isinstance(text, str):
+                return _("错误: text 必须是字符串")
+            self._push_undo()
+            ok = apply_cli_args(
+                self.engine, ["--add-text", text], print_feedback=False)
+            if not ok:
+                return _("错误: 插入文字失败")
+            new_index = len(self.engine.items) - 1
+            if position is not None:
+                try:
+                    target = int(position)
+                except (TypeError, ValueError):
+                    target = new_index
+                target = max(0, min(target, len(self.engine.items) - 1))
+                if target != new_index:
+                    apply_cli_args(
+                        self.engine,
+                        ["--move", str(new_index), str(target)],
+                        print_feedback=False,
+                    )
+                    new_index = target
+            self._refresh_list()
+            self.list_widget.setCurrentRow(new_index)
+            return _("已插入文字")
+
+        if name == "remove_item":
+            try:
+                idx = int(args.get("index"))
+            except (TypeError, ValueError):
+                return _("错误: index 必须是整数")
+            if not (0 <= idx < len(self.engine.items)):
+                return _("错误: index %d 超出范围 (0..%d)") % (idx, len(self.engine.items) - 1)
+            self._push_undo()
+            data = self.engine.items[idx]
+            if data.type == "file" and not data.force_absolute:
+                if data.path in self.engine.checked_paths:
+                    self.engine.checked_paths.discard(data.path)
+                    self._set_tree_item_check(data.path, Qt.Unchecked)
+            apply_cli_args(
+                self.engine, ["--remove", str(idx)], print_feedback=False)
+            self._refresh_list()
+            return _("已删除索引 %d") % idx
+
+        if name == "move_item":
+            try:
+                f = int(args.get("from_index"))
+                t = int(args.get("to_index"))
+            except (TypeError, ValueError):
+                return _("错误: from_index / to_index 必须是整数")
+            n = len(self.engine.items)
+            if not (0 <= f < n and 0 <= t < n):
+                return _("错误: 索引超出范围 (0..%d)") % (n - 1)
+            if f == t:
+                return _("源与目标相同, 无需移动")
+            self._push_undo()
+            apply_cli_args(
+                self.engine, ["--move", str(f), str(t)], print_feedback=False)
+            self._refresh_list()
+            self.list_widget.setCurrentRow(t)
+            return _("已将 [%d] 移动到 [%d]") % (f, t)
+
+        if name == "clear_items":
+            self._push_undo()
+            for p in list(self.engine.checked_paths):
+                self._set_tree_item_check(p, Qt.Unchecked)
+            self.tree.refresh_all_ancestor_states()
+            apply_cli_args(self.engine, ["--clear"], print_feedback=False)
+            self._refresh_list()
+            return _("已清空编排列表")
+
+        if name == "set_use_absolute":
+            value = bool(args.get("value"))
+            self._push_undo()
+            self.engine.use_absolute = value
+            self.radio_abs.setChecked(value)
+            self.radio_rel.setChecked(not value)
+            self._update_path_mode_ui()
+            return _("路径模式: %s") % (_("绝对路径") if value else _("相对路径"))
+
+        if name == "set_show_header":
+            value = bool(args.get("value"))
+            self.engine.show_header = value
+            self.check_header.setChecked(value)
+            return _("头部信息: %s") % (_("已开启") if value else _("已关闭"))
+
+        if name == "list_files":
+            return self._ai_list_files(args)
+
+        if name == "read_file":
+            return self._ai_read_file(args)
+
+        if name == "list_items":
+            return self._ai_list_items(args)
+
+        return _("未知工具: %s") % name
+
+    # ==================================================================
+    # AI 工具: list_files - 扫描目录供 agent 探索
+    # ==================================================================
+    # 跳过常见的构建 / VCS / 缓存目录, 避免把无关文件塞给 LLM.
+    _AI_SKIP_DIRS = {
+        ".git", ".hg", ".svn", ".idea", ".vscode", ".venv", "venv", "env",
+        "node_modules", "__pycache__", ".mypy_cache", ".pytest_cache",
+        "dist", "build", ".next", ".nuxt", "target", ".gradle",
+    }
+
+    def _ai_list_files(self, args: dict) -> str:
+        pattern = (args.get("pattern") or "").strip() or None
+        directory = (args.get("directory") or "").strip() or None
+        try:
+            max_depth = int(args.get("max_depth") or 8)
+        except (TypeError, ValueError):
+            max_depth = 8
+        try:
+            max_results = int(args.get("max_results") or 200)
+        except (TypeError, ValueError):
+            max_results = 200
+        max_depth = max(1, min(max_depth, 20))
+        max_results = max(1, min(max_results, 2000))
+
+        if directory:
+            root = Path(directory).expanduser()
+        else:
+            root = self.engine.work_dir
+        if root is None:
+            return _("错误: 尚未设置工作目录, 也未提供 directory 参数")
+        if not root.exists() or not root.is_dir():
+            return _("错误: 目录不存在: %s") % str(root)
+
+        # fnmatch 区分大小写, 统一转小写匹配
+        pattern_lower = pattern.lower() if pattern else None
+
+        matches: list[tuple[str, int]] = []  # (path, size)
+        truncated = False
+        root_path = root
+        root_str = str(root_path)
+        for dirpath, dirnames, filenames in os.walk(root_path):
+            rel_depth = 0 if dirpath == root_str else dirpath[len(
+                root_str):].count(os.sep) + 1
+            if rel_depth > max_depth:
+                dirnames[:] = []
+                continue
+            # 原地剪枝 skip 目录
+            dirnames[:] = [
+                d for d in dirnames if d not in self._AI_SKIP_DIRS and not d.startswith(".")]
+            for fn in filenames:
+                if fn.startswith("."):
+                    continue
+                if pattern_lower is not None:
+                    if not fnmatch.fnmatch(fn.lower(), pattern_lower):
+                        continue
+                full = os.path.join(dirpath, fn)
+                try:
+                    size = os.path.getsize(full)
+                except OSError:
+                    size = 0
+                matches.append((full, size))
+                if len(matches) >= max_results:
+                    truncated = True
+                    break
+            if truncated:
+                break
+
+        if not matches:
+            if pattern:
+                return _("在 %s 下未找到匹配 '%s' 的文件") % (root, pattern)
+            return _("%s 下没有可列出的文件") % str(root)
+
+        # 按路径排序, 截断
+        matches.sort(key=lambda x: x[0])
+        shown = matches[:max_results]
+        lines = [f"Found {len(matches)} file(s) under {root}"]
+        if pattern:
+            lines[0] += f" matching '{pattern}'"
+        if truncated:
+            lines[0] += f" (showing first {len(shown)})"
+        lines.append("")
+        for p, size in shown:
+            # 路径相对工作目录展示更紧凑
+            try:
+                rel = os.path.relpath(p, root_str)
+            except ValueError:
+                rel = p
+            lines.append(f"  {rel}  ({size} bytes)")
+
+        return "\n".join(lines)
+
+    # ==================================================================
+    # AI 工具: read_file - 读取文件内容供 agent 检视
+    # ==================================================================
+    # 探测二进制文件: 读 8KB 抽样, 出现 NUL 字节就视为二进制.
+    _AI_BINARY_SNIFF_BYTES = 8192
+
+    def _ai_read_file(self, args: dict) -> str:
+        path_str = (args.get("path") or "").strip()
+        if not path_str:
+            return _("错误: path 不能为空")
+        path = Path(path_str).expanduser()
+        if not path.exists():
+            return _("错误: 文件不存在: %s") % path_str
+        if not path.is_file():
+            return _("错误: 不是普通文件: %s") % path_str
+
+        try:
+            start_line = int(args.get("start_line") or 1)
+        except (TypeError, ValueError):
+            start_line = 1
+        try:
+            max_lines = int(args.get("max_lines") or 500)
+        except (TypeError, ValueError):
+            max_lines = 500
+        try:
+            max_bytes = int(args.get("max_bytes") or 102400)
+        except (TypeError, ValueError):
+            max_bytes = 102400
+        start_line = max(1, start_line)
+        max_lines = max(1, min(max_lines, 2000))
+        max_bytes = max(1024, min(max_bytes, 524288))
+
+        # 二进制嗅探
+        try:
+            with path.open("rb") as f:
+                sniff = f.read(self._AI_BINARY_SNIFF_BYTES)
+        except OSError as e:
+            return _("错误: 读取失败: %s") % e
+        if b"\x00" in sniff:
+            return _("错误: 文件看起来是二进制, 不支持读取: %s") % path_str
+
+        try:
+            size = path.stat().st_size
+        except OSError:
+            size = 0
+
+        # 一次性把窗口内文本读出来, 之后按行切.
+        # 先按字节上限粗略估算要读多少
+        try:
+            with path.open("r", encoding="utf-8", errors="replace") as f:
+                # 跳过 start_line-1 行
+                for _i in range(start_line - 1):
+                    f.readline()
+                buf = f.read(max_bytes + 4096)  # 多读一点以凑整行
+        except OSError as e:
+            return _("错误: 读取失败: %s") % e
+
+        lines = buf.splitlines()
+        truncated_by_bytes = False
+        if len(buf) > max_bytes:
+            # 按字节回退, 找最后一个不超限的换行
+            truncated_by_bytes = True
+            acc = 0
+            cut = 0
+            for ln in lines:
+                next_acc = acc + len(ln.encode("utf-8")) + 1
+                if next_acc > max_bytes:
+                    break
+                acc = next_acc
+                cut += 1
+            lines = lines[:cut]
+
+        if len(lines) > max_lines:
+            lines = lines[:max_lines]
+            truncated_by_lines = True
+        else:
+            truncated_by_lines = False
+
+        truncated = truncated_by_bytes or truncated_by_lines
+        width = len(str(start_line + len(lines) - 1)
+                    ) if lines else len(str(start_line))
+        out: list[str] = []
+        out.append(f"--- {path} (size: {size} bytes) ---")
+        for i, ln in enumerate(lines):
+            out.append(f"{start_line + i:>{width}}  {ln}")
+        if truncated:
+            more_lines = ""
+            if truncated_by_lines:
+                more_lines = _("更多行请用 start_line / max_lines 分段读取")
+            if truncated_by_bytes:
+                more_lines = (
+                    more_lines + "; " if more_lines else "") + _("内容被 max_bytes 截断")
+            out.append(f"… ({more_lines})")
+        return "\n".join(out)
+
+    # ==================================================================
+    # AI 工具: list_items - 自查当前编排列表内容
+    # ==================================================================
+    def _ai_list_items(self, args: dict) -> str:
+        kind_raw = (args.get("kind") or "").strip().lower()
+        kind: str | None = None
+        if kind_raw in ("file", "text"):
+            kind = kind_raw
+        elif kind_raw and kind_raw not in ("", "all", "any"):
+            return _("错误: kind 必须是 'file' 或 'text', 得到: %s") % kind_raw
+        try:
+            max_items = int(args.get("max_items") or 100)
+        except (TypeError, ValueError):
+            max_items = 100
+        max_items = max(1, min(max_items, 500))
+
+        all_items = self.engine.items
+        if not all_items:
+            return _("编排列表为空 (0 项)")
+
+        file_total = sum(1 for it in all_items if it.type == "file")
+        text_total = sum(1 for it in all_items if it.type == "text")
+        header = (
+            f"Orchestration list: {len(all_items)} item(s) total "
+            f"({file_total} file, {text_total} text)"
+        )
+
+        # 过滤出要展示的 (index, item) 对
+        shown: list[tuple[int, object]] = []
+        for idx, it in enumerate(all_items):
+            if kind == "file" and it.type != "file":
+                continue
+            if kind == "text" and it.type != "text":
+                continue
+            shown.append((idx, it))
+
+        if kind:
+            header += f", showing {len(shown)} {kind} item(s)"
+
+        if not shown:
+            return header + "\n" + _("(无匹配项)")
+
+        truncated = len(shown) > max_items
+        shown = shown[:max_items]
+        width = len(str(len(all_items) - 1)) if all_items else 1
+        lines = [header, ""]
+        for i, it in shown:
+            if it.type == "file":
+                p = it.path or ""
+                name = os.path.basename(p) or p
+                tag = "abs" if it.force_absolute else "rel"
+                lines.append(f"  [{i:>{width}}] file({tag}): {name}  —  {p}")
+            else:
+                content = it.content or ""
+                preview = content[:60].replace("\n", " ")
+                if len(content) > 60:
+                    preview += "…"
+                lines.append(f"  [{i:>{width}}] text: {preview}")
+        if truncated:
+            lines.append(_("… 仅显示前 %d 项, 完整列表请用 kind 过滤") % max_items)
+        return "\n".join(lines)
+
+    # ==================================================================
     # 插入文字 (含常用语支持)
     # ==================================================================
     def insert_text(self, above: bool = True):
@@ -1048,6 +1582,8 @@ class FileCollectorApp(QMainWindow):
     # 关闭事件
     # ==================================================================
     def closeEvent(self, event):
+        if hasattr(self, "ai_panel") and self.ai_panel is not None:
+            self.ai_panel.shutdown()
         if self.ipc_stop:
             self.ipc_stop()
         if self.engine.items:
