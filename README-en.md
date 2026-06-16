@@ -21,6 +21,7 @@ For the usage process and tips of the graphical interface, please refer to the [
 
 - 💻 **Command-Line Mode (CLI)**: Supports all core operations via terminal commands, ideal for scripting and automation.
 - 🤖 **MCP Service**: Packaged as an MCP (Model Context Protocol) service, directly callable by coding tools like Cursor, VS Code + Copilot.
+- 🤖 **Built-in AI Assistant Panel**: A sidebar chat interface inside the GUI — the AI can directly drive file-tree exploration, file selection, orchestration, and merged-text generation.
 - 🔄 **Progressive Experience**: Seamless integration of CLI and GUI — after AI-driven exploration in the background, the graphical interface is always available for manual adjustment.
 - 📂 **Lazy-loaded Directory Tree**: Automatically displays an expandable file tree when opening a folder, with easy file checkbox selection.
 - 📋 **Visual Organization List**: Checked files automatically appear in the list, freely reorderable via drag-and-drop, move up/down, or delete.
@@ -51,6 +52,7 @@ If you are using the **GNOME desktop environment**, we recommend using the GNOME
 👉 [filecollector-gnome](https://github.com/Sam-Fic/filecollector-gnome)
 
 This version is adapted and optimized for GNOME, including:
+
 - Native GNOME-style interface
 - Better desktop integration and interaction experience
 - Special optimizations for the GNOME environment
@@ -82,6 +84,7 @@ Visit the [Releases](https://github.com/Sam-Fic/FileCollector/releases) page to 
 - `FileCollector-macOS.zip`
 - `FileCollector-Linux.AppImage`
  -->
+
 ---
 
 ## 📁 Project Structure
@@ -97,10 +100,14 @@ src/
     ├── utils.py               # Utility functions (encoding detection, safe read)
     ├── engine.py              # Business engine (all core logic, Qt-free)
     ├── cli.py                 # CLI mode (sequential argument parsing and execution)
+    ├── ai_client.py           # AI assistant backend (OpenAI-compatible API + Function Calling)
     └── gui/
         ├── __init__.py
         ├── dialogs.py         # Text edit dialog (TextEditDialog)
-        └── main_window.py     # Main window (FileCollectorApp, depends on PySide6)
+        ├── main_window.py     # Main window (FileCollectorApp, depends on PySide6)
+        ├── ai_panel.py        # AI assistant chat panel (rounded bubbles + tool-call cards)
+        ├── ai_markdown.py     # Markdown rendering helper for the AI chat
+        └── ai_settings_dialog.py # AI assistant configuration dialog
 ```
 
 ---
@@ -141,22 +148,22 @@ filecollector [options...]
 
 ### Command Reference
 
-| Option               | Description                                     |
-| -------------------- | ----------------------------------------------- |
-| `--work-dir DIR`     | Set working directory                           |
-| `--select-file PATH` | Add file to the organization list (repeatable)  |
-| `--add-text "TEXT"`  | Add custom text (repeatable)                    |
-| `--move FROM TO`     | Move item at index FROM to index TO             |
-| `--remove INDEX`     | Remove item at INDEX                            |
-| `--clear`            | Clear the organization list                     |
-| `--list-items`       | List current organization items                 |
-| `--export PATH`      | Export merged text to file                      |
-| `--absolute`         | Use absolute paths                              |
-| `--header`           | Add header with working directory path          |
-| `--load FILE`        | Load state from project file                    |
-| `--save FILE`        | Save current state to project file              |
-| `--gui`              | Open GUI after initializing with CLI arguments  |
-| `--help`, `-h`       | Show help message                               |
+| Option               | Description                                    |
+| -------------------- | ---------------------------------------------- |
+| `--work-dir DIR`     | Set working directory                          |
+| `--select-file PATH` | Add file to the organization list (repeatable) |
+| `--add-text "TEXT"`  | Add custom text (repeatable)                   |
+| `--move FROM TO`     | Move item at index FROM to index TO            |
+| `--remove INDEX`     | Remove item at INDEX                           |
+| `--clear`            | Clear the organization list                    |
+| `--list-items`       | List current organization items                |
+| `--export PATH`      | Export merged text to file                     |
+| `--absolute`         | Use absolute paths                             |
+| `--header`           | Add header with working directory path         |
+| `--load FILE`        | Load state from project file                   |
+| `--save FILE`        | Save current state to project file             |
+| `--gui`              | Open GUI after initializing with CLI arguments |
+| `--help`, `-h`       | Show help message                              |
 
 ### Workflow Examples
 
@@ -226,6 +233,78 @@ This design separates **file exploration and code selection** (handled by the mo
 
 ---
 
+## 🤖 Built-in AI Assistant Panel
+
+FileCollector also ships with a **sidebar AI assistant** that lets you drive the whole workflow with natural language — no coding tool or MCP service required. Click the **🤖 AI** button at the top-right of the toolbar to expand or collapse it.
+
+### Key Capabilities
+
+- **Natural-language orchestration**: Tell the AI "add every Python file under `src` to the list, and prepend a task description" — the AI will call the right tools to check files, insert text, reorder items, etc.
+- **File exploration & reading**: The AI can browse the working-directory tree and read file contents on demand to make informed decisions.
+- **Real-time feedback**: Every tool invocation (set work directory, add files, read files, reorder, …) is shown as an expandable tool card so you can audit each step.
+- **Multi-turn conversation**: The AI keeps the conversation history, so you can iteratively refine the orchestration until you are happy.
+- **Live GUI sync**: Whenever the AI modifies the orchestration list, the middle panel updates immediately and you can take over manually at any moment.
+
+### Supported Tools (Function Calling)
+
+The AI interacts with the GUI engine through these 10 tools (sharing the same semantics as the CLI / MCP paths):
+
+| Tool               | Purpose                                            |
+| ------------------ | -------------------------------------------------- |
+| `set_work_dir`     | Switch the working directory                       |
+| `add_files`        | Batch-add files to the orchestration list          |
+| `add_text`         | Insert a custom text block into the list           |
+| `remove_item`      | Delete a list item by its id                       |
+| `move_item`        | Reorder a list item                                |
+| `clear_items`      | Empty the entire orchestration list                |
+| `set_use_absolute` | Toggle absolute-path / relative-path mode          |
+| `set_show_header`  | Toggle the working-directory header in exports     |
+| `list_files`       | Browse the working directory (recursive, filtered) |
+| `read_file`        | Read a file's text content (with line numbers)     |
+
+### Configuration
+
+Open **Settings → AI Settings**:
+
+1. Check **Enable AI Assistant**.
+2. Fill in the **API base URL** (any OpenAI Chat-Completions-compatible endpoint, e.g. `https://api.openai.com/v1`, Azure OpenAI, a self-hosted gateway, or local models like Ollama).
+3. Fill in the **API key** and **model name** (e.g. `gpt-4o-mini`, `deepseek-chat`).
+4. (Optional) Override the **system prompt** — leave empty to use the built-in engineering-orchestration prompt.
+5. Click **Test Connection** to verify the setup, then save.
+
+All settings live in the `ai` field of `settings.json`. **The API key is stored locally only** and never sent to any remote.
+
+### Usage Examples
+
+> Please add every file in this project that is related to the AI sidebar to the orchestration list, and prepend a descriptive text block.
+
+Expected tool sequence: `list_files` to locate the AI sidebar files (`ai_panel.py`, `ai_client.py`, `ai_markdown.py`, `ai_settings_dialog.py`) → `add_files` to batch-insert them into the orchestration list → `add_text` to prepend the description.
+
+> Export to `output.txt` using relative paths, and include the working-directory header.
+
+Expected tool sequence: `set_use_absolute(False)` and `set_show_header(True)`, then trigger the GUI export flow.
+
+### Implementation Notes
+
+- **Backend**: `ai_client.py` uses stdlib `urllib.request` to talk to any OpenAI-compatible endpoint — **no extra dependencies** like `requests`.
+- **Async**: API requests run on a `QThread` worker, so the UI never freezes.
+- **Styling**: `ai_panel.py` draws rounded chat bubbles with `QPainter` (user bubble blue, assistant bubble white), with Markdown rendering for headings, lists, code blocks, quotes, tables, etc.
+- **Tool-call display**: Every tool the AI triggers is shown as a clickable expandable card (function name + arguments + return value) for full traceability.
+- **i18n**: AI prompts are written in English by default to ensure consistent model behavior across UI locales; UI text is localized through the project's built-in `i18n` module.
+
+### Relationship to the MCP Service
+
+| Dimension       | MCP Service                       | Built-in AI Panel                |
+| --------------- | --------------------------------- | -------------------------------- |
+| Runs in         | Coding tools (Cursor / VS Code)   | The FileCollector GUI itself     |
+| Context source  | The project already open in the IDE | AI browses the working directory on demand |
+| Best for        | The model helping you while coding | Doing one big file-organization pass on your own |
+| API config      | Inherited from the IDE            | Configured independently         |
+
+The two are complementary: the MCP service targets in-IDE "organize while you develop" workflows, while the built-in AI panel targets standalone, systematic file-organization tasks.
+
+---
+
 ## 🔄 Progressive Experience
 
 GUI and CLI combine to deliver a seamless human-AI collaborative workflow:
@@ -256,13 +335,13 @@ Ensure all dependencies (`requirements.txt`) are installed before packaging.
 
 ## 🤝 Contributing
 
-This project is in its early stages. Issues and Pull Requests are welcome.  
+This project is in its early stages. Issues and Pull Requests are welcome.
 
 ---
 
 ## 📄 License
 
-This project uses the **MIT License**, see the [LICENSE](LICENSE) file for details.  
+This project uses the **MIT License**, see the [LICENSE](LICENSE) file for details.
 
 ---
 
