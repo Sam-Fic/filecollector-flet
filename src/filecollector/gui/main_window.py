@@ -308,8 +308,8 @@ class FileCollectorApp(QMainWindow):
 
         wrapper = QWidget()
         wrapper_layout = QVBoxLayout(wrapper)
-        # 顶部 0px (紧贴工具栏), 底部 8px (避免卡片底圆角被切), 左右 8px
-        wrapper_layout.setContentsMargins(8, 0, 8, 8)
+        # 顶部 0px (紧贴工具栏), 底部 0px (紧贴状态栏), 左右 8px
+        wrapper_layout.setContentsMargins(8, 0, 8, 0)
         wrapper_layout.addWidget(splitter)
         self.setCentralWidget(wrapper)
 
