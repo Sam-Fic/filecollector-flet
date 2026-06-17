@@ -16,8 +16,8 @@ import html
 import json
 from typing import Callable
 
-from PySide6.QtCore import Qt, QThread, QObject, Signal, QUrl, QSize, QEvent
-from PySide6.QtGui import QDesktopServices, QPainter, QPainterPath, QColor, QFont
+from PySide6.QtCore import Qt, QThread, QObject, Signal, QUrl, QSize, QEvent, QPoint, QTimer, QRectF
+from PySide6.QtGui import QDesktopServices, QPainter, QPainterPath, QColor, QFont, QPen
 from PySide6.QtWidgets import (
     QApplication, QFrame, QVBoxLayout, QHBoxLayout, QLabel, QPlainTextEdit,
     QPushButton, QSizePolicy, QTextBrowser, QScrollArea, QWidget,
@@ -649,14 +649,22 @@ class MessageBubble(QWidget):
     def _reflow(self) -> None:
         """根据父容器宽度 + 内容自然宽度, 决定气泡实际宽高."""
         parent_w = self.parentWidget().width() if self.parentWidget() else 360
-        max_w = max(self._min_bubble_w, int(parent_w * self._max_width_ratio))
+        if self._role == "tool":
+            side_gap = self._tool_side_gap()
+            max_w = max(self._min_bubble_w, parent_w - 2 * side_gap)
+        else:
+            max_w = max(self._min_bubble_w, int(parent_w * self._max_width_ratio))
         max_text_w = max(1, max_w - 2 * self._padding_x)
         # 实际排版宽度 = min(自然宽度, max_text_w)
         actual_text_w = min(self._natural_w, max_text_w)
+        if self._role == "tool":
+            actual_text_w = max_text_w
         # 用实际宽度让文档重新排版, 得到真实高度
         doc = self._browser.document()
         doc.setTextWidth(actual_text_w)
         self._browser.setFixedWidth(actual_text_w)
+        # 强制文档重新布局, 防止长内容时高度读取得不准确
+        doc.documentLayout().setWidth(actual_text_w)
         text_h = max(1, int(doc.documentLayout().documentSize().height()))
         bubble_h = text_h + 2 * self._padding_y
         # 气泡宽度 = 内容宽 + padding, 但不超过 max_w, 不小于 min_bubble_w
@@ -672,6 +680,15 @@ class MessageBubble(QWidget):
         self.resize(bubble_w, bubble_h)
         self._pref_size = QSize(bubble_w, bubble_h)
 
+    def _tool_side_gap(self) -> int:
+        parent = self.parentWidget()
+        layout = parent.layout() if parent is not None else None
+        if layout is None:
+            return 8
+        margins = layout.contentsMargins()
+        left, right = margins.left(), margins.right()
+        return left if left == right else min(left, right)
+
     def sizeHint(self) -> QSize:
         return getattr(self, "_pref_size", QSize(200, 40))
 
@@ -682,6 +699,12 @@ class MessageBubble(QWidget):
         """layout 用 heightForWidth 决定气泡高度 - 跟实际宽度同步."""
         max_w = max(self._min_bubble_w, int(self._max_width_ratio *
                     (self.parentWidget().width() if self.parentWidget() else 360)))
+        if self._role == "tool":
+            parent_w = self.parentWidget().width() if self.parentWidget() else 360
+            max_w = max(
+                self._min_bubble_w,
+                parent_w - 2 * self._tool_side_gap(),
+            )
         actual_w = max(self._min_bubble_w, min(max_w, width))
         actual_text_w = max(1, actual_w - 2 * self._padding_x)
         doc = self._browser.document()
@@ -712,25 +735,21 @@ class MessageBubble(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing, True)
         bg, _, border = self.ROLE_STYLES[self._role]
-        path = QPainterPath()
-        rect = self.rect().adjusted(0.5, 0.5, -0.5, -0.5)
-        path.addRoundedRect(rect, self._radius, self._radius)
-        # 填充背景
-        painter.fillPath(path, bg)
+        r = self._radius
+        # 背景: 内缩 1px 避免与边框重叠产生模糊
+        bg_rect = self.rect().adjusted(1, 1, -1, -1)
+        bg_path = QPainterPath()
+        bg_path.addRoundedRect(QRectF(bg_rect), r, r)
+        painter.fillPath(bg_path, bg)
         # 工具/系统/AI 气泡加 1px 边框, 用户气泡纯填充 (深色边沿由 box-shadow 替代)
         if self._role in ("assistant", "system", "tool"):
-            pen = painter.pen()
-            pen.setColor(border)
-            pen.setWidthF(1.0)
+            border_path = QPainterPath()
+            border_path.addRoundedRect(
+                QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5), r, r)
+            pen = QPen(border, 1.0)
             painter.setPen(pen)
-            painter.drawPath(path)
-        # 用户气泡加一点阴影
-        if self._role == "user":
-            shadow_color = QColor(9, 105, 218, 35)
-            shadow_path = QPainterPath()
-            shadow_path.addRoundedRect(rect.adjusted(
-                0, 1, 0, 3), self._radius, self._radius)
-            painter.fillPath(shadow_path, shadow_color)
+            painter.setBrush(Qt.NoBrush)
+            painter.drawPath(border_path)
         # 不调 super().paintEvent(): QTextBrowser 自己在 paintEvent 里画自己
 
 
@@ -752,6 +771,7 @@ class AIPanel(QFrame):
         self._state_provider: Callable[[], tuple] | None = None
         self._thread: QThread | None = None
         self._worker: _AIWorker | None = None
+        self._scroll_bottom_btn: QPushButton | None = None
         self._busy = False
         self._pending_welcome = True
         self._stop_requested = False
@@ -829,6 +849,31 @@ class AIPanel(QFrame):
         outer_layout.setContentsMargins(10, 0, 10, 6)
         outer_layout.setSpacing(0)
         outer_layout.addWidget(self.chat_view)
+
+        self._scroll_bottom_btn = QPushButton(_("回到底部"), chat_outer)
+        self._scroll_bottom_btn.setObjectName("AIScrollBottomButton")
+        self._scroll_bottom_btn.setFixedHeight(32)
+        self._scroll_bottom_btn.setCursor(Qt.PointingHandCursor)
+        self._scroll_bottom_btn.clicked.connect(self._scroll_chat_to_bottom_now)
+        self._scroll_bottom_btn.setStyleSheet(
+            "QPushButton#AIScrollBottomButton {"
+            " background: #ffffff;"
+            " border: 1px solid #d0d7de;"
+            " border-radius: 16px;"
+            " padding: 6px 10px;"
+            " color: #57606a;"
+            " font-size: 12px;"
+            "}"
+            "QPushButton#AIScrollBottomButton:hover {"
+            " background: #f6f8fa;"
+            " border-color: #afb8c1;"
+            "}"
+        )
+        self._scroll_bottom_btn.hide()
+        self.chat_view.verticalScrollBar().valueChanged.connect(
+            self._update_scroll_bottom_button)
+        self.chat_view.verticalScrollBar().rangeChanged.connect(
+            self._update_scroll_bottom_button)
         root.addWidget(chat_outer, 1)
 
         # 输入区
@@ -840,7 +885,7 @@ class AIPanel(QFrame):
 
         self.input_edit = QPlainTextEdit()
         self.input_edit.setObjectName("AIInput")
-        self.input_edit.setPlaceholderText(_("输入指令, Ctrl+Enter 发送"))
+        self.input_edit.setPlaceholderText(_("输入指令, Enter 发送, Ctrl+Enter 换行"))
         self.input_edit.setFixedHeight(90)
         self.input_edit.installEventFilter(self)
         input_layout.addWidget(self.input_edit)
@@ -916,7 +961,7 @@ class AIPanel(QFrame):
             if msg["type"] == "tool" and msg["id"] == tool_id:
                 msg["expanded"] = not msg["expanded"]
                 break
-        self._render_chat()
+        self._render_chat(preserve_tool_id=tool_id)
 
     def _on_anchor_clicked(self, url: QUrl) -> None:
         """处理 chat_view 中的链接点击 (兼容旧 signal API)."""
@@ -949,10 +994,14 @@ class AIPanel(QFrame):
         if obj is self.input_edit and event.type() == event.Type.KeyPress:
             if event.key() in (Qt.Key_Return, Qt.Key_Enter):
                 if event.modifiers() & Qt.ControlModifier:
-                    self._on_send()
-                    return True
-                # 普通回车正常换行, 不拦截
+                    return False
+                self._on_send()
+                return True
         return super().eventFilter(obj, event)
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        self._update_scroll_bottom_button_position()
 
     # ------------------------------------------------------------------ 渲染
     def _render_user(self, text: str) -> None:
@@ -979,8 +1028,12 @@ class AIPanel(QFrame):
         })
         self._render_chat()
 
-    def _render_chat(self) -> None:
+    def _render_chat(self, preserve_tool_id: int | None = None) -> None:
         """从 _rendered_messages 整体重建聊天视图 (MessageBubble 列表)."""
+        scroll_anchor = None
+        if preserve_tool_id is not None:
+            scroll_anchor = self._record_tool_scroll_anchor(preserve_tool_id)
+        should_scroll_bottom = self._is_chat_at_bottom()
         # 清空旧气泡 (保留顶部的 stretch)
         layout = self.chat_view._container_layout
         while layout.count() > 1:
@@ -1000,9 +1053,47 @@ class AIPanel(QFrame):
                 self._add_bubble("system", msg["content"], "center")
             elif t == "tool":
                 self._add_tool_bubble(msg)
-        # 触发布局更新并滚到底
+        # 触发布局更新
         QApplication.processEvents()
-        self._scroll_chat_to_bottom()
+        if scroll_anchor is not None and self._restore_tool_scroll_anchor(scroll_anchor):
+            self._update_scroll_bottom_button()
+            return
+        if should_scroll_bottom:
+            self._scroll_chat_to_bottom()
+        else:
+            self._update_scroll_bottom_button()
+
+    def _find_message_row(self, message_type: str, message_id: int | None = None) -> QWidget | None:
+        layout = self.chat_view._container_layout
+        for index in range(layout.count()):
+            row = layout.itemAt(index).widget()
+            if row is None:
+                continue
+            if getattr(row, "_ai_message_type", None) != message_type:
+                continue
+            if message_id is not None and getattr(row, "_ai_message_id", None) != message_id:
+                continue
+            return row
+        return None
+
+    def _record_tool_scroll_anchor(self, tool_id: int) -> dict:
+        row = self._find_message_row("tool", tool_id)
+        if row is None:
+            return {"tool_id": tool_id, "view_y": 0}
+        return {
+            "tool_id": tool_id,
+            "view_y": row.mapTo(self.chat_view.viewport(), QPoint(0, 0)).y(),
+        }
+
+    def _restore_tool_scroll_anchor(self, anchor: dict) -> bool:
+        row = self._find_message_row("tool", anchor["tool_id"])
+        if row is None:
+            return False
+        container = self.chat_view.widget()
+        row_y = row.mapTo(container, QPoint(0, 0)).y()
+        value = max(0, row_y - anchor["view_y"])
+        self.chat_view.verticalScrollBar().setValue(value)
+        return True
 
     def _add_bubble(self, role: str, content: str, alignment: str) -> None:
         """添加一条普通消息气泡."""
@@ -1013,6 +1104,8 @@ class AIPanel(QFrame):
         bubble.set_content(html_content)
         # 用一个水平布局行把气泡推到对应位置
         row = QWidget()
+        row._ai_message_type = "user"  # type: ignore[attr-defined]
+        row._ai_message_id = None  # type: ignore[attr-defined]
         row.setStyleSheet("background: transparent;")
         h = QHBoxLayout(row)
         h.setContentsMargins(0, 0, 0, 0)
@@ -1040,7 +1133,6 @@ class AIPanel(QFrame):
         args_esc = html.escape(args_repr)
         expanded = msg["expanded"]
         action = _("收起") if expanded else _("查看结果")
-        icon = (name[:2] or "FX").upper()
         tool_id = msg["id"]
         if expanded:
             body_html = (
@@ -1058,7 +1150,6 @@ class AIPanel(QFrame):
             f'<div class="tool-card">'
             f'<a class="tool-header" href="toggle:{tool_id}">'
             f'<span class="tool-arrow">{("▼" if expanded else "▶")}</span>'
-            f'<span class="tool-icon">{icon}</span>'
             f'<span class="tool-name">{name}</span>'
             f'<span class="tool-args">{args_esc}</span>'
             f'<span class="tool-action">{action}</span>'
@@ -1074,6 +1165,8 @@ class AIPanel(QFrame):
         bubble._browser.anchorClicked.connect(self._on_anchor_clicked)
         # 居中
         row = QWidget()
+        row._ai_message_type = "tool"  # type: ignore[attr-defined]
+        row._ai_message_id = msg["id"]  # type: ignore[attr-defined]
         row.setStyleSheet("background: transparent;")
         h = QHBoxLayout(row)
         h.setContentsMargins(0, 0, 0, 0)
@@ -1091,15 +1184,38 @@ class AIPanel(QFrame):
     def _render_chat_textbrowser(self) -> None:  # pragma: no cover
         self._render_chat()
 
+    def _is_chat_at_bottom(self) -> bool:
+        sb = self.chat_view.verticalScrollBar()
+        return sb.maximum() - sb.value() <= 4
+
     def _scroll_chat_to_bottom(self) -> None:
         """把 chat_view 滚动条拉到最底. 在内容更新后异步调用."""
-        from PySide6.QtCore import QTimer
         QTimer.singleShot(0, self._do_scroll_bottom)
 
     def _do_scroll_bottom(self) -> None:
         # QScrollArea 的滚动条
         sb = self.chat_view.verticalScrollBar()
         sb.setValue(sb.maximum())
+        self._update_scroll_bottom_button()
+
+    def _scroll_chat_to_bottom_now(self) -> None:
+        self._do_scroll_bottom()
+
+    def _update_scroll_bottom_button(self) -> None:
+        if self._scroll_bottom_btn is None:
+            return
+        sb = self.chat_view.verticalScrollBar()
+        visible = sb.maximum() > 0 and not self._is_chat_at_bottom()
+        self._scroll_bottom_btn.setVisible(visible)
+        self._update_scroll_bottom_button_position()
+
+    def _update_scroll_bottom_button_position(self) -> None:
+        if self._scroll_bottom_btn is None:
+            return
+        chat_view = self.chat_view
+        cx = chat_view.x() + (chat_view.width() - self._scroll_bottom_btn.width()) // 2
+        bottom = chat_view.y() + chat_view.height() - 16
+        self._scroll_bottom_btn.move(cx, bottom - self._scroll_bottom_btn.height())
 
     # ---- 各类型气泡 HTML (旧 webengine/textbrowser 模式保留, 已不调用) ----
     def _user_bubble_html(self, content: str) -> str:
@@ -1135,8 +1251,6 @@ class AIPanel(QFrame):
         args_esc = html.escape(args_repr)
         expanded = msg["expanded"]
         action = _("收起") if expanded else _("查看结果")
-        cls = "tool-card expanded" if expanded else "tool-card"
-        icon = (name[:2] or "FX").upper()
         if expanded:
             body = (
                 '<div class="tool-body">'
@@ -1154,13 +1268,12 @@ class AIPanel(QFrame):
                 f'{preview or "—"}'
                 '</div>'
             )
-        # toggle: 链接被点击时触发 _on_anchor_clicked
         return (
-            f'<div class="bubble-row bubble-row-tool">'
+            '<table class="row-center" cellspacing="0" cellpadding="0">'
+            '<tr><td>'
             f'<div class="{cls}" data-tool-id="{tool_id}">'
             f'<a class="tool-header" href="toggle:{tool_id}">'
             f'<span class="tool-arrow">▶</span>'
-            f'<span class="tool-icon">{icon}</span>'
             f'<span class="tool-name">{name}</span>'
             f'<span class="tool-args">{args_esc}</span>'
             f'<span class="tool-action">{action}</span>'
