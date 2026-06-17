@@ -7,7 +7,7 @@
 FileCollector is a cross-platform desktop utility for efficiently collecting and organizing files from a working directory into a merged text file.  
 It features a checkable directory tree, flexible organization list, text insertion, drag-and-drop sorting, and automatic encoding detection — perfect for quickly consolidating key code or documents from a project into a single TXT file for analysis or submission to a large language model.
 
-![Python](https://img.shields.io/badge/Python-3.8+-blue) ![PySide6](https://img.shields.io/badge/GUI-PySide6-green) ![markdown-it](https://img.shields.io/badge/Markdown-markdown--it--py-blue) ![pygments](https://img.shields.io/badge/Highlighting-Pygments-yellow) ![License](https://img.shields.io/badge/license-MIT-brightgreen)
+![Python](https://img.shields.io/badge/Python-3.8+-blue) ![PySide6](https://img.shields.io/badge/GUI-PySide6-green) ![markdown-it](https://img.shields.io/badge/Markdown-markdown--it--py-blue) ![pygments](https://img.shields.io/badge/Highlighting-Pygments-yellow) ![qtawesome](https://img.shields.io/badge/Icons-qtawesome-orange) ![License](https://img.shields.io/badge/license-MIT-brightgreen)
 
 ![FileCollector Screenshot](screenshots/screenshot-en.png)
 
@@ -119,6 +119,17 @@ src/
         ├── ai_panel.py        # AI assistant chat panel (rounded bubbles + tool-call cards)
         ├── ai_markdown.py     # Markdown rendering helper for the AI chat (markdown-it + Pygments)
         └── ai_settings_dialog.py # AI assistant configuration dialog
+    └── gui_flet/             # Flet cross-platform GUI implementation
+        ├── __init__.py
+        ├── main_view.py     # Main view (Flet entry point)
+        ├── file_tree.py     # File tree widget (Flet version)
+        ├── arrangement_list.py # Visual organization list (Flet version)
+        ├── preview_panel.py # Preview panel (Flet version)
+        ├── ai_panel.py      # AI assistant chat panel (Flet version)
+        ├── ai_settings_dialog.py # AI assistant configuration dialog (Flet version)
+        ├── dialogs.py       # Text edit dialog (Flet version)
+        ├── snack.py         # Lightweight toast notification (Flet version)
+        └── undo.py          # Undo/redo support (Flet version)
 ```
 
 ---
@@ -362,3 +373,4 @@ This project uses the **MIT License**, see the [LICENSE](LICENSE) file for detai
 - [chardet](https://github.com/chardet/chardet) - Encoding detection library
 - [markdown-it-py](https://github.com/executablebooks/mdit-py) - Markdown parser for rich text rendering in the AI chat panel
 - [Pygments](https://pygments.org/) - Syntax highlighting library for code block coloring in AI chat
+- [QtAwesome](https://github.com/spyder-ide/qtawesome) - Font Awesome icon library for toolbar buttons and menu icons

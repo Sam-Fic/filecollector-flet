@@ -7,7 +7,7 @@
 FileCollector 是一款跨平台的桌面小工具，用于高效收集、编排工作目录中的文件并生成合并文本。  
 它提供了可勾选的目录树、灵活的编排列表、文字插入、拖放排序和编码自动检测，非常适合将项目中的关键代码或文档快速整合成一个 TXT 文件，供后续分析或提交给大语言模型使用。
 
-![Python](https://img.shields.io/badge/Python-3.8+-blue) ![PySide6](https://img.shields.io/badge/GUI-PySide6-green) ![markdown-it](https://img.shields.io/badge/Markdown-markdown--it--py-blue) ![pygments](https://img.shields.io/badge/Highlighting-Pygments-yellow) ![License](https://img.shields.io/badge/license-MIT-brightgreen)
+![Python](https://img.shields.io/badge/Python-3.8+-blue) ![PySide6](https://img.shields.io/badge/GUI-PySide6-green) ![markdown-it](https://img.shields.io/badge/Markdown-markdown--it--py-blue) ![pygments](https://img.shields.io/badge/Highlighting-Pygments-yellow) ![qtawesome](https://img.shields.io/badge/Icons-qtawesome-orange) ![License](https://img.shields.io/badge/license-MIT-brightgreen)
 
 ![FileCollector Screenshot](screenshots/screenshot.png)
 
@@ -119,6 +119,17 @@ src/
         ├── ai_panel.py        # AI 助手聊天面板（圆角气泡 + 工具调用卡片）
         ├── ai_markdown.py     # AI 聊天的 Markdown 渲染辅助（markdown-it + Pygments）
         └── ai_settings_dialog.py # AI 助手配置对话框
+    └── gui_flet/             # Flet 跨平台 GUI 实现
+        ├── __init__.py
+        ├── main_view.py     # 主视图（Flet 入口）
+        ├── file_tree.py     # 文件树组件（Flet 版）
+        ├── arrangement_list.py # 可视化编排列表（Flet 版）
+        ├── preview_panel.py # 预览面板（Flet 版）
+        ├── ai_panel.py      # AI 助手聊天面板（Flet 版）
+        ├── ai_settings_dialog.py # AI 助手配置对话框（Flet 版）
+        ├── dialogs.py       # 文字编辑对话框（Flet 版）
+        ├── snack.py         # 轻量提示条（Flet 版）
+        └── undo.py          # 撤销/重做支持（Flet 版）
 ```
 
 ---
@@ -343,3 +354,4 @@ pyinstaller --onefile --windowed --name "FileCollector" file_collector.py
 - [chardet](https://github.com/chardet/chardet) - 编码检测库
 - [markdown-it-py](https://github.com/executablebooks/mdit-py) - Markdown 解析库，用于 AI 聊天面板的富文本渲染
 - [Pygments](https://pygments.org/) - 语法高亮库，用于 AI 聊天中代码块的着色显示
+- [QtAwesome](https://github.com/spyder-ide/qtawesome) - Font Awesome 图标库，用于工具栏按钮和菜单图标
