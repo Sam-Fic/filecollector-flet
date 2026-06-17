@@ -80,7 +80,5 @@ class TextEditDialog(QDialog):
         from filecollector.gui.phrases_dialog import PhrasesDialog
         dlg = PhrasesDialog(self._common_phrases, self, select_mode=True)
         if dlg.exec() == QDialog.Accepted and dlg.phrase_selected:
-            current = self.text_edit.toPlainText()
-            new_text = current + ("\n" if current and not current.endswith("\n") else "") + dlg.phrase_selected
-            self.text_edit.setPlainText(new_text)
-            self.text_edit.moveCursor(self.text_edit.textCursor().End)
+            self.text_edit.setPlainText(dlg.phrase_selected)
+            self.accept()

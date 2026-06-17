@@ -54,13 +54,15 @@ class PhrasesDialog(QDialog):
 
         self.list_widget = QListWidget()
         self.list_widget.setSelectionMode(QListWidget.SingleSelection)
-        if self._select_mode:
-            self.list_widget.itemDoubleClicked.connect(self._on_accept)
+        self.list_widget.itemDoubleClicked.connect(
+            self._on_accept if self._select_mode else self._on_edit
+        )
         root.addWidget(self.list_widget)
 
         if self._select_mode:
             row = QHBoxLayout()
             self._btn_new = QPushButton(_("添加"))
+            self._btn_new.setObjectName("SuggestedAction")
             self._btn_new.setFixedHeight(BUTTON_HEIGHT)
             self._btn_new.clicked.connect(self._on_add)
             cancel_btn = QPushButton(_("取消"))
@@ -78,11 +80,9 @@ class PhrasesDialog(QDialog):
         else:
             row = QHBoxLayout()
             self._btn_new = QPushButton(_("添加"))
+            self._btn_new.setObjectName("SuggestedAction")
             self._btn_new.setFixedHeight(BUTTON_HEIGHT)
             self._btn_new.clicked.connect(self._on_add)
-            self._btn_edit = QPushButton(_("编辑"))
-            self._btn_edit.setFixedHeight(BUTTON_HEIGHT)
-            self._btn_edit.clicked.connect(self._on_edit)
             self._btn_delete = QPushButton(_("删除"))
             self._btn_delete.setObjectName("DestructiveAction")
             self._btn_delete.setFixedHeight(BUTTON_HEIGHT)
@@ -91,7 +91,6 @@ class PhrasesDialog(QDialog):
             self._btn_close.setFixedHeight(BUTTON_HEIGHT)
             self._btn_close.clicked.connect(self.accept)
             row.addWidget(self._btn_new)
-            row.addWidget(self._btn_edit)
             row.addWidget(self._btn_delete)
             row.addStretch()
             row.addWidget(self._btn_close)
@@ -103,7 +102,6 @@ class PhrasesDialog(QDialog):
     def _on_selection_changed(self, *_):
         has = self.list_widget.currentRow() >= 0
         if not self._select_mode:
-            self._btn_edit.setEnabled(has)
             self._btn_delete.setEnabled(has)
 
     def _reload(self) -> None:
