@@ -1,2 +1,4 @@
 PySide6
 chardet
+markdown-it-py
+pygments
