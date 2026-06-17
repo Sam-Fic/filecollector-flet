@@ -37,11 +37,7 @@ class ToastNotification(QWidget):
         container.setObjectName("ToastContainer")
         container_layout = QVBoxLayout(container)
         container_layout.setContentsMargins(16, 10, 16, 10)
-        container_layout.setSpacing(4)
-
-        icon_label = QLabel("ℹ️")
-        icon_label.setStyleSheet("background: transparent; border: none; font-size: 14px;")
-        container_layout.addWidget(icon_label)
+        container_layout.setSpacing(0)
 
         text_label = QLabel(self._text)
         text_label.setWordWrap(True)
