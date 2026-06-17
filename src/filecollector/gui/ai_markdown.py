@@ -38,7 +38,9 @@ def render_markdown(text: str) -> str:
         return ""
     tokens = _md.parse(text)
     _highlight_code_tokens(tokens)
-    return _md.renderer.render(tokens, _md.options, {})
+    html = _md.renderer.render(tokens, _md.options, {})
+    html = _wrap_tables(html)
+    return html
 
 
 def sanitize_url(url: str) -> Optional[str]:
@@ -109,3 +111,11 @@ def _highlight_code_tokens(tokens) -> None:
             i += 1
             continue
         i += 1
+
+
+def _wrap_tables(html: str) -> str:
+    return re.sub(
+        r"(<table\b)",
+        r'<div class="table-wrap">\1',
+        html,
+    ).replace("</table>", "</table></div>")
