@@ -664,7 +664,6 @@ class MessageBubble(QWidget):
         doc.setTextWidth(actual_text_w)
         self._browser.setFixedWidth(actual_text_w)
         # 强制文档重新布局, 防止长内容时高度读取得不准确
-        doc.documentLayout().setWidth(actual_text_w)
         text_h = max(1, int(doc.documentLayout().documentSize().height()))
         bubble_h = text_h + 2 * self._padding_y
         # 气泡宽度 = 内容宽 + padding, 但不超过 max_w, 不小于 min_bubble_w
