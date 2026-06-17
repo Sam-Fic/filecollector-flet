@@ -417,7 +417,9 @@ body {
     border-collapse: collapse;
     margin: 8px 0;
     font-size: 13px;
-    display: block;
+    width: 100%;
+}
+.bubble-content table-wrap {
     overflow-x: auto;
     max-width: 100%;
 }

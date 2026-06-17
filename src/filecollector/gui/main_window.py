@@ -47,6 +47,8 @@ from filecollector.gui.undo import UndoState, UndoManager
 from filecollector.gui.style import get_stylesheet
 from filecollector.gui.toast import ToastNotification
 from filecollector.gui.ai_panel import AIPanel
+
+import qtawesome as qta
 from filecollector.gui.ai_settings_dialog import load_ai_settings, AISettingsDialog
 from filecollector.cli import apply_cli_args
 
@@ -114,18 +116,18 @@ class FileCollectorApp(QMainWindow):
 
     def _retranslate_buttons_and_menus(self) -> None:
         """重新翻译按钮 / 菜单 / 复选框文本."""
-        self.btn_undo.setText("↶ " + _("撤销"))
-        self.btn_redo.setText("↷ " + _("重做"))
-        self.open_folder_btn.setText("📂 " + _("打开文件夹"))
-        self.btn_add_external.setText("📄 " + _("添加外部文件"))
-        self.btn_add_text_above.setText("↑ " + _("上方插入文本"))
-        self.btn_add_text_below.setText("↓ " + _("下方插入文本"))
-        self.btn_move_up.setText("↑ " + _("上移"))
-        self.btn_move_down.setText("↓ " + _("下移"))
-        self.btn_delete.setText("🗑 " + _("删除"))
+        self.btn_undo.setText(_("撤销"))
+        self.btn_redo.setText(_("重做"))
+        self.open_folder_btn.setText(_("打开文件夹"))
+        self.btn_add_external.setText(_("添加外部文件"))
+        self.btn_add_text_above.setText(_("上方插入文本"))
+        self.btn_add_text_below.setText(_("下方插入文本"))
+        self.btn_move_up.setText(_("上移"))
+        self.btn_move_down.setText(_("下移"))
+        self.btn_delete.setText(_("删除"))
         self.btn_clear.setText(_("清空"))
-        self.btn_generate.setText("📄 " + _("生成合并文本"))
-        self.btn_generate_clipboard.setText("📋 " + _("生成合并文本到剪贴板"))
+        self.btn_generate.setText(_("生成合并文本"))
+        self.btn_generate_clipboard.setText(_("生成合并文本到剪贴板"))
         self.radio_rel.setText(_("相对路径"))
         self.radio_abs.setText(_("使用绝对路径"))
         self.check_header.setText(_("在文件头部标注工作目录信息"))
@@ -139,7 +141,7 @@ class FileCollectorApp(QMainWindow):
         self.act_shortcuts.setText(_("键盘快捷键"))
         self.act_about.setText(_("关于"))
         self.act_ai_settings.setText(_("AI 设置"))
-        self.btn_ai_toggle.setText("🤖 " + _("AI"))
+        self.btn_ai_toggle.setText(_("AI"))
         self.menuBar().actions()[0].menu().setTitle(_("项目(&P)"))
         self.menuBar().actions()[1].menu().setTitle(_("设置(&S)"))
         self.menuBar().actions()[2].menu().setTitle(_("帮助(&H)"))
@@ -202,47 +204,56 @@ class FileCollectorApp(QMainWindow):
 
         project_menu = menu_bar.addMenu(_("项目(&P)"))
         self.act_open = QAction(_("打开项目..."), self)
+        self.act_open.setIcon(qta.icon("fa5s.folder-open"))
         self.act_open.setShortcut("Ctrl+O")
         self.act_open.triggered.connect(self.load_project)
         project_menu.addAction(self.act_open)
 
         self.act_save = QAction(_("保存项目"), self)
+        self.act_save.setIcon(qta.icon("fa5s.save"))
         self.act_save.setShortcut("Ctrl+S")
         self.act_save.triggered.connect(self.save_project)
         project_menu.addAction(self.act_save)
 
         self.act_save_as = QAction(_("项目另存为..."), self)
+        self.act_save_as.setIcon(qta.icon("fa5s.copy"))
         self.act_save_as.setShortcut("Ctrl+Shift+S")
         self.act_save_as.triggered.connect(self.save_project_as)
         project_menu.addAction(self.act_save_as)
         project_menu.addSeparator()
 
         self.act_exit = QAction(_("退出(&X)"), self)
+        self.act_exit.setIcon(qta.icon("fa5s.sign-out-alt"))
         self.act_exit.setShortcut("Ctrl+Q")
         self.act_exit.triggered.connect(self.close)
         project_menu.addAction(self.act_exit)
 
         settings_menu = menu_bar.addMenu(_("设置(&S)"))
         self.act_settings = QAction(_("语言设置"), self)
+        self.act_settings.setIcon(qta.icon("fa5s.globe"))
         self.act_settings.setShortcut("Ctrl+,")
         self.act_settings.triggered.connect(self._open_settings)
         settings_menu.addAction(self.act_settings)
 
         self.act_phrases = QAction(_("常用语管理(&M)"), self)
+        self.act_phrases.setIcon(qta.icon("fa5s.comment"))
         self.act_phrases.triggered.connect(self._open_phrases_manager)
         settings_menu.addAction(self.act_phrases)
 
         self.act_ai_settings = QAction(_("AI 设置"), self)
+        self.act_ai_settings.setIcon(qta.icon("fa5s.cog"))
         self.act_ai_settings.triggered.connect(self._open_ai_settings)
         settings_menu.addAction(self.act_ai_settings)
 
         help_menu = menu_bar.addMenu(_("帮助(&H)"))
         self.act_shortcuts = QAction(_("键盘快捷键"), self)
+        self.act_shortcuts.setIcon(qta.icon("fa5s.keyboard"))
         self.act_shortcuts.setShortcut("Ctrl+/")
         self.act_shortcuts.triggered.connect(self._open_shortcuts)
         help_menu.addAction(self.act_shortcuts)
 
         self.act_about = QAction(_("关于"), self)
+        self.act_about.setIcon(qta.icon("fa5s.info-circle"))
         self.act_about.setShortcut("F1")
         self.act_about.triggered.connect(self._show_about)
         help_menu.addAction(self.act_about)
@@ -257,14 +268,16 @@ class FileCollectorApp(QMainWindow):
         toolbar.setContentsMargins(0, 0, 0, 0)
         self.addToolBar(toolbar)
 
-        self.btn_undo = QPushButton("↶ " + _("撤销"))
+        self.btn_undo = QPushButton(_("撤销"))
+        self.btn_undo.setIcon(qta.icon("fa5s.undo"))
         self.btn_undo.setToolTip("Ctrl+Z")
         self.btn_undo.setObjectName("FlatButton")
         self.btn_undo.setEnabled(False)
         self.btn_undo.clicked.connect(self.on_undo)
         toolbar.addWidget(self.btn_undo)
 
-        self.btn_redo = QPushButton("↷ " + _("重做"))
+        self.btn_redo = QPushButton(_("重做"))
+        self.btn_redo.setIcon(qta.icon("fa5s.redo"))
         self.btn_redo.setToolTip("Ctrl+Shift+Z")
         self.btn_redo.setObjectName("FlatButton")
         self.btn_redo.setEnabled(False)
@@ -273,7 +286,8 @@ class FileCollectorApp(QMainWindow):
 
         toolbar.addSeparator()
 
-        self.open_folder_btn = QPushButton("📂 " + _("打开文件夹"))
+        self.open_folder_btn = QPushButton(_("打开文件夹"))
+        self.open_folder_btn.setIcon(qta.icon("fa5s.folder-open"))
         self.open_folder_btn.setToolTip(_("选择工作目录，左侧加载目录树"))
         self.open_folder_btn.clicked.connect(self.open_folder)
         toolbar.addWidget(self.open_folder_btn)
@@ -291,7 +305,8 @@ class FileCollectorApp(QMainWindow):
         spacer.setAttribute(Qt.WA_TransparentForMouseEvents, True)
         toolbar.addWidget(spacer)
 
-        self.btn_ai_toggle = QPushButton("🤖 " + _("AI"))
+        self.btn_ai_toggle = QPushButton(_("AI"))
+        self.btn_ai_toggle.setIcon(qta.icon("fa5s.robot"))
         self.btn_ai_toggle.setCheckable(True)
         self.btn_ai_toggle.setObjectName("FlatButton")
         self.btn_ai_toggle.setToolTip(_("展开 / 收起 AI 助手边栏"))
@@ -366,13 +381,16 @@ class FileCollectorApp(QMainWindow):
         btn_row1 = QHBoxLayout()
         btn_row1.setContentsMargins(12, 8, 12, 4)
         btn_row1.setSpacing(6)
-        self.btn_add_external = QPushButton("📄 " + _("添加外部文件"))
+        self.btn_add_external = QPushButton(_("添加外部文件"))
+        self.btn_add_external.setIcon(qta.icon("fa5s.file-import"))
         self.btn_add_external.setShortcut("Ctrl+E")
         self.btn_add_external.setToolTip("Ctrl+E")
-        self.btn_add_text_above = QPushButton("↑ " + _("上方插入文本"))
+        self.btn_add_text_above = QPushButton(_("上方插入文本"))
+        self.btn_add_text_above.setIcon(qta.icon("fa5s.arrow-up"))
         self.btn_add_text_above.setShortcut("Ctrl+I")
         self.btn_add_text_above.setToolTip("Ctrl+I")
-        self.btn_add_text_below = QPushButton("↓ " + _("下方插入文本"))
+        self.btn_add_text_below = QPushButton(_("下方插入文本"))
+        self.btn_add_text_below.setIcon(qta.icon("fa5s.arrow-down"))
         self.btn_add_text_below.setShortcut("Ctrl+Shift+I")
         self.btn_add_text_below.setToolTip("Ctrl+Shift+I")
         btn_row1.addWidget(self.btn_add_external)
@@ -383,16 +401,20 @@ class FileCollectorApp(QMainWindow):
         btn_row2 = QHBoxLayout()
         btn_row2.setContentsMargins(12, 0, 12, 4)
         btn_row2.setSpacing(6)
-        self.btn_move_up = QPushButton("↑ " + _("上移"))
+        self.btn_move_up = QPushButton(_("上移"))
+        self.btn_move_up.setIcon(qta.icon("fa5s.chevron-up"))
         self.btn_move_up.setShortcut("Ctrl+Up")
         self.btn_move_up.setToolTip("Ctrl+Up")
-        self.btn_move_down = QPushButton("↓ " + _("下移"))
+        self.btn_move_down = QPushButton(_("下移"))
+        self.btn_move_down.setIcon(qta.icon("fa5s.chevron-down"))
         self.btn_move_down.setShortcut("Ctrl+Down")
         self.btn_move_down.setToolTip("Ctrl+Down")
-        self.btn_delete = QPushButton("🗑 " + _("删除"))
+        self.btn_delete = QPushButton(_("删除"))
+        self.btn_delete.setIcon(qta.icon("fa5s.trash"))
         self.btn_delete.setShortcut("Delete")
         self.btn_delete.setToolTip("Delete")
         self.btn_clear = QPushButton(_("清空"))
+        self.btn_clear.setIcon(qta.icon("fa5s.ban", color="white"))
         self.btn_clear.setShortcut("Ctrl+N")
         self.btn_clear.setToolTip("Ctrl+N")
         self.btn_clear.setObjectName("DestructiveAction")
@@ -424,11 +446,13 @@ class FileCollectorApp(QMainWindow):
         btn_row3 = QHBoxLayout()
         btn_row3.setContentsMargins(12, 4, 12, 12)
         btn_row3.setSpacing(6)
-        self.btn_generate = QPushButton("📄 " + _("生成合并文本"))
+        self.btn_generate = QPushButton(_("生成合并文本"))
+        self.btn_generate.setIcon(qta.icon("fa5s.file-export", color="white"))
         self.btn_generate.setObjectName("SuggestedAction")
         self.btn_generate.setShortcut("Ctrl+G")
         self.btn_generate.setToolTip("Ctrl+G")
-        self.btn_generate_clipboard = QPushButton("📋 " + _("生成合并文本到剪贴板"))
+        self.btn_generate_clipboard = QPushButton(_("生成合并文本到剪贴板"))
+        self.btn_generate_clipboard.setIcon(qta.icon("fa5s.clipboard", color="white"))
         self.btn_generate_clipboard.setObjectName("SuggestedAction")
         self.btn_generate_clipboard.setShortcut("Ctrl+Shift+C")
         self.btn_generate_clipboard.setToolTip("Ctrl+Shift+C")
@@ -652,14 +676,14 @@ class FileCollectorApp(QMainWindow):
         if data.type == "file":
             p = Path(data.path)
             if data.force_absolute:
-                return f"{idx+1}. 📌 {p.name}  {_('(绝对路径)')}"
+                return f"{idx+1}. {p.name}  {_('(绝对路径)')}"
             else:
-                return f"{idx+1}. 📄 {p.name}"
+                return f"{idx+1}. {p.name}"
         else:
             preview = data.content
             if len(preview) > 30:
                 preview = preview[:30] + "..."
-            return f"{idx+1}. 📝 {preview}"
+            return f"{idx+1}. {preview}"
 
     def add_external_files(self):
         self._push_undo()
@@ -964,13 +988,13 @@ class FileCollectorApp(QMainWindow):
             "<p>" + _("跨平台支持 Windows / macOS / Linux。") + "</p>"
             "<p><b>" + _("主要功能：") + "</b></p>"
             "<ul>"
-            "<li>" + _("📂 目录树浏览 + 多选勾选") + "</li>"
-            "<li>" + _("📋 拖放排序 + 撤销 / 重做") + "</li>"
-            "<li>" + _("✏️ 文字插入 + 常用语管理") + "</li>"
-            "<li>" + _("🧠 智能编码检测 (UTF-8 / GBK / 拉丁系)") + "</li>"
-            "<li>" + _("💾 项目保存 / 加载 (.project.json / .fcol)") + "</li>"
-            "<li>" + _("🌐 中英文切换 (跟随系统 / 中文 / English)") + "</li>"
-            "<li>" + _("⌨️ 完整键盘快捷键支持") + "</li>"
+            "<li>" + _("目录树浏览 + 多选勾选") + "</li>"
+            "<li>" + _("拖放排序 + 撤销 / 重做") + "</li>"
+            "<li>" + _("文字插入 + 常用语管理") + "</li>"
+            "<li>" + _("智能编码检测 (UTF-8 / GBK / 拉丁系)") + "</li>"
+            "<li>" + _("项目保存 / 加载 (.project.json / .fcol)") + "</li>"
+            "<li>" + _("中英文切换 (跟随系统 / 中文 / English)") + "</li>"
+            "<li>" + _("完整键盘快捷键支持") + "</li>"
             "</ul>"
             "<p style='color:#5e5c64;'>"
             + _("开发者：Sam-Fic | License: MIT") +
