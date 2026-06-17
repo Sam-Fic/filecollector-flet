@@ -7,7 +7,7 @@
 FileCollector 是一款跨平台的桌面小工具，用于高效收集、编排工作目录中的文件并生成合并文本。  
 它提供了可勾选的目录树、灵活的编排列表、文字插入、拖放排序和编码自动检测，非常适合将项目中的关键代码或文档快速整合成一个 TXT 文件，供后续分析或提交给大语言模型使用。
 
-![Python](https://img.shields.io/badge/Python-3.8+-blue) ![PySide6](https://img.shields.io/badge/GUI-PySide6-green) ![License](https://img.shields.io/badge/license-MIT-brightgreen)
+![Python](https://img.shields.io/badge/Python-3.8+-blue) ![PySide6](https://img.shields.io/badge/GUI-PySide6-green) ![markdown-it](https://img.shields.io/badge/Markdown-markdown--it--py-blue) ![pygments](https://img.shields.io/badge/Highlighting-Pygments-yellow) ![License](https://img.shields.io/badge/license-MIT-brightgreen)
 
 ![FileCollector Screenshot](screenshots/screenshot.png)
 
@@ -100,13 +100,24 @@ src/
     ├── utils.py               # 工具函数（编码检测、安全读取）
     ├── engine.py              # 业务引擎（所有核心逻辑，不依赖 Qt）
     ├── cli.py                 # CLI 模式（按序参数解析与执行）
+    ├── config.py              # 配置管理（settings.json 读写）
+    ├── ipc.py                 # 进程间通信（CLI-GUI 单实例协调）
+    ├── i18n.py                # 国际化支持
     ├── ai_client.py           # AI 助手后端（OpenAI 兼容接口 + Function Calling）
     └── gui/
         ├── __init__.py
         ├── dialogs.py         # 文字编辑对话框（TextEditDialog）
         ├── main_window.py     # 主窗口（FileCollectorApp，依赖 PySide6）
+        ├── file_tree.py       # 文件树组件（懒加载目录树 + 勾选）
+        ├── gui_actions.py     # GUI 动作定义与快捷键绑定
+        ├── settings_dialog.py # 全局设置对话框
+        ├── style.py           # 全局样式定义
+        ├── toast.py           # 轻量提示条组件
+        ├── undo.py            # 撤销/重做支持
+        ├── shortcuts_dialog.py # 快捷键查看对话框
+        ├── phrases_dialog.py  # 常用短语插入对话框
         ├── ai_panel.py        # AI 助手聊天面板（圆角气泡 + 工具调用卡片）
-        ├── ai_markdown.py     # AI 聊天的 Markdown 渲染辅助
+        ├── ai_markdown.py     # AI 聊天的 Markdown 渲染辅助（markdown-it + Pygments）
         └── ai_settings_dialog.py # AI 助手配置对话框
 ```
 
@@ -330,3 +341,5 @@ pyinstaller --onefile --windowed --name "FileCollector" file_collector.py
 
 - [PySide6](https://wiki.qt.io/Qt_for_Python) - 提供现代 GUI 框架
 - [chardet](https://github.com/chardet/chardet) - 编码检测库
+- [markdown-it-py](https://github.com/executablebooks/mdit-py) - Markdown 解析库，用于 AI 聊天面板的富文本渲染
+- [Pygments](https://pygments.org/) - 语法高亮库，用于 AI 聊天中代码块的着色显示

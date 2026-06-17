@@ -7,7 +7,7 @@
 FileCollector is a cross-platform desktop utility for efficiently collecting and organizing files from a working directory into a merged text file.  
 It features a checkable directory tree, flexible organization list, text insertion, drag-and-drop sorting, and automatic encoding detection — perfect for quickly consolidating key code or documents from a project into a single TXT file for analysis or submission to a large language model.
 
-![Python](https://img.shields.io/badge/Python-3.8+-blue) ![PySide6](https://img.shields.io/badge/GUI-PySide6-green) ![License](https://img.shields.io/badge/license-MIT-brightgreen)
+![Python](https://img.shields.io/badge/Python-3.8+-blue) ![PySide6](https://img.shields.io/badge/GUI-PySide6-green) ![markdown-it](https://img.shields.io/badge/Markdown-markdown--it--py-blue) ![pygments](https://img.shields.io/badge/Highlighting-Pygments-yellow) ![License](https://img.shields.io/badge/license-MIT-brightgreen)
 
 ![FileCollector Screenshot](screenshots/screenshot-en.png)
 
@@ -100,13 +100,24 @@ src/
     ├── utils.py               # Utility functions (encoding detection, safe read)
     ├── engine.py              # Business engine (all core logic, Qt-free)
     ├── cli.py                 # CLI mode (sequential argument parsing and execution)
+    ├── config.py              # Configuration management (settings.json read/write)
+    ├── ipc.py                 # Inter-process communication (CLI-GUI single-instance coordination)
+    ├── i18n.py                # Internationalization support
     ├── ai_client.py           # AI assistant backend (OpenAI-compatible API + Function Calling)
     └── gui/
         ├── __init__.py
         ├── dialogs.py         # Text edit dialog (TextEditDialog)
         ├── main_window.py     # Main window (FileCollectorApp, depends on PySide6)
+        ├── file_tree.py       # File tree widget (lazy-loaded directory tree + checkboxes)
+        ├── gui_actions.py     # GUI action definitions and shortcut bindings
+        ├── settings_dialog.py # Global settings dialog
+        ├── style.py           # Global style definitions
+        ├── toast.py           # Lightweight toast notification widget
+        ├── undo.py            # Undo/redo support
+        ├── shortcuts_dialog.py # Shortcut viewer dialog
+        ├── phrases_dialog.py  # Common phrases insertion dialog
         ├── ai_panel.py        # AI assistant chat panel (rounded bubbles + tool-call cards)
-        ├── ai_markdown.py     # Markdown rendering helper for the AI chat
+        ├── ai_markdown.py     # Markdown rendering helper for the AI chat (markdown-it + Pygments)
         └── ai_settings_dialog.py # AI assistant configuration dialog
 ```
 
@@ -349,3 +360,5 @@ This project uses the **MIT License**, see the [LICENSE](LICENSE) file for detai
 
 - [PySide6](https://wiki.qt.io/Qt_for_Python) - Modern GUI framework
 - [chardet](https://github.com/chardet/chardet) - Encoding detection library
+- [markdown-it-py](https://github.com/executablebooks/mdit-py) - Markdown parser for rich text rendering in the AI chat panel
+- [Pygments](https://pygments.org/) - Syntax highlighting library for code block coloring in AI chat
