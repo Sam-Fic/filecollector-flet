@@ -2,12 +2,27 @@ import sys
 
 from filecollector.cli import run_cli, parse_to_engine, print_help, is_cli_mode
 
+# 检查是否使用 Flet 版本
+USE_FLET = "--flet" in sys.argv
+
+if USE_FLET:
+    # 移除 --flet 参数
+    sys.argv = [arg for arg in sys.argv if arg != "--flet"]
+
 try:
-    from PySide6.QtWidgets import QApplication
-    from filecollector.gui.main_window import FileCollectorApp
-    GUI_AVAILABLE = True
+    if USE_FLET:
+        import flet as ft
+        from filecollector.gui_flet import main as flet_main
+        FLET_AVAILABLE = True
+    else:
+        from PySide6.QtWidgets import QApplication
+        from filecollector.gui.main_window import FileCollectorApp
+        GUI_AVAILABLE = True
 except ImportError:
-    GUI_AVAILABLE = False
+    if USE_FLET:
+        FLET_AVAILABLE = False
+    else:
+        GUI_AVAILABLE = False
 
 
 def main():
@@ -24,7 +39,7 @@ def main():
 
     # If there are CLI args, try to send them to a running GUI instance.
     # When connected, the running GUI applies the operations live.
-    if has_cli_args:
+    if has_cli_args and not USE_FLET:
         from filecollector.ipc import send_to_running_instance
         if send_to_running_instance(filtered_args[1:]):
             sys.exit(0)
@@ -32,6 +47,11 @@ def main():
     if not force_gui and is_cli_mode(sys.argv):
         # Pure CLI mode: no --gui, has CLI args, no running GUI
         sys.exit(run_cli())
+
+    if USE_FLET and FLET_AVAILABLE:
+        # Flet 模式
+        ft.run(flet_main)
+        sys.exit(0)
 
     if force_gui and has_cli_args:
         # --gui with other CLI args: parse args, then launch GUI with state
