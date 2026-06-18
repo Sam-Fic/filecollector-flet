@@ -11,7 +11,7 @@
 FileCollector is a cross-platform desktop utility for efficiently collecting and organizing files from a working directory into a merged text file.  
 It features a checkable directory tree, flexible organization list, text insertion, drag-and-drop sorting, and automatic encoding detection — perfect for quickly consolidating key code or documents from a project into a single TXT file for analysis or submission to a large language model.
 
-![Python](https://img.shields.io/badge/Python-3.8+-blue) ![PySide6](https://img.shields.io/badge/GUI-PySide6-green) ![markdown-it](https://img.shields.io/badge/Markdown-markdown--it--py-blue) ![pygments](https://img.shields.io/badge/Highlighting-Pygments-yellow) ![qtawesome](https://img.shields.io/badge/Icons-qtawesome-orange) ![License](https://img.shields.io/badge/license-MIT-brightgreen)
+![Python](https://img.shields.io/badge/Python-3.8+-blue) ![Flet](https://img.shields.io/badge/GUI-Flet-green) ![markdown-it](https://img.shields.io/badge/Markdown-markdown--it--py-blue) ![pygments](https://img.shields.io/badge/Highlighting-Pygments-yellow) ![qtawesome](https://img.shields.io/badge/Icons-qtawesome-orange) ![License](https://img.shields.io/badge/license-MIT-brightgreen)
 
 ![FileCollector Screenshot](screenshots/screenshot-en.png)
 
