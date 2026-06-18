@@ -9,7 +9,7 @@
 [中文版](README.md)
 
 FileCollector is a cross-platform desktop utility for efficiently collecting and organizing files from a working directory into a merged text file.  
-It features a checkable directory tree, flexible organization list, text insertion, drag-and-drop sorting, and automatic encoding detection — perfect for quickly consolidating key code or documents from a project into a single TXT file for analysis or submission to a large language model.
+It features a checkable directory tree, flexible organization list, text insertion, and automatic encoding detection — perfect for quickly consolidating key code or documents from a project into a single TXT file for analysis or submission to a large language model. The built-in AI assistant sidebar supports natural language-driven file exploration, selection, and orchestration.
 
 ![Python](https://img.shields.io/badge/Python-3.8+-blue) ![Flet](https://img.shields.io/badge/GUI-Flet-green) ![markdown-it](https://img.shields.io/badge/Markdown-markdown--it--py-blue) ![pygments](https://img.shields.io/badge/Highlighting-Pygments-yellow) ![License](https://img.shields.io/badge/license-MIT-brightgreen)
 
@@ -36,7 +36,7 @@ For the usage process and tips of the graphical interface, please refer to the [
 - **Flexible Output**: Choose absolute or relative paths, with optional working directory annotation at file header.
 - **Project Save/Load**: Save current workspace state as `.fcol` and restore it with one click.
 - **Cross-Platform**: Built on PySide6, supporting Windows, macOS, and Linux with crisp high-DPI fonts.
-- **Flet GUI**: An alternative frontend built with Flet, supporting mobile and Web platforms. Launch with the `--flet` flag.
+- **Flet GUI**: An alternative frontend built with Flet.
 
 ---
 

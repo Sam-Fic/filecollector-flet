@@ -9,7 +9,7 @@
 [English Version](README-en.md)
 
 FileCollector 是一款跨平台的桌面小工具，用于高效收集、编排工作目录中的文件并生成合并文本。  
-它提供了可勾选的目录树、灵活的编排列表、文字插入、拖放排序和编码自动检测，非常适合将项目中的关键代码或文档快速整合成一个 TXT 文件，供后续分析或提交给大语言模型使用。
+它提供了可勾选的目录树、灵活的编排列表、文字插入和编码自动检测，非常适合将项目中的关键代码或文档快速整合成一个 TXT 文件，供后续分析或提交给大语言模型使用。内置的 AI 助手侧边栏支持自然语言驱动文件探索、勾选与编排。
 
 ![Python](https://img.shields.io/badge/Python-3.8+-blue) ![Flet](https://img.shields.io/badge/GUI-Flet-green) ![markdown-it](https://img.shields.io/badge/Markdown-markdown--it--py-blue) ![pygments](https://img.shields.io/badge/Highlighting-Pygments-yellow) ![License](https://img.shields.io/badge/license-MIT-brightgreen)
 
@@ -36,7 +36,7 @@ FileCollector 是一款跨平台的桌面小工具，用于高效收集、编排
 - **灵活输出**：可选择绝对路径或相对路径，并可选在文件头部标注工作目录绝对路径。
 - **项目保存/加载**：将当前工作状态保存为 `.fcol`，下次一键恢复。
 - **跨平台**：基于 PySide6，支持 Windows、macOS、Linux，高分屏字体清晰。
-- **Flet 版 GUI**：提供基于 Flet 的替代前端，支持移动端和 Web 端，通过 `--flet` 参数启动。
+- **Flet 版 GUI**：提供基于 Flet 的前端。
 
 ---
 
