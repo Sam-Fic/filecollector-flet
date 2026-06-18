@@ -56,8 +56,13 @@ def apply_cli_args(engine, args, print_feedback=True):
                 if print_feedback:
                     print("--move 需要两个参数", file=sys.stderr)
                 return False
-            from_idx = int(args[i])
-            to_idx = int(args[i + 1])
+            try:
+                from_idx = int(args[i])
+                to_idx = int(args[i + 1])
+            except ValueError:
+                if print_feedback:
+                    print("--move 参数必须是整数", file=sys.stderr)
+                return False
             engine.move_item(from_idx, to_idx)
             if print_feedback:
                 print(f"已将 [{from_idx}] 移动到 [{to_idx}]")
@@ -69,7 +74,12 @@ def apply_cli_args(engine, args, print_feedback=True):
                 if print_feedback:
                     print("--remove 需要参数", file=sys.stderr)
                 return False
-            idx = int(args[i])
+            try:
+                idx = int(args[i])
+            except ValueError:
+                if print_feedback:
+                    print("--remove 参数必须是整数", file=sys.stderr)
+                return False
             if 0 <= idx < len(engine.items):
                 data = engine.items[idx]
                 if data.type == "file" and not data.force_absolute:
@@ -108,7 +118,7 @@ def apply_cli_args(engine, args, print_feedback=True):
                     print("--load 需要参数", file=sys.stderr)
                 return False
             try:
-                engine.load(args[i])
+                engine.load_project(args[i])
                 if print_feedback:
                     print(f"已加载项目: {args[i]}")
             except Exception as e:
@@ -204,7 +214,7 @@ def run_cli():
 
     if save_path:
         try:
-            engine.save(save_path)
+            engine.save_project(save_path)
             print(f"项目已保存: {save_path}")
         except Exception as e:
             print(f"保存项目失败: {e}", file=sys.stderr)

@@ -18,23 +18,24 @@ class SettingsDialog(ft.AlertDialog):
 
     def __init__(self, main_view):
         self.main_view = main_view
+        self.radio_group = ft.RadioGroup(
+            content=ft.Column(
+                [
+                    ft.Radio(value="", label=_("跟随系统")),
+                    ft.Radio(value="zh_CN", label="中文"),
+                    ft.Radio(value="en", label="English"),
+                ]
+            ),
+            value=self._get_current_language(),
+            on_change=self._on_language_change,
+        )
         super().__init__(
             title=ft.Text(_("设置界面语言")),
             content=ft.Column(
                 [
                     ft.Text(_("选择后立即生效。"), color=ft.Colors.GREY_600),
                     ft.Divider(),
-                    ft.RadioGroup(
-                        content=ft.Column(
-                            [
-                                ft.Radio(value="", label=_("跟随系统")),
-                                ft.Radio(value="zh_CN", label="中文"),
-                                ft.Radio(value="en", label="English"),
-                            ]
-                        ),
-                        value=self._get_current_language(),
-                        on_change=self._on_language_change,
-                    ),
+                    self.radio_group,
                 ],
                 tight=True,
             ),
@@ -53,7 +54,7 @@ class SettingsDialog(ft.AlertDialog):
         pass
 
     def _on_accept(self, e):
-        lang = self.content.controls[2].value
+        lang = self.radio_group.value
         settings = load_settings()
         settings["language"] = lang
         save_settings(settings)
@@ -329,7 +330,7 @@ class PhrasesDialog(ft.AlertDialog):
 
     def _on_close(self, e):
         """关闭 (管理模式): 同步常用语到主视图和引擎."""
-        self.main_view.common_phrases = self.phrases
+        self.main_view.common_phrases = list(self.phrases)
         # 同步到引擎 (对齐 Qt 版 _open_phrases_manager 行为)
         if hasattr(self.main_view.engine, "common_phrases"):
             self.main_view.engine.common_phrases = list(self.phrases)
@@ -496,6 +497,7 @@ class TextEditDialog(ft.AlertDialog):
             # 编辑模式
             data = self.main_view.engine.items[self.edit_index]
             if data.type == "text":
+                self.main_view._push_undo()
                 data.content = text
                 show_snack(self.main_view.page, _("文字已更新"))
         elif self.insert_index is not None:

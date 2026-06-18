@@ -39,6 +39,8 @@ class MainView:
         self.common_phrases: list[str] = []
 
         # 共享文件选择器（避免每次创建新实例导致超时）
+        # FilePicker 继承自 Service, 必须添加到 page.services (非 overlay),
+        # 否则 Flutter 运行时报 "Unknown control: FilePicker"
         self._file_picker = ft.FilePicker()
         self.page.services.append(self._file_picker)
         self.page.update()
@@ -59,11 +61,12 @@ class MainView:
 
         # 窗口最小宽度强制（Linux/GTK 上 min_width 不一定生效）
         self._min_width = 1100
+        self._resize_guard = False
         self.page.on_resize = self._on_resize
 
     def _on_keyboard(self, e: ft.KeyboardEvent):
         """处理键盘快捷键"""
-        key = e.key
+        key = e.key.upper()
         ctrl = e.ctrl
         shift = e.shift
 
@@ -314,6 +317,8 @@ class MainView:
             if path:
                 self._push_undo()
                 self.engine.work_dir = Path(path).resolve()
+                self.engine.items.clear()
+                self.engine.checked_paths.clear()
                 self.file_tree_panel.set_work_dir(self.engine.work_dir)
                 self._update_subtitle()
                 self.arrangement_panel.refresh()
@@ -323,9 +328,15 @@ class MainView:
 
     def _on_resize(self, e):
         """强制窗口最小宽度"""
+        if self._resize_guard:
+            return
         if self.page.window.width < self._min_width:
-            self.page.window.width = self._min_width
-            self.page.update()
+            self._resize_guard = True
+            try:
+                self.page.window.width = self._min_width
+                self.page.update()
+            finally:
+                self._resize_guard = False
         # 通知 AI 面板防抖重绘气泡, 修正宽度估算偏差导致的裁切
         if self.ai_panel.container in self.main_row.controls:
             self.ai_panel.handle_page_resize()
@@ -363,7 +374,7 @@ class MainView:
         async def pick():
             files = await self._file_picker.pick_files(
                 dialog_title=_("打开项目"),
-                allowed_extensions=["project.json", "fcol", "fcol.json"],
+                allowed_extensions=["json", "fcol"],
             )
             if files:
                 try:
@@ -682,6 +693,7 @@ class MainView:
 
         if name == "set_show_header":
             value = bool(args.get("value"))
+            self._push_undo()
             self.engine.show_header = value
             self.arrangement_panel.refresh()
             return _("头部信息: %s") % (
@@ -737,7 +749,7 @@ class MainView:
             if dirpath == root_str:
                 rel_depth = 0
             else:
-                rel_depth = dirpath[len(root_str):].count(os.sep) + 1
+                rel_depth = dirpath[len(root_str):].count(os.sep)
             if rel_depth > max_depth:
                 dirnames[:] = []
                 continue

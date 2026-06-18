@@ -362,6 +362,7 @@ class ArrangementListPanel:
                         data.path)
             self.main_view.engine.remove_item(self.selected_index)
             self.selected_index = -1
+            self.main_view.file_tree_panel.refresh()
             self.refresh()
             show_snack(self.main_view.page, _("条目已删除"))
 
@@ -440,6 +441,12 @@ class ArrangementListPanel:
             if sys.platform == "win32":
                 subprocess.run(
                     ["clip"],
+                    input=open(file_path, "rb").read(),
+                    check=False,
+                )
+            elif sys.platform == "darwin":
+                subprocess.run(
+                    ["pbcopy"],
                     input=open(file_path, "rb").read(),
                     check=False,
                 )

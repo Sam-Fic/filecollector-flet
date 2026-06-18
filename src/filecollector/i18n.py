@@ -205,7 +205,6 @@ _lock = threading.RLock()
     "正在思考...": "Thinking...",
     "未配置": "Not configured",
     "未配置模型": "No model configured",
-    "就绪": "Ready",
     "调用失败: %s": "API call failed: %s",
     "响应解析失败: %s": "Failed to parse response: %s",
     "执行出错: %s": "Tool execution error: %s",
@@ -235,7 +234,6 @@ _lock = threading.RLock()
         "… showing the first %d item(s); use kind to filter for a complete view",
     "停止": "Stop",
     "已停止": "Stopped",
-    "正在思考...": "Thinking...",
 }
 
 _LISTENERS: list[Callable[[str], None]] = []

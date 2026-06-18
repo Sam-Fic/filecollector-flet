@@ -35,6 +35,9 @@ else:
 _ADDR_FILE = os.path.join(_CACHE_DIR, "ipc_addr.txt")
 _UNIX_SOCK_PATH = os.path.join(_CACHE_DIR, "ipc.sock")
 
+# 单条 IPC 消息最大字节数, 防止恶意客户端声明超大 msg_len 触发 OOM
+MAX_MSG_SIZE = 16 * 1024 * 1024  # 16 MiB
+
 
 def _supports_unix():
     """Can this platform create Unix domain sockets reliably?"""
@@ -91,6 +94,7 @@ def send_to_running_instance(args):
     except (FileNotFoundError, ValueError):
         return False
 
+    sock = None
     try:
         if mode == "unix" and _supports_unix():
             sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -114,10 +118,11 @@ def send_to_running_instance(args):
         _cleanup_stale()
         return False
     finally:
-        try:
-            sock.close()
-        except Exception:
-            pass
+        if sock is not None:
+            try:
+                sock.close()
+            except Exception:
+                pass
 
 
 # ---------------------------------------------------------------------------
@@ -150,11 +155,17 @@ def start_ipc_server(callback):
         while _running[0]:
             try:
                 conn, _ = server_sock.accept()
-                _handle_connection(conn, callback)
             except socket.timeout:
                 continue
             except OSError:
                 break
+            # 每个连接独立线程处理, 避免慢速/恶意客户端阻塞 accept
+            t = threading.Thread(
+                target=_handle_connection,
+                args=(conn, callback),
+                daemon=True,
+            )
+            t.start()
         _cleanup_server(server_sock)
 
     thread = threading.Thread(target=_server_loop, daemon=True)
@@ -220,6 +231,8 @@ def _handle_connection(conn, callback):
         if len(raw_len) < 4:
             return
         msg_len = struct.unpack("!I", raw_len)[0]
+        if msg_len > MAX_MSG_SIZE:
+            return
 
         data = b""
         while len(data) < msg_len:

@@ -5,9 +5,9 @@ from __future__ import annotations
 from pathlib import Path
 
 import flet as ft
-from filecollector.engine import FileCollectorEngine
 from filecollector.i18n import _
 from filecollector.gui_flet.main_view import MainView
+from filecollector.gui_flet.snack import show_snack
 
 
 def main(page: ft.Page):
@@ -36,6 +36,25 @@ def main(page: ft.Page):
 
     # 初始化
     main_view.initialize()
+
+    # 单实例 IPC: 让运行中的 Flet 实例接收来自 CLI 的命令.
+    # 服务器线程只负责把消息通过 page.run_task 投递到 Flet 主线程,
+    # 实际 engine 变更 + UI 刷新在主线程协程里完成, 跟 PySide6 端一致.
+    # 进程退出时 daemon 线程自动回收, 无需显式 stop.
+    def _on_ipc_message(args):
+        # 跑在 IPC server 的后台线程, 唯一线程安全的 UI 调用是 run_task.
+        page.run_task(_handle_ipc, args)
+
+    async def _handle_ipc(args):
+        from filecollector.cli import apply_cli_args
+        if apply_cli_args(main_view.engine, args, print_feedback=False):
+            main_view.initialize()
+            show_snack(page, _("已从外部命令更新 (%d 项)") % len(main_view.engine.items))
+        else:
+            show_snack(page, _("外部命令解析失败"))
+
+    from filecollector.ipc import start_ipc_server
+    start_ipc_server(_on_ipc_message)
 
 
 if __name__ == "__main__":

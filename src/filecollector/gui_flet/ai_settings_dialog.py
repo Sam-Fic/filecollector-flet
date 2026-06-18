@@ -213,13 +213,17 @@ class AISettingsDialog(ft.AlertDialog):
     # ------------------------------------------------------------------ 接受/取消
     def _on_accept(self, e):
         """保存设置, 并通知 AI 面板重新加载配置."""
+        try:
+            timeout = float(self.spin_timeout.value or 60.0)
+        except ValueError:
+            timeout = 60.0
         cfg = {
             "enabled": self.chk_enabled.value,
             "base_url": self.edit_base_url.value.strip(),
             "api_key": self.edit_api_key.value.strip(),
             "model": self.edit_model.value.strip(),
             "system_prompt_override": self.edit_prompt.value,
-            "timeout": float(self.spin_timeout.value or 60.0),
+            "timeout": timeout,
         }
         save_ai_settings(cfg)
         # 通知 AI 面板重新加载客户端

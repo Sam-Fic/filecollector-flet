@@ -2,18 +2,6 @@
 
 from __future__ import annotations
 
-import copy
-
-
-class UndoState:
-    """撤销状态快照"""
-    
-    def __init__(self, items, checked_paths, use_absolute, show_header):
-        self.items = [copy.copy(i) for i in items]
-        self.checked_paths = set(checked_paths)
-        self.use_absolute = use_absolute
-        self.show_header = show_header
-
 
 class UndoManager:
     """撤销/重做管理器"""

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import json
 from pathlib import Path
 
@@ -21,6 +20,10 @@ class FileCollectorEngine:
 
     # ------------------------------------------------------------------ Items
     def add_file(self, abs_path_str: str, force_absolute: bool = False) -> None:
+        # 去重: 同一文件不重复添加, 避免导出时出现重复内容
+        for it in self.items:
+            if it.type == "file" and it.path == abs_path_str:
+                return
         self.items.append(ItemData(type_="file", path=abs_path_str, force_absolute=force_absolute))
         if not force_absolute:
             self.checked_paths.add(abs_path_str)
@@ -47,7 +50,6 @@ class FileCollectorEngine:
     def clear(self) -> None:
         self.items.clear()
         self.checked_paths.clear()
-        self.common_phrases = []
 
     def list_items(self):
         result = []
@@ -143,17 +145,17 @@ class FileCollectorEngine:
     def _apply_project_dict(self, data: dict) -> None:
         wd = data.get("work_dir") or data.get("work_directory")  # GNOME v3 兼容字段
         self.work_dir = Path(wd).resolve() if wd and Path(wd).exists() else None
-        self.checked_paths = {p for p in data.get("checked_entries", data.get("checked_files", [])) if os.path.exists(p)}  # GNOME 兼容字段名
+        # 保留所有勾选路径, 即使文件暂时不可用 (如网络挂载未就绪),
+        # 避免状态丢失; 导出时再按需处理缺失文件.
+        self.checked_paths = set(data.get("checked_entries", data.get("checked_files", [])))  # GNOME 兼容字段名
         self.use_absolute = bool(data.get("use_absolute", False))
         self.show_header = bool(data.get("show_header", False))
         self.items = []
         for item_dict in data.get("items", []):
             if item_dict["type"] == "file":
                 p = item_dict["path"]
-                if not os.path.exists(p):
-                    self.items.append(ItemData("text", content=f"[缺失文件: {p}]"))
-                else:
-                    self.items.append(ItemData("file", path=p, force_absolute=item_dict.get("force_absolute", False)))
+                # 保留文件条目 (含路径), 即使文件暂时缺失; 导出时会标注
+                self.items.append(ItemData("file", path=p, force_absolute=item_dict.get("force_absolute", False)))
             else:
                 self.items.append(ItemData("text", content=item_dict["content"]))
         phrases = data.get("common_phrases")

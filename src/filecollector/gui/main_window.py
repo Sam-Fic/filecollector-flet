@@ -527,7 +527,7 @@ class FileCollectorApp(QMainWindow):
         self.btn_generate.clicked.connect(self.generate_txt)
         self.btn_generate_clipboard.clicked.connect(self.generate_to_clipboard)
 
-        self.radio_rel.toggled.connect(self._on_path_mode_changed)
+        self.path_mode_group.buttonClicked.connect(self._on_path_mode_changed)
         self.check_header.stateChanged.connect(self._on_header_check_changed)
 
         self.list_widget.currentItemChanged.connect(
@@ -635,25 +635,6 @@ class FileCollectorApp(QMainWindow):
                 if not (it.type == "file" and it.path == path and not it.force_absolute)
             ]
 
-    def _set_tree_item_check(self, abs_path: str, state: Qt.CheckState) -> None:
-        """供主窗口其它位置 (如 delete/clear) 取消/勾选某文件时使用."""
-        from filecollector.gui.file_tree import ROLE_PATH, ROLE_IS_DIR, ROLE_IS_PLACEHOLDER
-        for i in range(self.tree.topLevelItemCount()):
-            root = self.tree.topLevelItem(i)
-            for j in range(root.childCount()):
-                child = root.child(j)
-                if child.data(0, ROLE_IS_DIR) or child.data(0, ROLE_IS_PLACEHOLDER):
-                    continue
-                if child.data(0, ROLE_PATH) == abs_path:
-                    if child.checkState(0) != state:
-                        self.tree._loading = True
-                        try:
-                            child.setCheckState(0, state)
-                        finally:
-                            self.tree._loading = False
-                    self.tree._update_ancestor_states(child)
-                    return
-
     def _restore_tree_checks(self, checked_paths) -> None:
         self.tree.set_checked_paths(set(checked_paths))
 
@@ -746,17 +727,25 @@ class FileCollectorApp(QMainWindow):
         self._refresh_list()
         self.status_bar.showMessage(_("编排列表已清空"))
 
-    def _set_tree_item_check(self, abs_path: str, state: Qt.CheckState):
+    def _set_tree_item_check(self, abs_path: str, state: Qt.CheckState) -> None:
         def search(item):
-            if item.flags() & Qt.ItemIsUserCheckable:
-                if item.data(0, Qt.UserRole + 1) == abs_path:
-                    item.setCheckState(0, state)
-                    return True
+            if item.data(0, ROLE_IS_DIR) or item.data(0, ROLE_IS_PLACEHOLDER):
+                return False
+            if item.data(0, ROLE_PATH) == abs_path:
+                if item.checkState(0) != state:
+                    self.tree._loading = True
+                    try:
+                        item.setCheckState(0, state)
+                    finally:
+                        self.tree._loading = False
+                self.tree._update_ancestor_states(item)
+                return True
             for i in range(item.childCount()):
                 if search(item.child(i)):
                     return True
             return False
 
+        from filecollector.gui.file_tree import ROLE_PATH, ROLE_IS_DIR, ROLE_IS_PLACEHOLDER
         for i in range(self.tree.topLevelItemCount()):
             search(self.tree.topLevelItem(i))
 
@@ -838,8 +827,8 @@ class FileCollectorApp(QMainWindow):
         # 必须用 int() 转一次. 该 bug 之前让 GUI 勾选无法写入 engine.
         self.engine.show_header = int(state) == int(Qt.Checked.value)
 
-    def _on_path_mode_changed(self, checked: bool):
-        if not checked or self._loading_state:
+    def _on_path_mode_changed(self, button):
+        if self._loading_state:
             return
         self._push_undo()
         self.engine.use_absolute = self.radio_abs.isChecked()
@@ -885,6 +874,12 @@ class FileCollectorApp(QMainWindow):
             if sys.platform == "win32":
                 subprocess.run(
                     ["clip"],
+                    input=open(file_path, "rb").read(),
+                    check=False,
+                )
+            elif sys.platform == "darwin":
+                subprocess.run(
+                    ["pbcopy"],
                     input=open(file_path, "rb").read(),
                     check=False,
                 )

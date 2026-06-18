@@ -231,7 +231,7 @@ class FileTreePanel:
 
     def refresh(self):
         """外部调用: 刷新所有 checkbox 显示状态."""
-        # 刷新所有文件 checkbox
+        # 刷新所有文件 checkbox (key 已是规范化路径, 无需再 resolve)
         for path_str, cb in self._file_widgets.items():
             cb.set_state(
                 CHECKED if path_str in self.checked_paths else UNCHECKED)
@@ -401,7 +401,7 @@ class FileTreePanel:
         """创建文件行 (含二态 checkbox)."""
         path_str = str(file_path)
         # 注册到文件 widget 字典 (供 refresh 同步状态)
-        # 避免重复创建: 若已存在则不重建
+        # key 统一用 path_str (已是绝对路径), 避免重复 resolve
         if path_str in self._file_widgets:
             cb = self._file_widgets[path_str]
         else:
@@ -461,7 +461,7 @@ class FileTreePanel:
 
     # ====================================================== 状态计算
     def _walk_files(self, dir_path: Path):
-        """递归生成 dir_path 下所有文件路径 (跳过忽略目录)."""
+        """递归生成 dir_path 下所有文件的绝对路径字符串 (跳过忽略目录)."""
         try:
             for entry in dir_path.iterdir():
                 if entry.name in self.IGNORE_DIRS:
@@ -469,7 +469,7 @@ class FileTreePanel:
                 if entry.name.startswith(".") and entry.is_dir():
                     continue
                 if entry.is_file():
-                    yield entry
+                    yield str(entry)
                 elif entry.is_dir():
                     yield from self._walk_files(entry)
         except (PermissionError, FileNotFoundError, OSError):
@@ -481,7 +481,7 @@ class FileTreePanel:
         checked = 0
         for f in self._walk_files(dir_path):
             total += 1
-            if str(f.resolve()) in self.checked_paths:
+            if f in self.checked_paths:
                 checked += 1
         if total == 0:
             return UNCHECKED
@@ -520,11 +520,11 @@ class FileTreePanel:
         # 单击: 0/1 -> 2 (全选), 2 -> 0 (取消全选)
         if old_state == CHECKED:
             for f in files:
-                self.checked_paths.discard(str(f.resolve()))
+                self.checked_paths.discard(f)
         else:
             for f in files:
-                self.checked_paths.add(str(f.resolve()))
-        # 刷新所有可见的文件 checkbox
+                self.checked_paths.add(f)
+        # 刷新所有可见的文件 checkbox (key 已是规范化路径, 无需 resolve)
         for p, cb in self._file_widgets.items():
             cb.set_state(CHECKED if p in self.checked_paths else UNCHECKED)
         # 刷新所有目录三态 (浅 → 深, 浅的先算才会反映深层修改)
@@ -538,6 +538,7 @@ class FileTreePanel:
 
     def _on_file_checkbox_click(self, path_str: str, old_state: int) -> None:
         """点击文件 checkbox 切换勾选状态."""
+        # path_str 已是规范化路径 (bind_path 时存储)
         new_state = CHECKED if old_state == UNCHECKED else UNCHECKED
         if new_state == CHECKED:
             self.checked_paths.add(path_str)
@@ -567,6 +568,7 @@ class FileTreePanel:
         """搜索框变化: 仅过滤已加载节点."""
         query = self.search_field.value.strip().lower()
         self._filter_tree(self.tree_content.controls, query)
+        self._sync_arrows_with_visibility()
         try:
             self.main_view.page.update()
         except Exception:
@@ -582,6 +584,9 @@ class FileTreePanel:
                 header_visible = self._row_matches(header, query)
                 child_visible = self._filter_tree(children_col.controls, query)
                 ctrl.visible = header_visible or child_visible or (not query)
+                # 搜索时自动展开含匹配子项的目录, 让折叠状态下的匹配项可见
+                if query and child_visible:
+                    children_col.visible = True
                 if ctrl.visible:
                     has_visible = True
             elif isinstance(ctrl, ft.Container):
@@ -591,6 +596,16 @@ class FileTreePanel:
                 else:
                     ctrl.visible = False
         return has_visible
+
+    def _sync_arrows_with_visibility(self) -> None:
+        """同步箭头图标与子节点容器的可见状态 (搜索展开后修正箭头)."""
+        for path_str, col in self._dir_tiles.items():
+            arrow = self._dir_arrows.get(path_str)
+            if arrow is not None:
+                arrow.icon = (
+                    ft.Icons.EXPAND_MORE if col.visible
+                    else ft.Icons.CHEVRON_RIGHT
+                )
 
     @staticmethod
     def _row_matches(ctrl: ft.Container, query: str) -> bool:

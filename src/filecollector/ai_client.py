@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import json
 import os
-import socket
 import urllib.error
 import urllib.request
 from typing import Any
@@ -444,10 +443,7 @@ class AIClient:
         )
 
         try:
-            # Apply the request timeout globally so all socket operations
-            # inside urlopen are bounded.
-            socket.setdefaulttimeout(self.timeout)
-            with urllib.request.urlopen(req) as resp:
+            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                 body = resp.read().decode("utf-8")
         except urllib.error.HTTPError as e:
             detail = ""

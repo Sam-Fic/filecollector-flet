@@ -46,6 +46,9 @@ class AIPanel:
         self._pending_welcome: bool = True
         self._current_worker: Optional[threading.Thread] = None
         self._resize_timer: Optional[threading.Timer] = None
+        # 会话代际: 每次清空对话自增, 后台 API / 工具结果回到主线程时
+        # 用于识别旧轮次, 避免把孤立消息加到已清空的列表里.
+        self._session_generation: int = 0
 
         self._build_ui()
         self.configure(load_ai_settings())
@@ -77,6 +80,9 @@ class AIPanel:
                   "例如: \"把 src 目录下所有 Python 文件加进去, "
                   "然后在开头插入一段任务说明。\"")
             )
+        elif not enabled:
+            # 禁用时重置标记, 下次启用时重新显示欢迎语
+            self._pending_welcome = True
 
     # ------------------------------------------------------------------ UI 构建
     def _build_ui(self):
@@ -574,11 +580,7 @@ class AIPanel:
 
     def _scroll_to_bottom(self, _) -> None:
         """点击回到底部按钮."""
-        # 通过临时添加一个不可见控件触发 auto_scroll 滚动到底部
-        dummy = ft.Container(height=1, width=1, opacity=0)
-        self.chat_list.controls.append(dummy)
-        self.main_view.page.update()
-        self.chat_list.controls.remove(dummy)
+        self.chat_list.scroll_to(offset=-1, duration=300)
         self.scroll_to_bottom_btn.visible = False
         self.main_view.page.update()
 
@@ -595,6 +597,8 @@ class AIPanel:
         # 等待中的线程在拿到结果后会自行退出
 
     def _on_send(self, e):
+        if self._busy:
+            return
         text = self.input_field.value.strip()
         if not text:
             return
@@ -612,6 +616,7 @@ class AIPanel:
         self._send_user_message(text)
 
     def _on_clear_chat(self, e):
+        self._session_generation += 1
         self._rendered.clear()
         self._messages.clear()
         self._tool_counter = 0
@@ -623,6 +628,8 @@ class AIPanel:
 
     # ------------------------------------------------------------------ 对话循环
     def _send_user_message(self, text: str) -> None:
+        # 新一轮用户输入: 清除上一次的停止标记, 允许后续工具循环继续
+        self._stop_requested = False
         self._rebuild_system_message()
         self._messages.append({"role": "user", "content": text})
         self._next_turn()
@@ -647,12 +654,15 @@ class AIPanel:
         if self._client is None:
             return
         self._set_busy(True)
-        self._stop_requested = False
 
         # 拷贝消息列表 (避免后台线程期间 UI 修改 messages)
         messages_snapshot = list(self._messages)
         client = self._client
         tools = TOOL_SCHEMA
+        # 记录启动轮次的代际, 回到 UI 线程时若发现代际被清空动作
+        # 推进过, 就把响应当作孤儿丢弃, 不写入 messages / 渲染气泡 /
+        # 继续 next_turn.
+        generation = self._session_generation
 
         def worker():
             try:
@@ -668,14 +678,18 @@ class AIPanel:
                 self._on_api_finished_async,
                 data if err is None else None,
                 err,
+                generation,
             )
 
         self._current_worker = threading.Thread(
             target=worker, daemon=True)
         self._current_worker.start()
 
-    async def _on_api_finished_async(self, data, err):
+    async def _on_api_finished_async(self, data, err, generation):
         """API 调用结束 (在 UI 线程执行)."""
+        # 清空对话会让代际推进; 旧轮次的响应 / 工具结果应整体丢弃.
+        if generation != self._session_generation:
+            return
         self._set_busy(False)
         if self._stop_requested:
             return
@@ -716,12 +730,20 @@ class AIPanel:
                 if not isinstance(args, dict):
                     args = {}
                 result_str = self._run_tool(name, args)
+                # 工具渲染之后再次检查代际: 清空动作可能在工具执行
+                # 期间发生, 后续 _next_turn 不应发起新请求.
+                if generation != self._session_generation:
+                    return
                 self._messages.append({
                     "role": "tool",
                     "tool_call_id": tc_id,
                     "content": result_str,
                 })
-            # 继续下一轮, 让 LLM 基于工具结果回复
+            # 继续下一轮, 让 LLM 基于工具结果回复.
+            # 若用户在工具执行期间请求停止, 不再发起新请求,
+            # 避免 _next_turn 重置 _stop_requested 导致停止失效.
+            if self._stop_requested:
+                return
             self._next_turn()
 
     def _run_tool(self, name: str, args: dict) -> str:

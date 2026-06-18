@@ -57,6 +57,12 @@ def generate_to_clipboard(window, engine):
                 input=open(file_path, "rb").read(),
                 check=False
             )
+        elif sys.platform == "darwin":
+            subprocess.run(
+                ["pbcopy"],
+                input=open(file_path, "rb").read(),
+                check=False
+            )
         else:
             subprocess.run(
                 ["xclip", "-selection", "clipboard", file_path],
@@ -124,7 +130,7 @@ def save_project_as(window, engine):
 def _write_project(window, engine, file_path):
     try:
         engine.common_phrases = list(getattr(window, "common_phrases", []) or [])
-        engine.save(file_path)
+        engine.save_project(file_path)
         engine.project_file = file_path
         _show_toast(window, f"项目已保存: {Path(file_path).name}")
     except Exception as e:
@@ -140,7 +146,7 @@ def load_project(window, engine):
     if not file_path:
         return
     try:
-        engine.load(file_path)
+        engine.load_project(file_path)
         _sync_project_state(window, engine)
 
         engine.project_file = file_path
@@ -188,7 +194,7 @@ def reload_project(window, engine):
     if not engine.project_file or not Path(engine.project_file).exists():
         return
     try:
-        engine.load(engine.project_file)
+        engine.load_project(engine.project_file)
         _sync_project_state(window, engine, restore_selection=True)
         _show_toast(window, "项目文件已重新加载")
     except Exception as e:

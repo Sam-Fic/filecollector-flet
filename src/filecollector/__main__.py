@@ -39,7 +39,7 @@ def main():
 
     # If there are CLI args, try to send them to a running GUI instance.
     # When connected, the running GUI applies the operations live.
-    if has_cli_args and not USE_FLET:
+    if has_cli_args:
         from filecollector.ipc import send_to_running_instance
         if send_to_running_instance(filtered_args[1:]):
             sys.exit(0)
@@ -52,6 +52,10 @@ def main():
         # Flet 模式
         ft.run(flet_main)
         sys.exit(0)
+
+    if USE_FLET and not FLET_AVAILABLE:
+        print("错误: 未安装 flet 依赖, 请先安装或移除 --flet 参数", file=sys.stderr)
+        sys.exit(1)
 
     if force_gui and has_cli_args:
         # --gui with other CLI args: parse args, then launch GUI with state
