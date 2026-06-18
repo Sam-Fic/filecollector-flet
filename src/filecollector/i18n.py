@@ -198,7 +198,7 @@ _lock = threading.RLock()
     "例如: \"把 src 目录下所有 Python 文件加进去, 然后在开头插入一段任务说明。\"":
         "Hi! I'm your AI arrangement assistant. Tell me which files you want to collect and I'll handle the orchestration.\n"
         "Example: \"Add all Python files under src to the list, and prepend a task description.\"",
-    "输入指令, Enter 发送, Ctrl+Enter 换行": "Type a request. Press Enter to send, Ctrl+Enter to insert a new line.",
+    "输入指令, Enter 发送, Shift+Enter 换行": "Type a request. Press Enter to send, Shift+Enter to insert a new line.",
     "发送": "Send",
     "回到底部": "Scroll to bottom",
     "清空对话": "Clear Chat",

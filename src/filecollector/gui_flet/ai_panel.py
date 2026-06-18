@@ -22,6 +22,12 @@ from filecollector.ai_client import (
 from filecollector.gui_flet.ai_settings_dialog import load_ai_settings
 
 
+def _uniform_border(width: float = 1, color: str = None) -> ft.border.Border:
+    """创建四边统一的边框 (Flet 0.85.3 无 ft.border.all)."""
+    side = ft.border.BorderSide(width, color)
+    return ft.border.Border(top=side, right=side, bottom=side, left=side)
+
+
 class AIPanel:
     """AI 助手侧边面板"""
 
@@ -39,6 +45,7 @@ class AIPanel:
         self._tool_counter: int = 0
         self._pending_welcome: bool = True
         self._current_worker: Optional[threading.Thread] = None
+        self._resize_timer: Optional[threading.Timer] = None
 
         self._build_ui()
         self.configure(load_ai_settings())
@@ -89,8 +96,21 @@ class AIPanel:
         self.chat_list = ft.ListView(
             expand=True,
             spacing=8,
-            padding=12,
+            padding=ft.Padding(left=12, right=12, top=0, bottom=12),
             auto_scroll=True,
+            on_scroll=self._on_chat_scroll,
+        )
+
+        # 回到底部按钮
+        self.scroll_to_bottom_btn = ft.ElevatedButton(
+            content=ft.Icon(ft.Icons.ARROW_DOWNWARD),
+            tooltip=_("回到底部"),
+            on_click=self._scroll_to_bottom,
+            style=ft.ButtonStyle(
+                shape=ft.CircleBorder(),
+                padding=ft.Padding(8, 8, 8, 8),
+            ),
+            visible=False,
         )
 
         # 输入框
@@ -105,6 +125,7 @@ class AIPanel:
             text_size=14,
             on_submit=self._on_send,
             shift_enter=True,
+            expand=True,
         )
 
         # 发送 / 停止按钮
@@ -139,10 +160,21 @@ class AIPanel:
                             vertical_alignment=ft.CrossAxisAlignment.CENTER,
                         ),
                         padding=ft.Padding(
-                            top=12, bottom=8, left=12, right=12),
+                            top=10, bottom=10, left=12, right=12),
+                        alignment=ft.alignment.Alignment(0, 0),
                     ),
                     ft.Container(
-                        content=self.chat_list,
+                        content=ft.Stack(
+                            [
+                                self.chat_list,
+                                ft.Container(
+                                    content=self.scroll_to_bottom_btn,
+                                    right=16,
+                                    bottom=16,
+                                ),
+                            ],
+                            expand=True,
+                        ),
                         expand=True,
                     ),
                     ft.Container(
@@ -165,7 +197,7 @@ class AIPanel:
                 spacing=0,
                 expand=True,
             ),
-            width=360,
+            expand=1,
             bgcolor=ft.Colors.SURFACE_CONTAINER_LOWEST,
             border_radius=12,
             padding=0,
@@ -195,11 +227,99 @@ class AIPanel:
         })
         self._append_tool_bubble(name, args, result or "OK")
 
+    @staticmethod
+    def _bubble_width(content: str, max_width: int = 300) -> int:
+        """根据内容估算气泡宽度，短内容自适应，长内容不超过最大值."""
+        if "\n" in content:
+            return max_width
+        width = 24  # 左右 padding
+        for ch in content:
+            width += 16 if ord(ch) > 127 else 8
+        return max(60, min(width, max_width))
+
+    @staticmethod
+    def _is_short_single_line(content: str, max_width: int = 300) -> bool:
+        """判断内容是否为可自适应宽度的短单行内容."""
+        if "\n" in content:
+            return False
+        width = 24
+        for ch in content:
+            width += 16 if ord(ch) > 127 else 8
+        return width < max_width
+
+    def _current_panel_width(self) -> int:
+        """估算 AI 面板当前宽度.
+
+        基于窗口宽度估算, 额外预留安全余量以应对:
+        - 窗口边框 / 滚动条等占用的像素
+        - 估算公式与实际布局的偏差
+        窗口变窄时通过 handle_page_resize 触发重绘修正.
+        """
+        try:
+            page_w = self.main_view.page.window.width
+            if page_w is None or page_w <= 0:
+                return 300
+            # 四栏 expand 比例 1:2:1:1，AI 栏占 1/5
+            # page_w - 40 = 减去外层左右 padding(16) 与四栏间距(24)
+            # 再减 16 安全余量, 避免窗口变窄时气泡被裁切
+            return max(200, int((page_w - 40) / 5) - 16)
+        except Exception:
+            return 300
+
+    def _current_max_bubble_width(self) -> int:
+        """根据 AI 面板当前宽度计算气泡最大宽度.
+        保留对面方向的固定间距，避免气泡贴边或被裁切.
+        """
+        # ListView padding 左右各 12，对面方向预留 20 间距
+        return max(120, self._current_panel_width() - 12 - 12 - 20)
+
+    def handle_page_resize(self) -> None:
+        """窗口尺寸变化时 (由 main_view._on_resize 调用), 防抖重绘气泡.
+
+        估算的气泡宽度可能因窗口尺寸变化而不准, 导致裁切.
+        通过防抖重绘所有气泡, 使其适配当前可用宽度.
+        """
+        if self._resize_timer is not None:
+            self._resize_timer.cancel()
+        self._resize_timer = threading.Timer(
+            0.3, self._rerender_all_async)
+        self._resize_timer.daemon = True
+        self._resize_timer.start()
+
+    def _rerender_all_async(self) -> None:
+        """在 UI 线程中重绘所有已渲染的气泡."""
+        page = self.main_view.page
+        if page is None:
+            return
+        page.run_task(self._rerender_all)
+
+    async def _rerender_all(self) -> None:
+        """根据当前面板宽度重新创建所有气泡, 修正裁切问题."""
+        if not self._rendered:
+            return
+        self.chat_list.controls.clear()
+        for msg in self._rendered:
+            mtype = msg.get("type")
+            if mtype == "user":
+                self._append_bubble("user", msg["content"])
+            elif mtype == "assistant":
+                self._append_bubble("assistant", msg["content"])
+            elif mtype == "system":
+                self._append_bubble("system", msg["content"])
+            elif mtype == "tool":
+                self._append_tool_bubble(
+                    msg["name"], msg["args"], msg["result"])
+        if self.main_view.page:
+            self.main_view.page.update()
+
     def _append_bubble(self, role: str, content: str) -> None:
         """添加一个聊天气泡."""
         is_user = role == "user"
         is_system = role == "system"
+        max_w = self._current_max_bubble_width()
+        short_single_line = self._is_short_single_line(content, max_w)
 
+        msg_key = f"msg_{len(self.chat_list.controls)}"
         if is_system:
             bubble = ft.Container(
                 content=ft.Text(
@@ -209,12 +329,14 @@ class AIPanel:
                 padding=ft.Padding(left=12, top=6, right=12, bottom=6),
                 border_radius=10,
                 bgcolor=ft.Colors.AMBER_50,
-                border=ft.border.all(1, ft.Colors.AMBER_200),
-                width=300,
+                border=_uniform_border(1, ft.Colors.AMBER_200),
+                width=None if short_single_line else self._bubble_width(
+                    content, max_w),
             )
             row = ft.Row(
                 [bubble],
                 alignment=ft.MainAxisAlignment.CENTER,
+                key=msg_key,
             )
         else:
             bubble = ft.Container(
@@ -227,95 +349,166 @@ class AIPanel:
                 ),
                 padding=12,
                 border_radius=12,
-                bgcolor=ft.Colors.BLUE_400 if is_user else ft.Colors.SURFACE_CONTAINER_LOW,
-                width=300,
+                bgcolor=ft.Colors.BLUE_600 if is_user else ft.Colors.SURFACE_CONTAINER_LOW,
+                width=None if short_single_line else self._bubble_width(
+                    content, max_w),
             )
             if is_user:
+                # 靠右气泡：左侧留固定间距
                 row = ft.Row(
-                    [bubble],
-                    alignment=ft.MainAxisAlignment.END,
+                    [
+                        ft.Container(expand=True),
+                        bubble,
+                    ],
+                    alignment=ft.MainAxisAlignment.START,
+                    key=msg_key,
                 )
             else:
+                # 靠左气泡：右侧留固定间距
                 row = ft.Row(
-                    [bubble],
+                    [
+                        bubble,
+                        ft.Container(expand=True),
+                    ],
                     alignment=ft.MainAxisAlignment.START,
+                    key=msg_key,
                 )
 
         self.chat_list.controls.append(row)
 
     def _append_tool_bubble(self, name: str, args: dict, result: str) -> None:
-        """添加工具调用卡片 (展开/折叠)."""
+        """添加工具调用卡片 (居中, 可展开/折叠, 对齐 Qt 版 _add_tool_bubble).
+
+        - 折叠态: 标题行显示 工具名 + 参数摘要 + 结果预览
+        - 展开态: 显示完整结果
+        使用 Container + visible 属性手动实现展开/折叠
+        (ExpansionTile 在 ListView 中渲染异常)
+        """
+        args_repr = self._format_tool_args(name, args)
+
+        # 折叠态预览: 结果前 80 字符
+        preview = result or ""
+        if len(preview) > 80:
+            preview = preview[:80] + "…"
+
+        # 展开态: 完整结果
+        result_display = result[:2000] + ("…" if len(result) > 2000 else "")
+
+        # 展开图标 (点击切换)
+        toggle_icon = ft.Icon(
+            ft.Icons.CHEVRON_RIGHT,
+            size=16,
+            color=ft.Colors.BROWN_700,
+        )
+
+        # 展开内容 (默认隐藏) - Text 使用 expand 填充容器宽度, 避免撑开
+        body = ft.Container(
+            content=ft.Text(
+                result_display,
+                size=11,
+                color=ft.Colors.ON_SURFACE,
+                font_family="monospace",
+                selectable=True,
+                no_wrap=False,
+                expand=True,
+            ),
+            bgcolor=ft.Colors.with_opacity(0.3, ft.Colors.BLACK),
+            padding=8,
+            border_radius=6,
+            visible=False,
+        )
+
+        # 折叠态预览文本 (默认显示) - 使用 expand 避免撑开
+        preview_text = ft.Text(
+            preview or "—",
+            size=11,
+            color=ft.Colors.BROWN_700,
+            italic=True,
+            no_wrap=True,
+            overflow=ft.TextOverflow.ELLIPSIS,
+            visible=True,
+            expand=True,
+        )
+
+        def _toggle(e):
+            """切换展开/折叠状态."""
+            is_expanded = body.visible
+            body.visible = not is_expanded
+            preview_text.visible = is_expanded
+            toggle_icon.icon = (
+                ft.Icons.EXPAND_MORE if not is_expanded
+                else ft.Icons.CHEVRON_RIGHT
+            )
+            self.main_view.page.update()
+
+        # 标题行 (可点击切换) - args 文本 expand 填充剩余空间
         header = ft.Row(
             [
+                toggle_icon,
                 ft.Icon(ft.Icons.BUILD, size=14, color=ft.Colors.BROWN_700),
                 ft.Text(
                     name,
                     size=12,
                     weight=ft.FontWeight.BOLD,
                     color=ft.Colors.BROWN_900,
+                    no_wrap=True,
                 ),
                 ft.Text(
-                    self._format_tool_args(name, args),
+                    args_repr,
                     size=11,
                     color=ft.Colors.BROWN_700,
                     expand=True,
-                    no_wrap=False,
+                    no_wrap=True,
                     overflow=ft.TextOverflow.ELLIPSIS,
                 ),
             ],
             spacing=6,
         )
 
-        # 折叠面板 - 包含 args JSON 和 result
-        body = ft.Column(
+        # 用 GestureDetector 包裹标题行实现点击
+        header_tap = ft.GestureDetector(
+            content=ft.Container(
+                content=header,
+                padding=ft.Padding(left=8, top=6, right=8, bottom=6),
+            ),
+            on_tap=_toggle,
+        )
+
+        # 卡片内容: 标题 + 预览/展开内容
+        card_content = ft.Column(
             [
+                header_tap,
                 ft.Container(
-                    content=ft.Text(
-                        json.dumps(args, ensure_ascii=False, indent=2),
-                        size=11,
-                        color=ft.Colors.ON_SURFACE_VARIANT,
-                        font_family="monospace",
-                        selectable=True,
-                    ),
-                    bgcolor=ft.Colors.with_opacity(0.5, ft.Colors.BLACK),
-                    padding=8,
-                    border_radius=6,
+                    content=preview_text,
+                    padding=ft.Padding(left=30, top=0, right=8, bottom=6),
+                    visible=True,
                 ),
-                ft.Text(_("结果:"), size=11, color=ft.Colors.BROWN_700),
                 ft.Container(
-                    content=ft.Text(
-                        result[:1000] + ("…" if len(result) > 1000 else ""),
-                        size=11,
-                        color=ft.Colors.ON_SURFACE,
-                        font_family="monospace",
-                        selectable=True,
-                        no_wrap=False,
-                    ),
-                    bgcolor=ft.Colors.with_opacity(0.3, ft.Colors.BLACK),
-                    padding=8,
-                    border_radius=6,
+                    content=body,
+                    padding=ft.Padding(left=8, top=0, right=8, bottom=8),
+                    visible=False,
                 ),
             ],
-            spacing=4,
+            spacing=0,
+            tight=True,
         )
 
-        exp = ft.ExpansionTile(
-            title=header,
-            controls=[ft.Container(content=body, padding=8)],
-            tile_padding=ft.Padding(
-                left=4, top=0, right=4, bottom=0),
-            initially_expanded=False,
-        )
-
+        # 卡片容器 - expand=True 填满 ListView 内容区域,
+        # 使黄色背景左右边缘与左气泡左边界、右气泡右边界对齐
         card = ft.Container(
-            content=exp,
-            padding=ft.Padding(left=4, right=4, top=0, bottom=0),
+            content=card_content,
+            expand=True,
             border_radius=8,
             bgcolor=ft.Colors.AMBER_50,
-            border=ft.border.all(1, ft.Colors.AMBER_200),
+            border=_uniform_border(1, ft.Colors.AMBER_200),
+            padding=0,
         )
+
         self.chat_list.controls.append(
-            ft.Row([card], alignment=ft.MainAxisAlignment.START)
+            ft.Row(
+                [card],
+                key=f"msg_{len(self.chat_list.controls)}",
+            )
         )
 
     @staticmethod
@@ -343,7 +536,7 @@ class AIPanel:
     def _update_status(self) -> None:
         if self._client is None:
             self.status_label.value = _("未配置")
-            self.status_label.color = ft.Colors.RED_400
+            self.status_label.color = ft.Colors.RED_600
             self.model_label.value = ""
         else:
             self.status_label.value = _("就绪")
@@ -357,17 +550,37 @@ class AIPanel:
         if busy:
             self.send_btn.text = _("停止")
             self.send_btn.icon = ft.Icons.STOP
-            self.send_btn.bgcolor = ft.Colors.RED_400
-            self.status_label.value = _("正在思考…")
+            self.send_btn.bgcolor = ft.Colors.RED_600
+            self.send_btn.color = ft.Colors.WHITE
+            self.status_label.value = _("正在思考...")
             self.input_field.disabled = True
         else:
             self.send_btn.text = _("发送")
             self.send_btn.icon = ft.Icons.SEND
             self.send_btn.bgcolor = None
+            self.send_btn.color = None
             self._update_status()
             self.input_field.disabled = False
         if self.main_view.page:
             self.main_view.page.update()
+
+    def _on_chat_scroll(self, e: ft.OnScrollEvent) -> None:
+        """根据滚动位置显示或隐藏回到底部按钮."""
+        max_extent = getattr(e, "max_scroll_extent", 0) or 0
+        should_show = max_extent > 0 and e.pixels < max_extent - 50
+        if self.scroll_to_bottom_btn.visible != should_show:
+            self.scroll_to_bottom_btn.visible = should_show
+            e.control.page.update()
+
+    def _scroll_to_bottom(self, _) -> None:
+        """点击回到底部按钮."""
+        # 通过临时添加一个不可见控件触发 auto_scroll 滚动到底部
+        dummy = ft.Container(height=1, width=1, opacity=0)
+        self.chat_list.controls.append(dummy)
+        self.main_view.page.update()
+        self.chat_list.controls.remove(dummy)
+        self.scroll_to_bottom_btn.visible = False
+        self.main_view.page.update()
 
     # ------------------------------------------------------------------ 事件
     def _on_send_or_stop(self, e):
@@ -449,19 +662,7 @@ class AIPanel:
             except Exception as e:  # noqa: BLE001
                 err = f"{e}"
             else:
-
-
-Gdk-Message: 22: 00: 09.072: Unable to load from the cursor theme
-embedder.cc(2575): 'FlutterEngineRemoveView' returned 'kInvalidArguments'. Re
-move view info was invalid. The implicit view cannot be removed.
-** (flet: 127892): WARNING **: 22: 01: 01.350: Failed to cleanup compositor shade
-rs, unable to make OpenGL context current
-** (flet: 127892): WARNING **: 22: 01: 01.355: Attempted to set message handler o
-n an FlBinaryMessenger without an engine
-** (flet: 127892): WARNING **: 22: 01: 01.355: Attempted to set message handler o
-n an FlBinaryMessenger without an engine
-
-选择文件夹后，卡在加载不动了                err = None
+                err = None
             # 回到 UI 线程 (run_task 第一个参数是协程函数, 后跟 *args)
             self.main_view.page.run_task(
                 self._on_api_finished_async,
@@ -535,6 +736,7 @@ n an FlBinaryMessenger without an engine
         try:
             self._render_tool(name, args, result or "OK")
             self.main_view.page.update()
-        except Exception:
-            pass
+        except Exception as e:  # noqa: BLE001
+            # 渲染失败不应阻塞对话循环, 但需打印日志便于排查
+            print(f"[AIPanel] _render_tool failed: {e}")
         return result or "OK"

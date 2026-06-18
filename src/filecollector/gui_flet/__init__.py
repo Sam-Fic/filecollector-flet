@@ -13,7 +13,7 @@ def main(page: ft.Page):
     page.title = _("FileCollector - 文件收集与编排工具")
     page.window.width = 1300
     page.window.height = 780
-    page.window.min_width = 960
+    page.window.min_width = 1100
     page.window.min_height = 560
 
     # Material 3 主题

@@ -10,7 +10,7 @@ Flet 版本 - 懒加载 + 三态复选框:
 
 三态复选框
 ----------
-- 自定义 ``TriStateCheckbox`` (Container + 动态 Icon) 实现 0/1/2 三态:
+- 目录使用自定义 ``TreeCheckbox`` 实现 0/1/2 三态:
     0 = 未选 (空白方框)
     1 = 部分选 (方框带横线)
     2 = 全选 (方框带勾)
@@ -35,56 +35,62 @@ UNCHECKED = 0
 PARTIAL = 1
 CHECKED = 2
 
-# 三态视觉映射
-_TRI_ICONS = {
-    UNCHECKED: ft.Icons.CHECK_BOX_OUTLINE_BLANK,
-    PARTIAL: ft.Icons.INDETERMINATE_CHECK_BOX_OUTLINED,
-    CHECKED: ft.Icons.CHECK_BOX_OUTLINED,
-}
-_TRI_COLORS = {
-    UNCHECKED: ft.Colors.GREY_500,
-    PARTIAL: ft.Colors.BLUE_400,
-    CHECKED: ft.Colors.BLUE_700,
-}
+# 行高 / 缩进 / 箭头占位常量
+_ROW_HEIGHT = 36
+_INDENT_STEP = 16
+_ARROW_WIDTH = 32
 
 
-class TriStateCheckbox(ft.Container):
-    """三态复选框自定义控件."""
+class TreeCheckbox(ft.Container):
+    """树形复选框控件：同时支持二态/三态，避免 Flet tristate Checkbox 渲染异常."""
 
     def __init__(self, on_click=None, size: int = 20):
         super().__init__()
         self._state = UNCHECKED
         self._on_click = on_click
         self._size = size
+        self._toggling = False
         self.icon_ctrl = ft.Icon(
-            _TRI_ICONS[UNCHECKED],
-            color=_TRI_COLORS[UNCHECKED],
-            size=size,
-        )
+            icon=ft.Icons.CHECK_BOX_OUTLINE_BLANK, size=size)
         self.content = self.icon_ctrl
-        self.padding = ft.Padding(left=2, top=2, right=2, bottom=2)
+        self.width = size + 8
+        self.height = size + 8
+        self.alignment = ft.alignment.Alignment(0, 0)
         self.border_radius = 4
         self.ink = True
         self.on_click = self._handle_click
         # 记录反向引用 (供父容器刷新)
         self._path_str: Optional[str] = None
+        self.set_state(UNCHECKED)
 
     def bind_path(self, path_str: str) -> None:
         self._path_str = path_str
 
     def _handle_click(self, e):
-        # 单击: 0/1 → 2, 2 → 0
-        if self._state == CHECKED:
-            self.set_state(UNCHECKED)
-        else:
-            self.set_state(CHECKED)
-        if self._on_click is not None:
-            self._on_click(self._path_str, self._state)
+        self.toggle()
+
+    def toggle(self) -> None:
+        """触发一次点击回调，并防止父容器重复触发导致二次切换."""
+        if self._toggling:
+            return
+        self._toggling = True
+        try:
+            if self._on_click is not None:
+                self._on_click(self._path_str, self._state)
+        finally:
+            self._toggling = False
 
     def set_state(self, state: int) -> None:
         self._state = state
-        self.icon_ctrl.name = _TRI_ICONS[state]
-        self.icon_ctrl.color = _TRI_COLORS[state]
+        if state == UNCHECKED:
+            self.icon_ctrl.icon = ft.Icons.CHECK_BOX_OUTLINE_BLANK
+            self.icon_ctrl.color = ft.Colors.GREY_500
+        elif state == PARTIAL:
+            self.icon_ctrl.icon = ft.Icons.INDETERMINATE_CHECK_BOX
+            self.icon_ctrl.color = ft.Colors.BLUE_600
+        else:  # CHECKED
+            self.icon_ctrl.icon = ft.Icons.CHECK_BOX
+            self.icon_ctrl.color = ft.Colors.BLUE_600
         try:
             self.icon_ctrl.update()
         except Exception:
@@ -129,10 +135,11 @@ class FileTreePanel:
         self.checked_paths: set[str] = set()
 
         # UI 引用
-        self._dir_widgets: dict[str, TriStateCheckbox] = {}
-        self._file_widgets: dict[str, ft.Checkbox] = {}
-        self._dir_tiles: dict[str, ft.ExpansionTile] = {}  # path -> tile
+        self._dir_widgets: dict[str, TreeCheckbox] = {}
+        self._file_widgets: dict[str, TreeCheckbox] = {}
+        self._dir_tiles: dict[str, ft.Column] = {}  # path -> children column
         self._dir_nodes: dict[str, _DirNode] = {}  # path -> model node
+        self._dir_arrows: dict[str, ft.Icon] = {}  # path -> arrow icon
 
         self._build_ui()
 
@@ -148,6 +155,7 @@ class FileTreePanel:
             text_size=14,
             visible=False,
             on_change=self._on_search_change,
+            height=_ROW_HEIGHT,
         )
 
         # 根内容容器（动态填充）
@@ -170,7 +178,7 @@ class FileTreePanel:
                             text_align=ft.TextAlign.CENTER,
                         ),
                         padding=ft.Padding(
-                            top=12, bottom=8, left=0, right=0),
+                            top=10, bottom=10, left=0, right=0),
                         alignment=ft.alignment.Alignment(0, 0),
                     ),
                     ft.Container(
@@ -203,6 +211,7 @@ class FileTreePanel:
         self._file_widgets.clear()
         self._dir_tiles.clear()
         self._dir_nodes.clear()
+        self._dir_arrows.clear()
         self.search_field.visible = True
 
         # 清空树
@@ -214,9 +223,9 @@ class FileTreePanel:
             self._dir_nodes[str(work_dir)] = root_node
             # 立即加载根的直接子项, 显示一级文件 (避免空根节点)
             self._load_children(root_node)
-            root_tile = self._build_dir_tile(root_node, indent=0)
-            self.tree_content.controls.append(root_tile)
-            root_tile.expanded = True
+            root_node_col = self._build_dir_node(root_node, indent=0)
+            self.tree_content.controls.append(root_node_col)
+            self._populate_dir_children(root_node)
 
         self.main_view.page.update()
 
@@ -224,7 +233,8 @@ class FileTreePanel:
         """外部调用: 刷新所有 checkbox 显示状态."""
         # 刷新所有文件 checkbox
         for path_str, cb in self._file_widgets.items():
-            cb.value = path_str in self.checked_paths
+            cb.set_state(
+                CHECKED if path_str in self.checked_paths else UNCHECKED)
         # 刷新所有目录三态
         self._refresh_all_dir_displays()
         try:
@@ -272,77 +282,117 @@ class FileTreePanel:
         self._load_children(node)
         return node
 
+    def _node_indent(self, node: _DirNode) -> int:
+        """计算节点在文件树中的层级 (根节点为 0, 直接子节点为 1, 依此类推).
+
+        层级直接决定左侧缩进像素: left_padding = indent * _INDENT_STEP.
+        """
+        if node.path == self.work_dir:
+            return 0
+        indent = 0
+        current = node.path
+        while current != self.work_dir and current != current.parent:
+            indent += 1
+            current = current.parent
+        return indent
+
     # ====================================================== 构建 UI 节点
-    def _build_dir_tile(self, node: _DirNode, indent: int) -> ft.ExpansionTile:
-        """为目录节点创建 ExpansionTile (children 为空, 展开时再填充)."""
+    def _build_dir_node(self, node: _DirNode, indent: int) -> ft.Column:
+        """为目录节点创建自定义展开节点 (header + children_col)."""
         path_str = str(node.path)
+        is_root = self.work_dir is not None and node.path == self.work_dir
+
+        # 自定义箭头（放在最左侧，跟随缩进）
+        arrow = ft.Icon(
+            ft.Icons.EXPAND_MORE if is_root else ft.Icons.CHEVRON_RIGHT,
+            size=18,
+            color=ft.Colors.GREY_600,
+        )
+        self._dir_arrows[path_str] = arrow
 
         # 三态 checkbox
-        tri = TriStateCheckbox(
-            on_click=self._on_dir_checkbox_click, size=18)
-        tri.bind_path(path_str)
-        self._dir_widgets[path_str] = tri
+        cb = TreeCheckbox(
+            on_click=self._on_dir_checkbox_click, size=20)
+        cb.bind_path(path_str)
+        cb.set_state(self._dir_state(node.path))
+        self._dir_widgets[path_str] = cb
 
-        # 标题
-        title_control = ft.Row(
-            [
-                tri,
-                ft.Icon(ft.Icons.FOLDER, size=16, color=ft.Colors.AMBER_700),
-                ft.Text(node.path.name, size=14),
-            ],
-            spacing=4,
-            vertical_alignment=ft.CrossAxisAlignment.CENTER,
-        )
+        # 子节点容器：默认根目录展开，其他折叠
+        # 子节点自身会携带 (indent + 1) 的左缩进，因此容器本身不需要额外缩进
+        children_col = ft.Column(
+            [], spacing=0, visible=is_root)
+        self._dir_tiles[path_str] = children_col
 
-        # 关键: 初始 children 为 [占位符], 首次展开时由 on_change 回调加载并替换.
-        # 这样大量子目录不会在打开工作目录时全部扫描.
-        placeholder = ft.Container(
-            content=ft.Text(
-                _("加载中…"), size=12, color=ft.Colors.GREY_500,
-                italic=True,
+        # 标题行：与文件行保持完全一致的高度和结构
+        # left_padding = indent * _INDENT_STEP：层级越深，缩进越大
+        header = ft.Container(
+            content=ft.Row(
+                [
+                    ft.Container(
+                        content=arrow,
+                        width=_ARROW_WIDTH,
+                        alignment=ft.alignment.Alignment(0, 0),
+                    ),
+                    cb,
+                    ft.Icon(ft.Icons.FOLDER, size=18,
+                            color=ft.Colors.AMBER_600),
+                    ft.Text(node.path.name, size=14,
+                            weight=ft.FontWeight.W_500),
+                ],
+                spacing=0,
+                vertical_alignment=ft.CrossAxisAlignment.CENTER,
             ),
-            padding=ft.Padding(left=4 + (indent + 1) * 16, top=4, right=4, bottom=4),
+            height=_ROW_HEIGHT,
+            padding=ft.Padding(
+                left=indent * _INDENT_STEP, top=0, right=8, bottom=0),
+            on_click=lambda e, n=node, a=arrow, col=children_col: self._on_dir_expand(
+                n, a, col, e),
+            ink=True,
+            border_radius=4,
         )
-        tile = ft.ExpansionTile(
-            title=title_control,
-            controls=[placeholder],
-            expanded=False,
-            tile_padding=ft.Padding(
-                left=4 + indent * 16, top=0, right=4, bottom=0),
-            on_change=lambda e, n=node: self._on_dir_expand(n),
-        )
-        self._dir_tiles[path_str] = tile
-        return tile
 
-    def _populate_tile_children(self, node: _DirNode) -> None:
-        """把 node.children 转为实际控件, 替换 ExpansionTile.controls."""
+        return ft.Column([header, children_col], spacing=0)
+
+    def _populate_dir_children(self, node: _DirNode) -> None:
+        """把 node.children 转为实际控件, 填充到目录的子节点容器."""
         path_str = str(node.path)
-        tile = self._dir_tiles.get(path_str)
-        if tile is None:
+        children_col = self._dir_tiles.get(path_str)
+        if children_col is None:
             return
-        # 计算 indent
-        indent = 0
-        parent = node.path.parent
-        while parent != self.work_dir and parent != parent.parent:
-            indent += 1
-            parent = parent.parent
+
+        # 当前节点层级; 子节点层级 = indent + 1
+        indent = self._node_indent(node)
 
         new_controls: list[ft.Control] = []
         for child in node.children:
             if isinstance(child, _DirNode):
-                new_controls.append(self._build_dir_tile(child, indent + 1))
+                new_controls.append(self._build_dir_node(child, indent + 1))
             else:
-                new_controls.append(self._build_file_row(child.path, indent + 1))
-        tile.controls = new_controls
+                new_controls.append(
+                    self._build_file_row(child.path, indent + 1))
+        children_col.controls = new_controls
 
-    def _on_dir_expand(self, node: _DirNode) -> None:
-        """用户展开一个目录时, 懒加载子项 (首次展开才扫描)."""
-        if not node.loaded:
+    def _on_dir_expand(
+        self,
+        node: _DirNode,
+        arrow: ft.Icon,
+        children_col: ft.Column,
+        e: ft.ControlEvent,
+    ) -> None:
+        """用户展开/折叠目录时, 懒加载子项并旋转箭头."""
+        is_expanded = not children_col.visible
+        children_col.visible = is_expanded
+        if is_expanded and not node.loaded:
             self._load_children(node)
-            self._populate_tile_children(node)
+            self._populate_dir_children(node)
             # 展开后立刻按当前 checked_paths 刷新一次三态
             self._refresh_dir_display(node)
+        # 更新箭头方向
+        arrow.icon = (
+            ft.Icons.EXPAND_MORE if is_expanded else ft.Icons.CHEVRON_RIGHT
+        )
         try:
+            arrow.update()
             self.main_view.page.update()
         except Exception:
             pass
@@ -355,51 +405,57 @@ class FileTreePanel:
         if path_str in self._file_widgets:
             cb = self._file_widgets[path_str]
         else:
-            cb = ft.Checkbox(
-                value=path_str in self.checked_paths,
-                on_change=lambda e, p=path_str: self._on_file_checkbox_change(
-                    e, p),
-            )
+            cb = TreeCheckbox(
+                on_click=self._on_file_checkbox_click, size=20)
+            cb.bind_path(path_str)
+            cb.set_state(
+                CHECKED if path_str in self.checked_paths else UNCHECKED)
             self._file_widgets[path_str] = cb
 
         # 根据扩展名选图标
         ext = file_path.suffix.lower()
         icon_name = ft.Icons.INSERT_DRIVE_FILE
-        icon_color = ft.Colors.GREY_600
+        icon_color = ft.Colors.GREY_500
         if ext in {".py", ".pyi"}:
             icon_name = ft.Icons.CODE
-            icon_color = ft.Colors.BLUE_700
+            icon_color = ft.Colors.BLUE_600
         elif ext in {".js", ".ts", ".jsx", ".tsx"}:
             icon_name = ft.Icons.JAVASCRIPT
-            icon_color = ft.Colors.YELLOW_700
+            icon_color = ft.Colors.AMBER_600
         elif ext in {".json", ".yaml", ".yml", ".toml", ".xml"}:
             icon_name = ft.Icons.DATA_OBJECT
-            icon_color = ft.Colors.ORANGE_700
+            icon_color = ft.Colors.TEAL_600
         elif ext in {".md", ".txt", ".rst"}:
             icon_name = ft.Icons.DESCRIPTION
-            icon_color = ft.Colors.GREEN_700
+            icon_color = ft.Colors.GREEN_600
         elif ext in {".png", ".jpg", ".jpeg", ".gif", ".bmp",
                      ".svg", ".webp"}:
             icon_name = ft.Icons.IMAGE
-            icon_color = ft.Colors.PURPLE_700
+            icon_color = ft.Colors.PURPLE_600
         elif ext in {".zip", ".tar", ".gz", ".7z", ".rar"}:
             icon_name = ft.Icons.ARCHIVE
-            icon_color = ft.Colors.BROWN_700
+            icon_color = ft.Colors.BROWN_600
 
+        # 文件行：箭头占位 + checkbox + 图标 + 名称
+        # 占位宽度与目录箭头一致，保证同层级 checkbox 对齐
+        # left_padding = indent * _INDENT_STEP：与目录 header 使用同一套层级缩进
         row = ft.Container(
             content=ft.Row(
                 [
+                    ft.Container(width=_ARROW_WIDTH),
                     cb,
-                    ft.Icon(icon_name, size=16, color=icon_color),
+                    ft.Icon(icon_name, size=18, color=icon_color),
                     ft.Text(file_path.name, size=14),
                 ],
-                spacing=4,
+                spacing=0,
                 vertical_alignment=ft.CrossAxisAlignment.CENTER,
             ),
+            height=_ROW_HEIGHT,
             padding=ft.Padding(
-                left=4 + indent * 16, top=2, right=4, bottom=2),
-            on_click=lambda e, p=path_str, c=cb: self._on_file_row_click(p, c),
+                left=indent * _INDENT_STEP, top=0, right=8, bottom=0),
+            on_click=lambda e, c=cb: c.toggle(),
             ink=True,
+            border_radius=4,
         )
         return row
 
@@ -437,10 +493,10 @@ class FileTreePanel:
 
     def _refresh_dir_display(self, node: _DirNode) -> None:
         """刷新单个目录节点的三态显示."""
-        tri = self._dir_widgets.get(str(node.path))
-        if tri is None:
+        cb = self._dir_widgets.get(str(node.path))
+        if cb is None:
             return
-        tri.set_state(self._dir_state(node.path))
+        cb.set_state(self._dir_state(node.path))
 
     def _refresh_all_dir_displays(self) -> None:
         """刷新所有已注册目录的三态显示 (按路径从浅到深, 让祖先计算正确)."""
@@ -453,23 +509,24 @@ class FileTreePanel:
                 self._refresh_dir_display(node)
             else:
                 # 根目录等简单路径: 直接用 path 计算
-                tri = self._dir_widgets[p]
-                tri.set_state(self._dir_state(Path(p)))
+                cb = self._dir_widgets[p]
+                cb.set_state(self._dir_state(Path(p)))
 
     # ====================================================== 点击事件
-    def _on_dir_checkbox_click(self, path_str: str, new_state: int) -> None:
+    def _on_dir_checkbox_click(self, path_str: str, old_state: int) -> None:
         """目录三态点击: 级联设置所有后代文件."""
         dir_path = Path(path_str)
-        # 触发级联
-        if new_state == CHECKED:
-            for f in self._walk_files(dir_path):
-                self.checked_paths.add(str(f.resolve()))
-        else:  # UNCHECKED
-            for f in self._walk_files(dir_path):
+        files = list(self._walk_files(dir_path))
+        # 单击: 0/1 -> 2 (全选), 2 -> 0 (取消全选)
+        if old_state == CHECKED:
+            for f in files:
                 self.checked_paths.discard(str(f.resolve()))
+        else:
+            for f in files:
+                self.checked_paths.add(str(f.resolve()))
         # 刷新所有可见的文件 checkbox
         for p, cb in self._file_widgets.items():
-            cb.value = p in self.checked_paths
+            cb.set_state(CHECKED if p in self.checked_paths else UNCHECKED)
         # 刷新所有目录三态 (浅 → 深, 浅的先算才会反映深层修改)
         self._refresh_all_dir_displays()
         # 推送到 engine + 编排列表
@@ -479,13 +536,17 @@ class FileTreePanel:
         except Exception:
             pass
 
-    def _on_file_row_click(self, path_str: str, checkbox: ft.Checkbox):
-        """点击文件行切换勾选状态."""
-        checkbox.value = not checkbox.value
-        if checkbox.value:
+    def _on_file_checkbox_click(self, path_str: str, old_state: int) -> None:
+        """点击文件 checkbox 切换勾选状态."""
+        new_state = CHECKED if old_state == UNCHECKED else UNCHECKED
+        if new_state == CHECKED:
             self.checked_paths.add(path_str)
         else:
             self.checked_paths.discard(path_str)
+        # 刷新对应文件 checkbox 视觉
+        cb = self._file_widgets.get(path_str)
+        if cb is not None:
+            cb.set_state(new_state)
         # 刷新所有目录三态
         self._refresh_all_dir_displays()
         self._sync_to_engine()
@@ -493,16 +554,6 @@ class FileTreePanel:
             self.main_view.page.update()
         except Exception:
             pass
-
-    def _on_file_checkbox_change(self, e, path_str: str):
-        """复选框状态变化 (程序触发)."""
-        checkbox: ft.Checkbox = e.control
-        if checkbox.value:
-            self.checked_paths.add(path_str)
-        else:
-            self.checked_paths.discard(path_str)
-        self._refresh_all_dir_displays()
-        self._sync_to_engine()
 
     # ====================================================== 同步到 engine
     def _sync_to_engine(self):
@@ -525,21 +576,33 @@ class FileTreePanel:
         """过滤树节点, 返回是否有可见内容."""
         has_visible = False
         for ctrl in controls:
-            if isinstance(ctrl, ft.ExpansionTile):
-                child_visible = self._filter_tree(ctrl.controls, query)
-                ctrl.visible = child_visible or (not query)
-                if child_visible or not query:
+            if isinstance(ctrl, ft.Column) and len(ctrl.controls) >= 2:
+                # 目录节点: [header Container, children Column]
+                header, children_col = ctrl.controls[0], ctrl.controls[1]
+                header_visible = self._row_matches(header, query)
+                child_visible = self._filter_tree(children_col.controls, query)
+                ctrl.visible = header_visible or child_visible or (not query)
+                if ctrl.visible:
                     has_visible = True
             elif isinstance(ctrl, ft.Container):
-                row = ctrl.content
-                if isinstance(row, ft.Row) and len(row.controls) >= 3:
-                    name_text = row.controls[2]
-                    if isinstance(name_text, ft.Text):
-                        name = name_text.value.lower()
-                        ctrl.visible = (not query) or (query in name)
-                        if ctrl.visible:
-                            has_visible = True
+                if self._row_matches(ctrl, query):
+                    ctrl.visible = True
+                    has_visible = True
+                else:
+                    ctrl.visible = False
         return has_visible
+
+    @staticmethod
+    def _row_matches(ctrl: ft.Container, query: str) -> bool:
+        """判断某行 (目录/文件) 的名称是否匹配搜索关键词."""
+        if not query:
+            return True
+        row = ctrl.content
+        if isinstance(row, ft.Row) and len(row.controls) >= 4:
+            name_text = row.controls[3]
+            if isinstance(name_text, ft.Text):
+                return query in name_text.value.lower()
+        return False
 
     # ====================================================== 外部 API
     def get_checked_paths(self) -> set[str]:

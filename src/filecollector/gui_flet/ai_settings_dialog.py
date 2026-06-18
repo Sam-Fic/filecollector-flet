@@ -66,6 +66,7 @@ class AISettingsDialog(ft.AlertDialog):
             label=_("API 基础地址:"),
             value=self.current.get("base_url", ""),
             hint_text="https://api.openai.com/v1",
+            expand=True,
         )
 
         self.edit_api_key = ft.TextField(
@@ -74,12 +75,14 @@ class AISettingsDialog(ft.AlertDialog):
             hint_text="sk-...",
             password=True,
             can_reveal_password=True,
+            expand=True,
         )
 
         self.edit_model = ft.TextField(
             label=_("模型名称:"),
             value=self.current.get("model", ""),
             hint_text="gpt-4o-mini",
+            expand=True,
         )
 
         self.spin_timeout = ft.TextField(
@@ -87,6 +90,7 @@ class AISettingsDialog(ft.AlertDialog):
             value=str(self.current.get("timeout", 60.0)),
             hint_text="60",
             keyboard_type=ft.KeyboardType.NUMBER,
+            expand=True,
         )
 
         self.edit_prompt = ft.TextField(
@@ -96,6 +100,7 @@ class AISettingsDialog(ft.AlertDialog):
             multiline=True,
             min_lines=2,
             max_lines=4,
+            expand=True,
         )
 
         # 测试连接按钮和状态
@@ -133,8 +138,7 @@ class AISettingsDialog(ft.AlertDialog):
                     ),
                 ],
                 tight=True,
-                scroll=ft.ScrollMode.AUTO,
-                height=500,
+                width=420,
             ),
             actions=[
                 ft.TextButton(_("取消"), on_click=self._on_cancel),

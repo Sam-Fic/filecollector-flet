@@ -57,6 +57,10 @@ class MainView:
         # 键盘快捷键
         self.page.on_keyboard_event = self._on_keyboard
 
+        # 窗口最小宽度强制（Linux/GTK 上 min_width 不一定生效）
+        self._min_width = 1100
+        self.page.on_resize = self._on_resize
+
     def _on_keyboard(self, e: ft.KeyboardEvent):
         """处理键盘快捷键"""
         key = e.key
@@ -136,105 +140,135 @@ class MainView:
             expand=True,
         )
 
-    def _build_app_bar(self) -> ft.AppBar:
-        """构建顶部应用栏"""
+    def _build_app_bar(self) -> ft.Control:
+        """构建顶部应用栏 (使用 Container 替代 AppBar, 避免 Material 3 滚动阴影)"""
         # 左侧操作
-        leading = [
-            ft.IconButton(
-                icon=ft.Icons.UNDO,
-                tooltip=_("撤销") + " (Ctrl+Z)",
-                on_click=self._on_undo,
-            ),
-            ft.IconButton(
-                icon=ft.Icons.REDO,
-                tooltip=_("重做") + " (Ctrl+Shift+Z)",
-                on_click=self._on_redo,
-            ),
-            ft.VerticalDivider(),
-            ft.ElevatedButton(
-                _("打开文件夹"),
-                icon=ft.Icons.FOLDER_OPEN,
-                on_click=self._on_open_folder,
-            ),
-        ]
+        leading = ft.Row(
+            [
+                ft.IconButton(
+                    icon=ft.Icons.UNDO,
+                    tooltip=_("撤销") + " (Ctrl+Z)",
+                    on_click=self._on_undo,
+                ),
+                ft.IconButton(
+                    icon=ft.Icons.REDO,
+                    tooltip=_("重做") + " (Ctrl+Shift+Z)",
+                    on_click=self._on_redo,
+                ),
+                ft.VerticalDivider(),
+                ft.ElevatedButton(
+                    _("打开文件夹"),
+                    icon=ft.Icons.FOLDER_OPEN,
+                    on_click=self._on_open_folder,
+                ),
+            ],
+            spacing=0,
+        )
 
         # 标题
         title = ft.Text(
             _("当前工作目录: 未设置"),
             size=14,
             weight=ft.FontWeight.W_600,
-            color=ft.Colors.BLUE_700,
+            color=ft.Colors.BLUE_600,
         )
         self.work_dir_label = title
 
         # 右侧操作
-        actions = [
-            ft.IconButton(
-                icon=ft.Icons.SMART_TOY,
-                tooltip=_("AI 助手"),
-                on_click=self._on_toggle_ai,
-            ),
-            ft.PopupMenuButton(
-                icon=ft.Icons.MORE_VERT,
-                items=[
-                    ft.PopupMenuItem(
-                        content=ft.Text(_("保存项目")),
-                        icon=ft.Icons.SAVE,
-                        on_click=self._on_save_project,
+        actions = ft.Row(
+            [
+                ft.IconButton(
+                    icon=ft.Icons.SMART_TOY,
+                    tooltip=_("AI 助手"),
+                    on_click=self._on_toggle_ai,
+                    padding=0,
+                ),
+                ft.PopupMenuButton(
+                    icon=ft.Icons.MORE_VERT,
+                    padding=0,
+                    items=[
+                        ft.PopupMenuItem(
+                            content=ft.Text(_("保存项目")),
+                            icon=ft.Icons.SAVE,
+                            on_click=self._on_save_project,
+                        ),
+                        ft.PopupMenuItem(
+                            content=ft.Text(_("项目另存为...")),
+                            icon=ft.Icons.SAVE_AS,
+                            on_click=self._on_save_project_as,
+                        ),
+                        ft.PopupMenuItem(
+                            content=ft.Text(_("打开项目")),
+                            icon=ft.Icons.FOLDER_OPEN,
+                            on_click=self._on_load_project,
+                        ),
+                        ft.PopupMenuItem(),  # 分隔符
+                        ft.PopupMenuItem(
+                            content=ft.Text(_("语言设置")),
+                            icon=ft.Icons.LANGUAGE,
+                            on_click=self._on_settings,
+                        ),
+                        ft.PopupMenuItem(
+                            content=ft.Text(_("AI 助手设置")),
+                            icon=ft.Icons.SMART_TOY,
+                            on_click=self._on_ai_settings,
+                        ),
+                        ft.PopupMenuItem(
+                            content=ft.Text(_("常用语管理")),
+                            icon=ft.Icons.CHAT,
+                            on_click=self._on_phrases,
+                        ),
+                        ft.PopupMenuItem(),
+                        ft.PopupMenuItem(
+                            content=ft.Text(_("键盘快捷键")),
+                            icon=ft.Icons.KEYBOARD,
+                            on_click=self._on_shortcuts,
+                        ),
+                        ft.PopupMenuItem(
+                            content=ft.Text(_("关于")),
+                            icon=ft.Icons.INFO,
+                            on_click=self._on_about,
+                        ),
+                        ft.PopupMenuItem(),
+                        ft.PopupMenuItem(
+                            content=ft.Text(_("退出")),
+                            icon=ft.Icons.CLOSE,
+                            on_click=self._on_quit,
+                        ),
+                    ],
+                ),
+            ],
+            spacing=0,
+        )
+
+        return ft.Container(
+            content=ft.Stack(
+                [
+                    ft.Container(
+                        content=title,
+                        alignment=ft.Alignment(0, 0),
+                        expand=True,
                     ),
-                    ft.PopupMenuItem(
-                        content=ft.Text(_("项目另存为...")),
-                        icon=ft.Icons.SAVE_AS,
-                        on_click=self._on_save_project_as,
+                    ft.Row(
+                        [
+                            ft.Container(content=leading, width=220),
+                            ft.Container(expand=True),
+                        ],
+                        spacing=0,
+                        vertical_alignment=ft.CrossAxisAlignment.CENTER,
                     ),
-                    ft.PopupMenuItem(
-                        content=ft.Text(_("打开项目")),
-                        icon=ft.Icons.FOLDER_OPEN,
-                        on_click=self._on_load_project,
-                    ),
-                    ft.PopupMenuItem(),  # 分隔符
-                    ft.PopupMenuItem(
-                        content=ft.Text(_("语言设置")),
-                        icon=ft.Icons.LANGUAGE,
-                        on_click=self._on_settings,
-                    ),
-                    ft.PopupMenuItem(
-                        content=ft.Text(_("AI 助手设置")),
-                        icon=ft.Icons.SMART_TOY,
-                        on_click=self._on_ai_settings,
-                    ),
-                    ft.PopupMenuItem(
-                        content=ft.Text(_("常用语管理")),
-                        icon=ft.Icons.CHAT,
-                        on_click=self._on_phrases,
-                    ),
-                    ft.PopupMenuItem(),
-                    ft.PopupMenuItem(
-                        content=ft.Text(_("键盘快捷键")),
-                        icon=ft.Icons.KEYBOARD,
-                        on_click=self._on_shortcuts,
-                    ),
-                    ft.PopupMenuItem(
-                        content=ft.Text(_("关于")),
-                        icon=ft.Icons.INFO,
-                        on_click=self._on_about,
-                    ),
-                    ft.PopupMenuItem(),
-                    ft.PopupMenuItem(
-                        content=ft.Text(_("退出")),
-                        icon=ft.Icons.CLOSE,
-                        on_click=self._on_quit,
+                    ft.Container(
+                        content=actions,
+                        right=0,
+                        top=0,
+                        bottom=0,
                     ),
                 ],
+                expand=True,
             ),
-        ]
-
-        return ft.AppBar(
-            leading=ft.Row(leading, spacing=0),
-            leading_width=200,
-            title=title,
-            center_title=False,
-            actions=actions,
+            padding=ft.Padding(left=8, top=4, right=8, bottom=4),
+            bgcolor=ft.Colors.SURFACE,
+            height=56,
         )
 
     def initialize(self):
@@ -287,33 +321,41 @@ class MainView:
 
         self.page.run_task(pick)
 
+    def _on_resize(self, e):
+        """强制窗口最小宽度"""
+        if self.page.window.width < self._min_width:
+            self.page.window.width = self._min_width
+            self.page.update()
+        # 通知 AI 面板防抖重绘气泡, 修正宽度估算偏差导致的裁切
+        if self.ai_panel.container in self.main_row.controls:
+            self.ai_panel.handle_page_resize()
+
     def _on_toggle_ai(self, e):
         """切换 AI 面板"""
         if self.ai_panel.container in self.main_row.controls:
             self.main_row.controls.remove(self.ai_panel.container)
+            self._min_width = 1100
+            self.page.window.min_width = 1100
         else:
             self.main_row.controls.append(self.ai_panel.container)
+            self._min_width = 1420
+            self.page.window.min_width = 1420
+            if self.page.window.width < 1420:
+                self.page.window.width = 1420
         self.page.update()
 
     def _on_save_project(self, e):
-        """保存项目"""
-
-        async def pick():
-            path = await self._file_picker.save_file(
-                dialog_title=_("保存项目到"),
-                file_name="project.project.json",
-            )
-            if path:
-                if not path.endswith(".project.json"):
-                    path += ".project.json"
-                try:
-                    self.engine.common_phrases = list(self.common_phrases)
-                    self.engine.save_project(path)
-                    show_snack(self.page, _("项目已保存: %s") % path)
-                except Exception as ex:
-                    show_snack(self.page, _("保存失败: %s") % ex)
-
-        self.page.run_task(pick)
+        """保存项目 (若有已保存路径则直接覆盖, 否则另存为)."""
+        if getattr(self.engine, "project_file", None):
+            try:
+                self.engine.common_phrases = list(self.common_phrases)
+                self.engine.save_project(self.engine.project_file)
+                show_snack(self.page, _("项目已保存: %s") %
+                           self.engine.project_file)
+            except Exception as ex:
+                show_snack(self.page, _("保存失败: %s") % ex)
+            return
+        self._on_save_project_as(e)
 
     def _on_load_project(self, e):
         """加载项目"""
@@ -349,11 +391,11 @@ class MainView:
         async def pick():
             path = await self._file_picker.save_file(
                 dialog_title=_("保存项目到"),
-                file_name="project.project.json",
+                file_name="project.fcol",
             )
             if path:
-                if not path.endswith(".project.json"):
-                    path += ".project.json"
+                if not path.endswith(".fcol"):
+                    path += ".fcol"
                 try:
                     self.engine.common_phrases = list(self.common_phrases)
                     self.engine.save_project(path)
@@ -364,8 +406,26 @@ class MainView:
         self.page.run_task(pick)
 
     def _on_quit(self, e):
-        """退出应用"""
-        self.page.window.close()
+        """退出应用 (列表非空时确认, 对齐 Qt 版 closeEvent)."""
+        if self.engine.items:
+            def on_confirm(e):
+                if e.control.data == "yes":
+                    self.page.pop_dialog()
+                    self.page.window.close()
+                else:
+                    self.page.pop_dialog()
+
+            dlg = ft.AlertDialog(
+                title=ft.Text(_("确认退出")),
+                content=ft.Text(_("编排列表不为空，确定退出吗？")),
+                actions=[
+                    ft.TextButton(_("取消"), on_click=on_confirm, data="no"),
+                    ft.TextButton(_("确定"), on_click=on_confirm, data="yes"),
+                ],
+            )
+            self.page.show_dialog(dlg)
+        else:
+            self.page.window.close()
 
     def _on_phrases(self, e):
         """打开常用语管理"""
@@ -391,7 +451,7 @@ class MainView:
                     ft.Text("• " + _("拖放排序 + 撤销 / 重做")),
                     ft.Text("• " + _("文字插入 + 常用语管理")),
                     ft.Text("• " + _("智能编码检测 (UTF-8 / GBK / 拉丁系)")),
-                    ft.Text("• " + _("项目保存 / 加载 (.project.json / .fcol)")),
+                    ft.Text("• " + _("项目保存 / 加载 (.fcol)")),
                     ft.Text("• " + _("中英文切换 (跟随系统 / 中文 / English)")),
                     ft.Text("• " + _("完整键盘快捷键支持")),
                     ft.Text(""),
@@ -402,7 +462,6 @@ class MainView:
                     ),
                 ],
                 tight=True,
-                scroll=ft.ScrollMode.AUTO,
             ),
             actions=[
                 ft.TextButton(
@@ -441,6 +500,22 @@ class MainView:
     def clear_preview(self):
         """清空预览"""
         self.preview_panel.clear()
+
+    def open_file_location(self, path: str):
+        """在文件管理器中显示文件 (对齐 Qt 版 _open_file_location)."""
+        import sys
+        import subprocess
+        import os
+        try:
+            if sys.platform == "win32":
+                subprocess.Popen(
+                    ['explorer', '/select,', path.replace('/', '\\')])
+            elif sys.platform == "darwin":
+                subprocess.Popen(['open', '-R', path])
+            else:
+                subprocess.Popen(['xdg-open', os.path.dirname(path)])
+        except Exception:
+            pass
 
     # ==================================================================
     # AI 集成: 状态快照 + 工具执行入口

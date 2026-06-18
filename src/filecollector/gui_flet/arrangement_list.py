@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from pathlib import Path
 
 import flet as ft
@@ -18,6 +19,9 @@ class ArrangementListPanel:
     def __init__(self, main_view):
         self.main_view = main_view
         self.selected_index: int = -1
+        # 双击检测
+        self._last_click_idx: int = -1
+        self._last_click_ts: float = 0.0
 
         self._build_ui()
 
@@ -27,7 +31,7 @@ class ArrangementListPanel:
         self.list_view = ft.ListView(
             expand=True,
             spacing=4,
-            padding=ft.Padding(left=12, right=12, top=8, bottom=8),
+            padding=ft.Padding(left=12, right=12, top=0, bottom=8),
         )
 
         # 按钮行 1
@@ -36,25 +40,26 @@ class ArrangementListPanel:
             icon=ft.Icons.ARROW_UPWARD,
             on_click=self._on_insert_text_above,
             disabled=True,
+            col={"xs": 12, "sm": 4},
         )
         self.btn_insert_below = ft.ElevatedButton(
             _("下方插入文本"),
             icon=ft.Icons.ARROW_DOWNWARD,
             on_click=self._on_insert_text_below,
             disabled=True,
+            col={"xs": 12, "sm": 4},
         )
-        btn_row1 = ft.Row(
+        btn_row1 = ft.ResponsiveRow(
             [
                 ft.ElevatedButton(
                     _("添加外部文件"),
                     icon=ft.Icons.FILE_UPLOAD,
                     on_click=self._on_add_external,
+                    col={"xs": 12, "sm": 4},
                 ),
                 self.btn_insert_above,
                 self.btn_insert_below,
             ],
-            spacing=8,
-            alignment=ft.MainAxisAlignment.START,
         )
 
         # 按钮行 2
@@ -76,32 +81,35 @@ class ArrangementListPanel:
             on_click=self._on_delete,
             disabled=True,
         )
-        btn_row2 = ft.Row(
+        btn_row2 = ft.ResponsiveRow(
             [
-                self.btn_move_up,
-                self.btn_move_down,
-                self.btn_delete,
-                ft.Container(expand=True),
+                ft.Row(
+                    [self.btn_move_up, self.btn_move_down, self.btn_delete],
+                    spacing=8,
+                    col={"xs": 12, "sm": 6},
+                ),
                 ft.ElevatedButton(
                     _("清空"),
                     icon=ft.Icons.CLEAR_ALL,
                     color=ft.Colors.WHITE,
                     bgcolor=ft.Colors.RED_600,
                     on_click=self._on_clear,
+                    col={"xs": 12, "sm": 6},
                 ),
             ],
-            spacing=8,
-            alignment=ft.MainAxisAlignment.START,
         )
 
         # 路径模式选项
         self.path_mode_group = ft.RadioGroup(
             content=ft.Row(
                 [
-                    ft.Radio(value="relative", label=_("相对路径")),
-                    ft.Radio(value="absolute", label=_("使用绝对路径")),
+                    ft.Radio(value="relative", label=_("相对路径"),
+                             visual_density=ft.VisualDensity.COMPACT),
+                    ft.Radio(value="absolute", label=_("使用绝对路径"),
+                             visual_density=ft.VisualDensity.COMPACT),
                 ],
                 spacing=16,
+                vertical_alignment=ft.CrossAxisAlignment.CENTER,
             ),
             value="relative" if not self.main_view.engine.use_absolute else "absolute",
             on_change=self._on_path_mode_change,
@@ -109,6 +117,7 @@ class ArrangementListPanel:
         self.check_header = ft.Checkbox(
             label=_("在文件头部标注工作目录信息"),
             on_change=self._on_header_change,
+            visual_density=ft.VisualDensity.COMPACT,
         )
 
         opt_row = ft.Row(
@@ -118,10 +127,12 @@ class ArrangementListPanel:
             ],
             spacing=16,
             alignment=ft.MainAxisAlignment.START,
+            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+            wrap=True,
         )
 
         # 按钮行 3 - 生成
-        btn_row3 = ft.Row(
+        btn_row3 = ft.ResponsiveRow(
             [
                 ft.ElevatedButton(
                     _("生成合并文本"),
@@ -129,7 +140,7 @@ class ArrangementListPanel:
                     color=ft.Colors.WHITE,
                     bgcolor=ft.Colors.BLUE_600,
                     on_click=self._on_generate_txt,
-                    expand=True,
+                    col={"xs": 12, "sm": 6},
                 ),
                 ft.ElevatedButton(
                     _("生成到剪贴板"),
@@ -137,10 +148,9 @@ class ArrangementListPanel:
                     color=ft.Colors.WHITE,
                     bgcolor=ft.Colors.BLUE_600,
                     on_click=self._on_generate_clipboard,
-                    expand=True,
+                    col={"xs": 12, "sm": 6},
                 ),
             ],
-            spacing=8,
         )
 
         # 面板容器
@@ -154,7 +164,7 @@ class ArrangementListPanel:
                             size=16,
                             text_align=ft.TextAlign.CENTER,
                         ),
-                        padding=ft.Padding(top=12, bottom=8, left=0, right=0),
+                        padding=ft.Padding(top=10, bottom=10, left=0, right=0),
                         alignment=ft.alignment.Alignment(0, 0),
                     ),
                     ft.Container(
@@ -201,10 +211,10 @@ class ArrangementListPanel:
                 ),
                 padding=ft.Padding(left=12, top=8, right=12, bottom=8),
                 border_radius=8,
-                bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
+                bgcolor=ft.Colors.SURFACE_CONTAINER_LOW
+                if idx == self.selected_index else None,
                 on_click=lambda e, i=idx: self._on_item_click(i),
                 on_hover=lambda e, i=idx: self._on_item_hover(e, i),
-                on_tap_down=lambda e, i=idx: self._on_item_tap(e, i),
                 ink=True,
             )
 
@@ -227,7 +237,8 @@ class ArrangementListPanel:
         self.btn_insert_below.disabled = not has_sel
         self.btn_delete.disabled = not has_sel
         self.btn_move_up.disabled = not has_sel or self.selected_index == 0
-        self.btn_move_down.disabled = not has_sel or self.selected_index >= len(self.main_view.engine.items) - 1
+        self.btn_move_down.disabled = not has_sel or self.selected_index >= len(
+            self.main_view.engine.items) - 1
 
     def _get_display_text(self, idx: int, data: ItemData) -> str:
         """获取列表项显示文本"""
@@ -244,20 +255,33 @@ class ArrangementListPanel:
             return f"{idx+1}. {preview}"
 
     def _on_item_click(self, idx: int):
-        """列表项点击"""
+        """列表项点击: 检测双击 (同一条目 300ms 内两次点击)."""
+        now = time.monotonic()
+        if (idx == self._last_click_idx
+                and now - self._last_click_ts < 0.3):
+            # 双击 -> 编辑文本
+            self._last_click_idx = -1
+            self._last_click_ts = 0.0
+            self._on_item_double_click(idx)
+            return
+        # 单击 -> 选中
+        self._last_click_idx = idx
+        self._last_click_ts = now
         self.selected_index = idx
         if 0 <= idx < len(self.main_view.engine.items):
             data = self.main_view.engine.items[idx]
             self.main_view.show_preview(data)
-        self._update_button_states()
-        self.main_view.page.update()
+        self.refresh()
 
-    def _on_item_tap(self, e, idx: int):
+    def _on_item_double_click(self, idx: int):
         """列表项双击编辑"""
         if 0 <= idx < len(self.main_view.engine.items):
             data = self.main_view.engine.items[idx]
             if data.type == "text":
-                dlg = TextEditDialog(self.main_view, edit_index=idx)
+                dlg = TextEditDialog(
+                    self.main_view, edit_index=idx,
+                    show_phrases_button=False,
+                )
                 self.main_view.page.show_dialog(dlg)
 
     def _on_item_hover(self, e: ft.HoverEvent, idx: int):
@@ -280,7 +304,7 @@ class ArrangementListPanel:
                         abs_path, force_absolute=True)
                 self.refresh()
                 show_snack(self.main_view.page,
-                    _("已添加 %d 个外部文件") % len(files))
+                           _("已添加 %d 个外部文件") % len(files))
 
         self.main_view.page.run_task(pick)
 
@@ -387,6 +411,8 @@ class ArrangementListPanel:
                 try:
                     self.main_view.engine.export(path)
                     show_snack(self.main_view.page, _("TXT 已生成: %s") % path)
+                    # 在文件管理器中显示生成的文件 (对齐 Qt 版行为)
+                    self.main_view.open_file_location(path)
                 except Exception as ex:
                     show_snack(self.main_view.page, _("生成失败: %s") % ex)
 

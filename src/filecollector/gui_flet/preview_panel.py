@@ -40,7 +40,7 @@ class PreviewPanel:
                             size=16,
                             text_align=ft.TextAlign.CENTER,
                         ),
-                        padding=ft.Padding(top=12, bottom=8, left=0, right=0),
+                        padding=ft.Padding(top=10, bottom=10, left=0, right=0),
                         alignment=ft.alignment.Alignment(0, 0),
                     ),
                     ft.Container(

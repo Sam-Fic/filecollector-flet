@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import time
+
 import flet as ft
 
 from filecollector.i18n import _
@@ -67,18 +69,42 @@ class SettingsDialog(ft.AlertDialog):
 
 
 class PhrasesDialog(ft.AlertDialog):
-    """常用语管理对话框"""
+    """常用语选择 / 管理对话框.
 
-    def __init__(self, main_view):
+    - 选择模式 (select_mode=True): 单击选中, 双击条目即返回该条目
+      (用于 TextEditDialog 的"常用语"按钮).
+    - 管理模式 (select_mode=False): 提供 新增 / 编辑 / 删除 / 关闭 操作,
+      双击条目触发编辑.
+    """
+
+    phrase_selected: str | None = None
+
+    def __init__(self, main_view, select_mode: bool = False,
+                 on_phrase_selected=None):
         self.main_view = main_view
+        self._select_mode = bool(select_mode)
         self.phrases = list(main_view.common_phrases)
         self.selected_index: int = -1
+        # 重置类属性
+        PhrasesDialog.phrase_selected = None
+        # 双击检测
+        self._last_click_idx: int = -1
+        self._last_click_ts: float = 0.0
+        # 选择模式回调: 选中短语后通知调用方
+        self._on_phrase_selected_cb = on_phrase_selected
 
         self.list_view = ft.ListView(
             expand=True,
-            spacing=4,
+            spacing=2,
         )
 
+        # 管理模式按钮
+        self.btn_edit = ft.ElevatedButton(
+            _("编辑"),
+            icon=ft.Icons.EDIT,
+            on_click=self._on_edit,
+            disabled=True,
+        )
         self.btn_delete = ft.ElevatedButton(
             _("删除"),
             icon=ft.Icons.DELETE,
@@ -88,32 +114,56 @@ class PhrasesDialog(ft.AlertDialog):
             disabled=True,
         )
 
+        # 选择模式按钮行
+        if self._select_mode:
+            actions_row = ft.Row(
+                [
+                    ft.ElevatedButton(
+                        _("添加"),
+                        icon=ft.Icons.ADD,
+                        on_click=self._on_add,
+                    ),
+                    ft.Container(expand=True),
+                    ft.TextButton(_("取消"), on_click=self._on_cancel),
+                    ft.ElevatedButton(
+                        _("确定"),
+                        icon=ft.Icons.CHECK,
+                        on_click=self._on_accept,
+                    ),
+                ],
+                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+            )
+            close_action = None
+        else:
+            actions_row = ft.Row(
+                [
+                    ft.ElevatedButton(
+                        _("添加"),
+                        icon=ft.Icons.ADD,
+                        on_click=self._on_add,
+                    ),
+                    self.btn_edit,
+                    self.btn_delete,
+                ],
+                alignment=ft.MainAxisAlignment.START,
+            )
+            close_action = ft.TextButton(_("关闭"), on_click=self._on_close)
+
         super().__init__(
-            title=ft.Text(_("常用语管理")),
+            title=ft.Text(
+                _("插入常用语") if self._select_mode else _("常用语管理")),
             content=ft.Column(
                 [
                     ft.Container(
                         content=self.list_view,
-                        expand=True,
-                        height=300,
+                        height=240,
+                        padding=ft.Padding(left=4, top=4, right=4, bottom=4),
                     ),
-                    ft.Row(
-                        [
-                            ft.ElevatedButton(
-                                _("添加"),
-                                icon=ft.Icons.ADD,
-                                on_click=self._on_add,
-                            ),
-                            self.btn_delete,
-                        ],
-                        alignment=ft.MainAxisAlignment.START,
-                    ),
+                    actions_row,
                 ],
                 tight=True,
             ),
-            actions=[
-                ft.TextButton(_("关闭"), on_click=self._on_close),
-            ],
+            actions=[close_action] if close_action else [],
         )
 
         self._refresh_list()
@@ -122,68 +172,173 @@ class PhrasesDialog(ft.AlertDialog):
         self.list_view.controls.clear()
         if not self.phrases:
             self.list_view.controls.append(
-                ft.Text(_("暂无常用语"), color=ft.Colors.GREY_600)
+                ft.Container(
+                    content=ft.Text(_("暂无常用语"), color=ft.Colors.GREY_600),
+                    padding=12,
+                    alignment=ft.alignment.center,
+                )
             )
-            self.btn_delete.disabled = True
+            self._set_actions_enabled(False)
         else:
             for idx, phrase in enumerate(self.phrases):
                 is_selected = idx == self.selected_index
+                display = phrase if len(phrase) <= 60 else phrase[:60] + "..."
                 self.list_view.controls.append(
                     ft.Container(
-                        content=ft.Text(phrase, size=14),
-                        padding=8,
-                        border_radius=4,
-                        bgcolor=ft.Colors.BLUE_100 if is_selected else ft.Colors.SURFACE_CONTAINER_LOW,
-                        on_click=lambda e, i=idx: self._on_select(i),
+                        content=ft.Row(
+                            [
+                                ft.Text(display, size=14, expand=True,
+                                        no_wrap=True, tooltip=phrase),
+                            ],
+                        ),
+                        padding=ft.Padding(left=10, top=8, right=10, bottom=8),
+                        border_radius=6,
+                        bgcolor=ft.Colors.BLUE_400 if is_selected
+                        else ft.Colors.SURFACE_CONTAINER_LOW,
+                        on_click=lambda e, i=idx: self._on_item_click(i),
                         ink=True,
                     )
                 )
-            self.btn_delete.disabled = self.selected_index < 0
+            self._set_actions_enabled(self.selected_index >= 0)
         self.main_view.page.update()
 
-    def _on_add(self, e):
-        def on_submit(e):
-            text = self.text_field.value.strip()
-            if text:
-                self.phrases.append(text)
-                self.selected_index = len(self.phrases) - 1
-                self._persist()
-                self._refresh_list()
-            self.main_view.page.pop_dialog()
+    def _set_actions_enabled(self, enabled: bool):
+        """启用/禁用编辑和删除按钮 (仅管理模式)."""
+        if not self._select_mode:
+            self.btn_edit.disabled = not enabled
+            self.btn_delete.disabled = not enabled
 
-        self.text_field = ft.TextField(
-            label=_("新增常用语"),
+    def _on_item_click(self, idx: int):
+        """条目点击: 检测双击 (同一条目 300ms 内两次点击)."""
+        now = time.monotonic()
+        if (idx == self._last_click_idx
+                and now - self._last_click_ts < 0.3):
+            # 双击
+            self._last_click_idx = -1
+            self._last_click_ts = 0.0
+            self._on_double_click(idx)
+            return
+        # 单击
+        self._last_click_idx = idx
+        self._last_click_ts = now
+        self._on_select(idx)
+
+    def _on_select(self, idx: int):
+        """单击选中条目."""
+        self.selected_index = idx
+        self._refresh_list()
+
+    def _on_double_click(self, idx: int):
+        """双击条目: 选择模式 -> 确定; 管理模式 -> 编辑."""
+        self.selected_index = idx
+        self._refresh_list()
+        if self._select_mode:
+            self._on_accept(None)
+        else:
+            self._on_edit(None)
+
+    def _on_add(self, e):
+        """新增常用语."""
+        self._open_edit_dialog(_("新增常用语"), "")
+
+    def _on_edit(self, e):
+        """编辑选中常用语."""
+        if not (0 <= self.selected_index < len(self.phrases)):
+            return
+        current = self.phrases[self.selected_index]
+        self._open_edit_dialog(_("编辑常用语"), current)
+
+    def _open_edit_dialog(self, title: str, default: str):
+        """打开编辑对话框 (新增/编辑共用)."""
+        text_field = ft.TextField(
+            value=default,
             multiline=True,
             min_lines=2,
-            max_lines=4,
+            max_lines=6,
+            label=title,
+            autofocus=True,
         )
 
+        def on_submit(e):
+            text = (text_field.value or "").strip()
+            if not text:
+                self.main_view.page.pop_dialog()
+                return
+            if title == _("新增常用语"):
+                self.phrases.append(text)
+                self.selected_index = len(self.phrases) - 1
+            else:
+                # 编辑模式: 替换当前选中项
+                if 0 <= self.selected_index < len(self.phrases):
+                    self.phrases[self.selected_index] = text
+            self._persist()
+            self._refresh_list()
+            self.main_view.page.pop_dialog()
+
         dlg = ft.AlertDialog(
-            title=ft.Text(_("新增常用语")),
-            content=self.text_field,
+            title=ft.Text(title),
+            content=text_field,
             actions=[
                 ft.TextButton(
-                    _("取消"), on_click=lambda _: self.main_view.page.pop_dialog()),
+                    _("取消"),
+                    on_click=lambda _: self.main_view.page.pop_dialog()),
                 ft.TextButton(_("确定"), on_click=on_submit),
             ],
         )
         self.main_view.page.show_dialog(dlg)
 
     def _on_delete(self, e):
-        if 0 <= self.selected_index < len(self.phrases):
-            self.phrases.pop(self.selected_index)
-            self.selected_index = min(self.selected_index, len(self.phrases) - 1)
-            self._persist()
-            self._refresh_list()
-            self._persist()
-            self._refresh_list()
+        """删除选中常用语 (带确认)."""
+        if not (0 <= self.selected_index < len(self.phrases)):
+            return
 
-    def _on_select(self, idx: int):
-        self.selected_index = idx
-        self._refresh_list()
+        def on_confirm(e):
+            self.main_view.page.pop_dialog()  # 关闭确认对话框
+            if 0 <= self.selected_index < len(self.phrases):
+                self.phrases.pop(self.selected_index)
+                self.selected_index = min(
+                    self.selected_index, len(self.phrases) - 1)
+                self._persist()
+                self._refresh_list()
+
+        def on_cancel(e):
+            self.main_view.page.pop_dialog()  # 关闭确认对话框
+
+        confirm_dlg = ft.AlertDialog(
+            title=ft.Text(_("确认")),
+            content=ft.Text(_("删除选中常用语？")),
+            actions=[
+                ft.TextButton(_("取消"), on_click=on_cancel),
+                ft.TextButton(_("确定"), on_click=on_confirm),
+            ],
+        )
+        self.main_view.page.show_dialog(confirm_dlg)
+
+    def _on_accept(self, e):
+        """确定: 选择模式返回选中条目."""
+        if self._select_mode:
+            if 0 <= self.selected_index < len(self.phrases):
+                PhrasesDialog.phrase_selected = self.phrases[self.selected_index]
+            else:
+                PhrasesDialog.phrase_selected = None
+        self.main_view.page.pop_dialog()
+        # 选择模式: 触发回调 (关闭对话框后通知调用方)
+        if self._select_mode and self._on_phrase_selected_cb:
+            self._on_phrase_selected_cb(PhrasesDialog.phrase_selected)
+
+    def _on_cancel(self, e):
+        """取消 (选择模式)."""
+        PhrasesDialog.phrase_selected = None
+        self.main_view.page.pop_dialog()
 
     def _on_close(self, e):
+        """关闭 (管理模式): 同步常用语到主视图和引擎."""
         self.main_view.common_phrases = self.phrases
+        # 同步到引擎 (对齐 Qt 版 _open_phrases_manager 行为)
+        if hasattr(self.main_view.engine, "common_phrases"):
+            self.main_view.engine.common_phrases = list(self.phrases)
+        if hasattr(self.main_view.engine, "save_common_phrases_to_disk"):
+            self.main_view.engine.save_common_phrases_to_disk()
         self.main_view.page.pop_dialog()
 
     def _persist(self):
@@ -262,9 +417,15 @@ class ShortcutsDialog(ft.AlertDialog):
 
 
 class TextEditDialog(ft.AlertDialog):
-    """文字编辑对话框"""
+    """文字编辑对话框.
 
-    def __init__(self, main_view, insert_index: int = None, edit_index: int = None):
+    对齐 Qt 版 TextEditDialog:
+    - 支持多行输入
+    - 提供"常用语"按钮, 弹出选择器后可一键填入选中常用语
+    """
+
+    def __init__(self, main_view, insert_index: int = None, edit_index: int = None,
+                 show_phrases_button: bool = True):
         self.main_view = main_view
         self.insert_index = insert_index
         self.edit_index = edit_index
@@ -283,15 +444,51 @@ class TextEditDialog(ft.AlertDialog):
             label=_("请输入文字:"),
         )
 
+        # 内容区: 文本框 + (可选) 常用语按钮
+        content_controls = [self.text_field]
+        if show_phrases_button:
+            self.btn_phrases = ft.ElevatedButton(
+                _("常用语"),
+                icon=ft.Icons.CHAT,
+                on_click=self._on_open_phrases,
+            )
+            content_controls.append(
+                ft.Row(
+                    [self.btn_phrases],
+                    alignment=ft.MainAxisAlignment.START,
+                )
+            )
+
         super().__init__(
             title=ft.Text(
                 _("编辑文字") if edit_index is not None else _("插入自定义文字")),
-            content=self.text_field,
+            content=ft.Column(
+                content_controls,
+                tight=True,
+            ),
             actions=[
                 ft.TextButton(_("取消"), on_click=self._on_cancel),
                 ft.TextButton(_("确定"), on_click=self._on_accept),
             ],
         )
+
+    def _on_open_phrases(self, e):
+        """打开常用语选择器 (select_mode=True).
+
+        选中短语后填入文本框并提交 (对齐 Qt 版行为).
+        """
+        def on_phrase_selected(phrase):
+            if phrase:
+                self.text_field.value = phrase
+                self.main_view.page.update()
+                self._on_accept(None)
+
+        phrases_dlg = PhrasesDialog(
+            self.main_view,
+            select_mode=True,
+            on_phrase_selected=on_phrase_selected,
+        )
+        self.main_view.page.show_dialog(phrases_dlg)
 
     def _on_accept(self, e):
         text = self.text_field.value.strip()
