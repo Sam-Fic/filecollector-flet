@@ -35,8 +35,7 @@ FileCollector 是一款跨平台的桌面小工具，用于高效收集、编排
 - **智能编码检测**：自动识别 `utf-8`、`gbk` 等编码，轻松处理中文文件。
 - **灵活输出**：可选择绝对路径或相对路径，并可选在文件头部标注工作目录绝对路径。
 - **项目保存/加载**：将当前工作状态保存为 `.fcol`，下次一键恢复。
-- **跨平台**：基于 PySide6，支持 Windows、macOS、Linux，高分屏字体清晰。
-- **Flet 版 GUI**：提供基于 Flet 的前端。
+- **跨平台**：基于 Flet，支持 Windows、macOS、Linux。
 
 ---
 
@@ -359,8 +358,8 @@ pyinstaller --onefile --windowed --name "FileCollector" file_collector.py
 
 ## 致谢
 
-- [PySide6](https://wiki.qt.io/Qt_for_Python) - 提供现代 GUI 框架
+- [Flet](https://flet.dev/) - 跨平台 GUI 框架
 - [chardet](https://github.com/chardet/chardet) - 编码检测库
 - [markdown-it-py](https://github.com/executablebooks/mdit-py) - Markdown 解析库，用于 AI 聊天面板的富文本渲染
 - [Pygments](https://pygments.org/) - 语法高亮库，用于 AI 聊天中代码块的着色显示
-- [QtAwesome](https://github.com/spyder-ide/qtawesome) - Font Awesome 图标库，用于工具栏按钮和菜单图标
+- [PySide6](https://wiki.qt.io/Qt_for_Python) - 备选 GUI 框架

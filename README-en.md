@@ -35,8 +35,7 @@ For the usage process and tips of the graphical interface, please refer to the [
 - **Smart Encoding Detection**: Automatically identifies `utf-8`, `gbk`, and other encodings for seamless Chinese file handling.
 - **Flexible Output**: Choose absolute or relative paths, with optional working directory annotation at file header.
 - **Project Save/Load**: Save current workspace state as `.fcol` and restore it with one click.
-- **Cross-Platform**: Built on PySide6, supporting Windows, macOS, and Linux with crisp high-DPI fonts.
-- **Flet GUI**: An alternative frontend built with Flet.
+- **Cross-Platform**: Built on Flet, supporting Windows, macOS, and Linux.
 
 ---
 
@@ -318,9 +317,9 @@ Expected tool sequence: `set_use_absolute(False)` and `set_show_header(True)`, t
 ### Implementation Notes
 
 - **Backend**: `ai_client.py` uses stdlib `urllib.request` to talk to any OpenAI-compatible endpoint — **no extra dependencies** like `requests`.
-- **Async**: API requests run on a `QThread` worker, so the UI never freezes.
-- **Styling**: `ai_panel.py` draws rounded chat bubbles with `QPainter` (user bubble blue, assistant bubble white), with Markdown rendering for headings, lists, code blocks, quotes, tables, etc.
-- **Tool-call display**: Every tool the AI triggers is shown as a clickable expandable card (function name + arguments + return value) for full traceability.
+- **Async**: API requests run on a background thread, so the UI never freezes.
+- **Styling**: The AI panel renders chat bubbles with Markdown support for headings, lists, code blocks, quotes, tables, etc.
+- **Tool-call display**: Every tool the AI triggers is shown as an expandable card (function name + arguments + return value) for full traceability.
 - **i18n**: AI prompts are written in English by default to ensure consistent model behavior across UI locales; UI text is localized through the project's built-in `i18n` module.
 
 ### Relationship to the MCP Service
@@ -378,8 +377,8 @@ This project uses the **MIT License**, see the [LICENSE](LICENSE) file for detai
 
 ## Acknowledgments
 
-- [PySide6](https://wiki.qt.io/Qt_for_Python) - Modern GUI framework
+- [Flet](https://flet.dev/) - Cross-platform GUI framework
 - [chardet](https://github.com/chardet/chardet) - Encoding detection library
 - [markdown-it-py](https://github.com/executablebooks/mdit-py) - Markdown parser for rich text rendering in the AI chat panel
 - [Pygments](https://pygments.org/) - Syntax highlighting library for code block coloring in AI chat
-- [QtAwesome](https://github.com/spyder-ide/qtawesome) - Font Awesome icon library for toolbar buttons and menu icons
+- [PySide6](https://wiki.qt.io/Qt_for_Python) - Alternative GUI framework
