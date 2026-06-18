@@ -54,7 +54,7 @@ For the usage process and tips of the graphical interface, please refer to the [
 
 If you are using the **GNOME desktop environment**, we recommend using the GNOME-optimized version for a more native integration experience:
 
-👉 [filecollector-gnome](https://github.com/Sam-Fic/filecollector-gnome)
+[filecollector-gnome](https://github.com/Sam-Fic/filecollector-gnome)
 
 This version is adapted and optimized for GNOME, including:
 

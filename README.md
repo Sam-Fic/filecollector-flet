@@ -54,7 +54,7 @@ FileCollector 是一款跨平台的桌面小工具，用于高效收集、编排
 
 如果您使用的是 **GNOME 桌面环境**，推荐使用专为 GNOME 优化的版本，提供更原生的集成体验：
 
-👉 [filecollector-gnome](https://github.com/Sam-Fic/filecollector-gnome)
+[filecollector-gnome](https://github.com/Sam-Fic/filecollector-gnome)
 
 该版本针对 GNOME 进行了适配和优化，包括：
 
