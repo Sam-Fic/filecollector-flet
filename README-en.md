@@ -105,7 +105,9 @@ requirements.txt               # Python dependency list
 LICENSE                        # MIT license
 README.md / README-en.md       # Project docs (Chinese / English)
 icons/                         # Application icon
-│   └── filecollector.svg
+│   ├── filecollector.svg
+│   ├── filecollector.png
+│   └── filecollector.ico
 screenshots/                   # Screenshots for README
 docs/                          # Usage guide + illustrations
 │   ├── USAGE.md               # GUI usage guide (Chinese)
