@@ -190,7 +190,7 @@ class FileTreePanel:
                         content=self.tree_content,
                         expand=True,
                         padding=ft.Padding(
-                            left=8, right=8, top=0, bottom=0),
+                            left=12, right=12, top=0, bottom=0),
                     ),
                 ],
                 spacing=0,
@@ -344,7 +344,7 @@ class FileTreePanel:
             ),
             height=_ROW_HEIGHT,
             padding=ft.Padding(
-                left=indent * _INDENT_STEP, top=0, right=8, bottom=0),
+                left=indent * _INDENT_STEP, top=0, right=12, bottom=0),
             on_click=lambda e, n=node, a=arrow, col=children_col: self._on_dir_expand(
                 n, a, col, e),
             ink=True,
@@ -452,7 +452,7 @@ class FileTreePanel:
             ),
             height=_ROW_HEIGHT,
             padding=ft.Padding(
-                left=indent * _INDENT_STEP, top=0, right=8, bottom=0),
+                left=indent * _INDENT_STEP, top=0, right=12, bottom=0),
             on_click=lambda e, c=cb: c.toggle(),
             ink=True,
             border_radius=4,
