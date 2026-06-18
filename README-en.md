@@ -77,6 +77,11 @@ This version is adapted and optimized for GNOME, including:
    python file_collector.py
    ```
 
+Alternatively, use the one-click launcher in the project root to start the Flet GUI directly (no `cd` needed):
+   ```bash
+   ./filecollector
+   ```
+
 <!-- ### Download Pre-built Packages (Recommended)
 
 Visit the [Releases](https://github.com/Sam-Fic/FileCollector/releases) page to download the executable for your OS:
@@ -91,47 +96,56 @@ Visit the [Releases](https://github.com/Sam-Fic/FileCollector/releases) page to 
 ## 📁 Project Structure
 
 ```
-src/
-├── file_collector.py          # Legacy entry point (thin wrapper → delegates to package)
-├── FileCollector.spec         # PyInstaller build config
-└── filecollector/             # Core Python package
-    ├── __init__.py            # Package declaration, exports ItemData / FileCollectorEngine
-    ├── __main__.py            # python -m filecollector entry, CLI/GUI dispatch
-    ├── models.py              # Data model (ItemData: file/text items)
-    ├── utils.py               # Utility functions (encoding detection, safe read)
-    ├── engine.py              # Business engine (all core logic, Qt-free)
-    ├── cli.py                 # CLI mode (sequential argument parsing and execution)
-    ├── config.py              # Configuration management (settings.json read/write)
-    ├── ipc.py                 # Inter-process communication (CLI-GUI single-instance coordination)
-    ├── i18n.py                # Internationalization support
-    ├── ai_client.py           # AI assistant backend (OpenAI-compatible API + Function Calling)
-    ├── locales/               # Locale directories (en / zh_CN)
-    └── gui/
-        ├── __init__.py
-        ├── dialogs.py         # Text edit dialog (TextEditDialog)
-        ├── main_window.py     # Main window (FileCollectorApp, depends on PySide6)
-        ├── file_tree.py       # File tree widget (lazy-loaded directory tree + checkboxes)
-        ├── gui_actions.py     # GUI action definitions and shortcut bindings
-        ├── settings_dialog.py # Global settings dialog
-        ├── style.py           # Global style definitions
-        ├── toast.py           # Lightweight toast notification widget
-        ├── undo.py            # Undo/redo support
-        ├── shortcuts_dialog.py # Shortcut viewer dialog
-        ├── phrases_dialog.py  # Common phrases insertion dialog
-        ├── ai_panel.py        # AI assistant chat panel (rounded bubbles + tool-call cards)
-        ├── ai_markdown.py     # Markdown rendering helper for the AI chat (markdown-it + Pygments)
-        └── ai_settings_dialog.py # AI assistant configuration dialog
-    └── gui_flet/             # Flet cross-platform GUI implementation
-        ├── __init__.py
-        ├── main_view.py     # Main view (Flet entry point)
-        ├── file_tree.py     # File tree widget (Flet version)
-        ├── arrangement_list.py # Visual organization list (Flet version)
-        ├── preview_panel.py # Preview panel (Flet version)
-        ├── ai_panel.py      # AI assistant chat panel (Flet version)
-        ├── ai_settings_dialog.py # AI assistant configuration dialog (Flet version)
-        ├── dialogs.py       # Text edit dialog (Flet version)
-        ├── snack.py         # Lightweight toast notification (Flet version)
-        └── undo.py          # Undo/redo support (Flet version)
+filecollector                  # One-click launcher for Flet GUI (bash)
+requirements.txt               # Python dependency list
+LICENSE                        # MIT license
+README.md / README-en.md       # Project docs (Chinese / English)
+screenshots/                   # Screenshots for README
+docs/                          # Usage guide + illustrations
+│   ├── USAGE.md               # GUI usage guide (Chinese)
+│   ├── USAGE_EN.md            # GUI usage guide (English)
+│   └── images/                # Documentation images
+└── src/
+    ├── file_collector.py          # Legacy entry point (thin wrapper → delegates to package)
+    ├── FileCollector.spec         # PyInstaller build config
+    └── filecollector/             # Core Python package
+        ├── __init__.py            # Package declaration, exports ItemData / FileCollectorEngine
+        ├── __main__.py            # python -m filecollector entry, CLI/GUI dispatch
+        ├── models.py              # Data model (ItemData: file/text items)
+        ├── utils.py               # Utility functions (encoding detection, safe read)
+        ├── engine.py              # Business engine (all core logic, Qt-free)
+        ├── cli.py                 # CLI mode (sequential argument parsing and execution)
+        ├── config.py              # Configuration management (settings.json read/write)
+        ├── ipc.py                 # Inter-process communication (CLI-GUI single-instance coordination)
+        ├── i18n.py                # Internationalization support
+        ├── ai_client.py           # AI assistant backend (OpenAI-compatible API + Function Calling)
+        ├── locales/               # Locale directories (en / zh_CN)
+        ├── gui/                   # PySide6 GUI implementation
+        │   ├── __init__.py
+        │   ├── dialogs.py         # Text edit dialog (TextEditDialog)
+        │   ├── main_window.py     # Main window (FileCollectorApp, depends on PySide6)
+        │   ├── file_tree.py       # File tree widget (lazy-loaded directory tree + checkboxes)
+        │   ├── gui_actions.py     # GUI action definitions and shortcut bindings
+        │   ├── settings_dialog.py # Global settings dialog
+        │   ├── style.py           # Global style definitions
+        │   ├── toast.py           # Lightweight toast notification widget
+        │   ├── undo.py            # Undo/redo support
+        │   ├── shortcuts_dialog.py # Shortcut viewer dialog
+        │   ├── phrases_dialog.py  # Common phrases insertion dialog
+        │   ├── ai_panel.py        # AI assistant chat panel (rounded bubbles + tool-call cards)
+        │   ├── ai_markdown.py     # Markdown rendering helper for the AI chat (markdown-it + Pygments)
+        │   └── ai_settings_dialog.py # AI assistant configuration dialog
+        └── gui_flet/              # Flet cross-platform GUI implementation
+            ├── __init__.py
+            ├── main_view.py       # Main view (Flet entry point)
+            ├── file_tree.py       # File tree widget (Flet version)
+            ├── arrangement_list.py # Visual organization list (Flet version)
+            ├── preview_panel.py   # Preview panel (Flet version)
+            ├── ai_panel.py        # AI assistant chat panel (Flet version)
+            ├── ai_settings_dialog.py # AI assistant configuration dialog (Flet version)
+            ├── dialogs.py         # Text edit dialog (Flet version)
+            ├── snack.py           # Lightweight toast notification (Flet version)
+            └── undo.py            # Undo/redo support (Flet version)
 ```
 
 ---

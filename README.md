@@ -77,6 +77,11 @@ FileCollector 是一款跨平台的桌面小工具，用于高效收集、编排
    python file_collector.py
    ```
 
+也可以使用项目根目录的一键启动脚本直接运行 Flet 版本（无需 `cd`）：
+   ```bash
+   ./filecollector
+   ```
+
 <!-- ### 直接下载打包版（推荐）
 
 前往 [Releases](https://github.com/Sam-Fic/FileCollector/releases) 页面，下载对应操作系统的可执行文件：
@@ -91,47 +96,56 @@ FileCollector 是一款跨平台的桌面小工具，用于高效收集、编排
 ## 📁 项目结构
 
 ```
-src/
-├── file_collector.py          # 向后兼容入口（薄封装 → 委托到包）
-├── FileCollector.spec         # PyInstaller 构建配置
-└── filecollector/             # 核心 Python 包
-    ├── __init__.py            # 包声明，导出 ItemData / FileCollectorEngine
-    ├── __main__.py            # python -m filecollector 入口，分发 CLI/GUI
-    ├── models.py              # 数据模型（ItemData：文件/文字条目）
-    ├── utils.py               # 工具函数（编码检测、安全读取）
-    ├── engine.py              # 业务引擎（所有核心逻辑，不依赖 Qt）
-    ├── cli.py                 # CLI 模式（按序参数解析与执行）
-    ├── config.py              # 配置管理（settings.json 读写）
-    ├── ipc.py                 # 进程间通信（CLI-GUI 单实例协调）
-    ├── i18n.py                # 国际化支持
-    ├── ai_client.py           # AI 助手后端（OpenAI 兼容接口 + Function Calling）
-    ├── locales/               # 语言包目录（en / zh_CN）
-    └── gui/
-        ├── __init__.py
-        ├── dialogs.py         # 文字编辑对话框（TextEditDialog）
-        ├── main_window.py     # 主窗口（FileCollectorApp，依赖 PySide6）
-        ├── file_tree.py       # 文件树组件（懒加载目录树 + 勾选）
-        ├── gui_actions.py     # GUI 动作定义与快捷键绑定
-        ├── settings_dialog.py # 全局设置对话框
-        ├── style.py           # 全局样式定义
-        ├── toast.py           # 轻量提示条组件
-        ├── undo.py            # 撤销/重做支持
-        ├── shortcuts_dialog.py # 快捷键查看对话框
-        ├── phrases_dialog.py  # 常用短语插入对话框
-        ├── ai_panel.py        # AI 助手聊天面板（圆角气泡 + 工具调用卡片）
-        ├── ai_markdown.py     # AI 聊天的 Markdown 渲染辅助（markdown-it + Pygments）
-        └── ai_settings_dialog.py # AI 助手配置对话框
-    └── gui_flet/             # Flet 跨平台 GUI 实现
-        ├── __init__.py
-        ├── main_view.py     # 主视图（Flet 入口）
-        ├── file_tree.py     # 文件树组件（Flet 版）
-        ├── arrangement_list.py # 可视化编排列表（Flet 版）
-        ├── preview_panel.py # 预览面板（Flet 版）
-        ├── ai_panel.py      # AI 助手聊天面板（Flet 版）
-        ├── ai_settings_dialog.py # AI 助手配置对话框（Flet 版）
-        ├── dialogs.py       # 文字编辑对话框（Flet 版）
-        ├── snack.py         # 轻量提示条（Flet 版）
-        └── undo.py          # 撤销/重做支持（Flet 版）
+filecollector                  # Flet 版一键启动脚本（bash）
+requirements.txt               # Python 依赖清单
+LICENSE                        # MIT 开源许可证
+README.md / README-en.md       # 项目说明（中文 / 英文）
+screenshots/                   # README 截图
+docs/                          # 使用说明文档 + 插图
+│   ├── USAGE.md               # GUI 使用说明（中文）
+│   ├── USAGE_EN.md            # GUI 使用说明（英文）
+│   └── images/                # 文档配图
+└── src/
+    ├── file_collector.py          # 向后兼容入口（薄封装 → 委托到包）
+    ├── FileCollector.spec         # PyInstaller 构建配置
+    └── filecollector/             # 核心 Python 包
+        ├── __init__.py            # 包声明，导出 ItemData / FileCollectorEngine
+        ├── __main__.py            # python -m filecollector 入口，分发 CLI/GUI
+        ├── models.py              # 数据模型（ItemData：文件/文字条目）
+        ├── utils.py               # 工具函数（编码检测、安全读取）
+        ├── engine.py              # 业务引擎（所有核心逻辑，不依赖 Qt）
+        ├── cli.py                 # CLI 模式（按序参数解析与执行）
+        ├── config.py              # 配置管理（settings.json 读写）
+        ├── ipc.py                 # 进程间通信（CLI-GUI 单实例协调）
+        ├── i18n.py                # 国际化支持
+        ├── ai_client.py           # AI 助手后端（OpenAI 兼容接口 + Function Calling）
+        ├── locales/               # 语言包目录（en / zh_CN）
+        ├── gui/                   # PySide6 GUI 实现
+        │   ├── __init__.py
+        │   ├── dialogs.py         # 文字编辑对话框（TextEditDialog）
+        │   ├── main_window.py     # 主窗口（FileCollectorApp，依赖 PySide6）
+        │   ├── file_tree.py       # 文件树组件（懒加载目录树 + 勾选）
+        │   ├── gui_actions.py     # GUI 动作定义与快捷键绑定
+        │   ├── settings_dialog.py # 全局设置对话框
+        │   ├── style.py           # 全局样式定义
+        │   ├── toast.py           # 轻量提示条组件
+        │   ├── undo.py            # 撤销/重做支持
+        │   ├── shortcuts_dialog.py # 快捷键查看对话框
+        │   ├── phrases_dialog.py  # 常用短语插入对话框
+        │   ├── ai_panel.py        # AI 助手聊天面板（圆角气泡 + 工具调用卡片）
+        │   ├── ai_markdown.py     # AI 聊天的 Markdown 渲染辅助（markdown-it + Pygments）
+        │   └── ai_settings_dialog.py # AI 助手配置对话框
+        └── gui_flet/              # Flet 跨平台 GUI 实现
+            ├── __init__.py
+            ├── main_view.py       # 主视图（Flet 入口）
+            ├── file_tree.py       # 文件树组件（Flet 版）
+            ├── arrangement_list.py # 可视化编排列表（Flet 版）
+            ├── preview_panel.py   # 预览面板（Flet 版）
+            ├── ai_panel.py        # AI 助手聊天面板（Flet 版）
+            ├── ai_settings_dialog.py # AI 助手配置对话框（Flet 版）
+            ├── dialogs.py         # 文字编辑对话框（Flet 版）
+            ├── snack.py           # 轻量提示条（Flet 版）
+            └── undo.py            # 撤销/重做支持（Flet 版）
 ```
 
 ---
