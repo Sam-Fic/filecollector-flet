@@ -191,7 +191,7 @@ class AIPanel:
                             spacing=6,
                         ),
                         padding=ft.Padding(
-                            left=12, right=12, bottom=12, top=0),
+                            left=12, right=12, bottom=8, top=0),
                     ),
                 ],
                 spacing=0,

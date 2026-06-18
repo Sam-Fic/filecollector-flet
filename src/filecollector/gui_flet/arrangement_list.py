@@ -31,7 +31,7 @@ class ArrangementListPanel:
         self.list_view = ft.ListView(
             expand=True,
             spacing=4,
-            padding=ft.Padding(left=12, right=12, top=0, bottom=8),
+            padding=ft.Padding(left=12, right=12, top=0, bottom=12),
         )
 
         # 按钮行 1
@@ -88,12 +88,17 @@ class ArrangementListPanel:
                     spacing=8,
                     col={"xs": 12, "sm": 6},
                 ),
-                ft.ElevatedButton(
-                    _("清空"),
-                    icon=ft.Icons.CLEAR_ALL,
-                    color=ft.Colors.WHITE,
-                    bgcolor=ft.Colors.RED_600,
-                    on_click=self._on_clear,
+                ft.Row(
+                    [
+                        ft.ElevatedButton(
+                            _("清空"),
+                            icon=ft.Icons.CLEAR_ALL,
+                            color=ft.Colors.WHITE,
+                            bgcolor=ft.Colors.RED_600,
+                            on_click=self._on_clear,
+                        ),
+                    ],
+                    alignment=ft.MainAxisAlignment.END,
                     col={"xs": 12, "sm": 6},
                 ),
             ],
@@ -177,7 +182,7 @@ class ArrangementListPanel:
                             spacing=8,
                         ),
                         padding=ft.Padding(
-                            left=12, right=12, bottom=12, top=0),
+                            left=12, right=12, bottom=8, top=0),
                     ),
                 ],
                 spacing=0,
