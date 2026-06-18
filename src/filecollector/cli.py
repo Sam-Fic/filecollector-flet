@@ -17,7 +17,7 @@ def apply_cli_args(engine, args, print_feedback=True):
     while i < len(args):
         arg = args[i]
 
-        if arg in ("--help", "-h", "--gui"):
+        if arg in ("--help", "-h", "--gui", "--no-ipc"):
             pass
         elif arg == "--work-dir":
             i += 1
@@ -51,14 +51,13 @@ def apply_cli_args(engine, args, print_feedback=True):
                 preview = text[:40] + ('...' if len(text) > 40 else '')
                 print(f"已添加文字: {preview}")
         elif arg == "--move":
-            i += 1
-            if i + 1 >= len(args):
+            if i + 2 >= len(args):
                 if print_feedback:
                     print("--move 需要两个参数", file=sys.stderr)
                 return False
             try:
-                from_idx = int(args[i])
-                to_idx = int(args[i + 1])
+                from_idx = int(args[i + 1])
+                to_idx = int(args[i + 2])
             except ValueError:
                 if print_feedback:
                     print("--move 参数必须是整数", file=sys.stderr)
@@ -67,7 +66,6 @@ def apply_cli_args(engine, args, print_feedback=True):
             if print_feedback:
                 print(f"已将 [{from_idx}] 移动到 [{to_idx}]")
             i += 2
-            continue
         elif arg == "--remove":
             i += 1
             if i >= len(args):
@@ -200,6 +198,7 @@ def print_help():
     print("  --load FILE                从项目文件加载状态")
     print("  --save FILE                将当前状态保存到项目文件")
     print("  --gui                      使用 CLI 参数初始化后打开图形界面")
+    print("  --no-ipc                   不转发到已运行的 GUI 实例 (CLI 脚本模式)")
     print("  --help, -h                 显示帮助信息")
 
 

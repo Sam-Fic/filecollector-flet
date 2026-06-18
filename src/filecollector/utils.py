@@ -13,8 +13,18 @@ def detect_encoding(file_path, num_bytes=10000):
     try:
         with open(file_path, 'rb') as f:
             raw = f.read(num_bytes)
+    except Exception:
+        return None
+    # BOM 检测 (优先于 chardet, 置信度最高)
+    if raw.startswith(b'\xef\xbb\xbf'):
+        return 'utf-8-sig'
+    if raw.startswith(b'\xff\xfe\x00\x00') or raw.startswith(b'\x00\x00\xfe\xff'):
+        return 'utf-32'
+    if raw.startswith(b'\xff\xfe') or raw.startswith(b'\xfe\xff'):
+        return 'utf-16'
+    try:
         result = chardet.detect(raw)
-        if result and result['confidence'] > 0.7:
+        if result and result['confidence'] > 0.5:
             return result['encoding']
     except Exception:
         pass

@@ -28,10 +28,13 @@ except ImportError:
 def main():
     # Check for --gui flag: forces GUI mode even with other CLI args
     force_gui = False
+    no_ipc = False
     filtered_args = [sys.argv[0]]
     for arg in sys.argv[1:]:
         if arg == "--gui":
             force_gui = True
+        elif arg == "--no-ipc":
+            no_ipc = True
         else:
             filtered_args.append(arg)
 
@@ -39,7 +42,9 @@ def main():
 
     # If there are CLI args, try to send them to a running GUI instance.
     # When connected, the running GUI applies the operations live.
-    if has_cli_args:
+    # --no-ipc bypasses forwarding for scripted/CLI use where the caller
+    # needs a deterministic exit code instead of async GUI handling.
+    if has_cli_args and not no_ipc:
         from filecollector.ipc import send_to_running_instance
         if send_to_running_instance(filtered_args[1:]):
             sys.exit(0)

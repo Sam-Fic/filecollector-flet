@@ -82,33 +82,40 @@ class FileCollectorEngine:
     def export(self, file_path: str) -> None:
         out_path = Path(file_path)
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        with out_path.open("w", encoding="utf-8", errors="replace") as f:  # encoding容错
-            if not self.use_absolute and self.show_header and self.work_dir:
-                f.write(f"# 工作目录绝对路径: {self.work_dir}\n\n")
+        # 原子写入: 先写临时文件, 成功后再 rename, 避免磁盘满/崩溃导致残留半文件
+        tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
+        try:
+            with tmp_path.open("w", encoding="utf-8", errors="replace") as f:  # encoding容错
+                if not self.use_absolute and self.show_header and self.work_dir:
+                    f.write(f"# 工作目录绝对路径: {self.work_dir}\n\n")
 
-            for i, data in enumerate(self.items):
-                if i > 0:
-                    f.write("\n\n")
-                if data.type == "file":
-                    file_p = Path(data.path)
-                    if not file_p.exists():
-                        f.write(f"[文件不存在: {data.path}]\n")
-                        continue
-                    if data.force_absolute or self.use_absolute or not self.work_dir:
-                        display = str(file_p.resolve())
-                    else:
-                        try:
-                            display = str(file_p.resolve().relative_to(self.work_dir))
-                        except ValueError:
+                for i, data in enumerate(self.items):
+                    if i > 0:
+                        f.write("\n\n")
+                    if data.type == "file":
+                        file_p = Path(data.path)
+                        if not file_p.exists():
+                            f.write(f"[文件不存在: {data.path}]\n")
+                            continue
+                        if data.force_absolute or self.use_absolute or not self.work_dir:
                             display = str(file_p.resolve())
-                    f.write(f"{display}:\n")
-                    try:
-                        content, _ = safe_read_file(data.path)
-                        f.write(content)
-                    except Exception as e:
-                        f.write(f"[读取错误: {e}]")
-                else:
-                    f.write(data.content)
+                        else:
+                            try:
+                                display = str(file_p.resolve().relative_to(self.work_dir))
+                            except ValueError:
+                                display = str(file_p.resolve())
+                        f.write(f"{display}:\n")
+                        try:
+                            content, _ = safe_read_file(data.path)
+                            f.write(content)
+                        except Exception as e:
+                            f.write(f"[读取错误: {e}]")
+                    else:
+                        f.write(data.content)
+            tmp_path.replace(out_path)
+        except Exception:
+            tmp_path.unlink(missing_ok=True)
+            raise
 
     # ------------------------------------------------------------------ Project I/O (Qt default: .project.json / GNOME: .fcol)
     def _normalize_project_path(self, file_path: str) -> str:
@@ -133,7 +140,15 @@ class FileCollectorEngine:
             ],
             "common_phrases": self.common_phrases,  # 随项目保存，GNOME 兼容
         }
-        Path(file_path).write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        # 原子写入: 先写临时文件, 再 rename, 避免中途崩溃导致项目文件损坏
+        out_path = Path(file_path)
+        tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
+        try:
+            tmp_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+            tmp_path.replace(out_path)
+        except Exception:
+            tmp_path.unlink(missing_ok=True)
+            raise
         self.project_file = file_path
 
     def load_project(self, file_path: str) -> None:

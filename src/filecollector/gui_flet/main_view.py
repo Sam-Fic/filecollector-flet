@@ -839,23 +839,15 @@ class MainView:
             with path.open("r", encoding="utf-8", errors="replace") as f:
                 for _i in range(start_line - 1):
                     f.readline()
-                buf = f.read(max_bytes + 4096)
+                buf = f.read(max_bytes)
+                # 若读到字节上限, 补全最后一行避免半行截断
+                if len(buf) == max_bytes:
+                    buf += f.readline()
+                truncated_by_bytes = len(buf) > max_bytes
         except OSError as e:
             return _("错误: 读取失败: %s") % e
 
         lines = buf.splitlines()
-        truncated_by_bytes = False
-        if len(buf) > max_bytes:
-            truncated_by_bytes = True
-            acc = 0
-            cut = 0
-            for ln in lines:
-                next_acc = acc + len(ln.encode("utf-8")) + 1
-                if next_acc > max_bytes:
-                    break
-                acc = next_acc
-                cut += 1
-            lines = lines[:cut]
 
         if len(lines) > max_lines:
             lines = lines[:max_lines]

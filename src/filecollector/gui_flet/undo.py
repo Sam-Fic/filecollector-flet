@@ -5,14 +5,18 @@ from __future__ import annotations
 
 class UndoManager:
     """撤销/重做管理器"""
-    
+
+    MAX_UNDO_STEPS = 100
+
     def __init__(self):
         self.undo_stack = []
         self.redo_stack = []
-    
+
     def push(self, state):
         """推入撤销栈"""
         self.undo_stack.append(state)
+        if len(self.undo_stack) > self.MAX_UNDO_STEPS:
+            self.undo_stack.pop(0)
         self.redo_stack.clear()
     
     def undo(self, current):

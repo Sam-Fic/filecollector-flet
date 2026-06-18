@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 import urllib.error
 import urllib.request
 from typing import Any
@@ -432,36 +433,51 @@ class AIClient:
             payload["tool_choice"] = "auto"
 
         data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-        req = urllib.request.Request(
-            url,
-            data=data,
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.api_key}",
-            },
-            method="POST",
-        )
 
-        try:
-            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
-                body = resp.read().decode("utf-8")
-        except urllib.error.HTTPError as e:
-            detail = ""
+        max_retries = 3
+        for attempt in range(max_retries + 1):
+            req = urllib.request.Request(
+                url,
+                data=data,
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {self.api_key}",
+                },
+                method="POST",
+            )
+
             try:
-                detail = e.read().decode("utf-8", errors="replace")
-            except Exception:
-                pass
-            detail = detail[:500]
-            raise AIClientError(
-                f"HTTP {e.code} {e.reason}: {detail}".strip()) from e
-        except urllib.error.URLError as e:
-            raise AIClientError(f"网络错误: {e.reason}") from e
-        except TimeoutError as e:
-            raise AIClientError("请求超时, 请检查网络或增大超时时间。") from e
-        except Exception as e:  # noqa: BLE001
-            raise AIClientError(f"调用失败: {e}") from e
+                with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+                    body = resp.read().decode("utf-8")
+            except urllib.error.HTTPError as e:
+                detail = ""
+                try:
+                    detail = e.read().decode("utf-8", errors="replace")
+                except Exception:
+                    pass
+                # 429 (限流) 或 5xx (服务端错误): 指数退避重试
+                if attempt < max_retries and (e.code == 429 or 500 <= e.code < 600):
+                    time.sleep(2 ** attempt)  # 1s, 2s, 4s
+                    continue
+                detail = detail[:500]
+                raise AIClientError(
+                    f"HTTP {e.code} {e.reason}: {detail}".strip()) from e
+            except urllib.error.URLError as e:
+                if attempt < max_retries:
+                    time.sleep(2 ** attempt)
+                    continue
+                raise AIClientError(f"网络错误: {e.reason}") from e
+            except TimeoutError as e:
+                if attempt < max_retries:
+                    time.sleep(2 ** attempt)
+                    continue
+                raise AIClientError("请求超时, 请检查网络或增大超时时间。") from e
+            except Exception as e:  # noqa: BLE001
+                raise AIClientError(f"调用失败: {e}") from e
 
-        try:
-            return json.loads(body)
-        except json.JSONDecodeError as e:
-            raise AIClientError(f"响应不是合法 JSON: {e}") from e
+            try:
+                return json.loads(body)
+            except json.JSONDecodeError as e:
+                raise AIClientError(f"响应不是合法 JSON: {e}") from e
+
+        raise AIClientError("请求失败: 已达最大重试次数")
