@@ -4,8 +4,6 @@ This document provides a detailed walkthrough of the FileCollector graphical int
 
 > **Note**: For project overview and build instructions, please refer to [README_EN.md](../README_EN.md). This guide focuses solely on the GUI workflow.
 
-> The interface illustrations in this document are from the GNOME version.
-
 ## Table of Contents
 
 - [Workflow](#workflow)
