@@ -30,8 +30,9 @@ For the usage process and tips of the graphical interface, please refer to the [
 - 🧲 **External File Support**: Manually add external files using absolute paths.
 - 🧠 **Smart Encoding Detection**: Automatically identifies `utf-8`, `gbk`, and other encodings for seamless Chinese file handling.
 - 📄 **Flexible Output**: Choose absolute or relative paths, with optional working directory annotation at file header.
-- 💾 **Project Save/Load**: Save current workspace state as `.project.json` and restore it with one click.
+- 💾 **Project Save/Load**: Save current workspace state as `.fcol` and restore it with one click.
 - 🚀 **Cross-Platform**: Built on PySide6, supporting Windows, macOS, and Linux with crisp high-DPI fonts.
+- 📱 **Flet GUI**: An alternative frontend built with Flet, supporting mobile and Web platforms. Launch with the `--flet` flag.
 
 ---
 
@@ -104,6 +105,7 @@ src/
     ├── ipc.py                 # Inter-process communication (CLI-GUI single-instance coordination)
     ├── i18n.py                # Internationalization support
     ├── ai_client.py           # AI assistant backend (OpenAI-compatible API + Function Calling)
+    ├── locales/               # Locale directories (en / zh_CN)
     └── gui/
         ├── __init__.py
         ├── dialogs.py         # Text edit dialog (TextEditDialog)
@@ -152,7 +154,7 @@ src/
 6. **Generate TXT**  
    Click `📄 Generate TXT`, choose a save location, and get a merged text file in order.
 7. **Save/Restore Workspace**  
-   Use `💾 Save Project` to store the current selection and organization as `.project.json`, then restore it later via `📂 Load Project`.
+   Use `💾 Save Project` to store the current selection and organization as `.fcol`, then restore it later via `📂 Load Project`.
 
 ---
 
@@ -185,6 +187,7 @@ filecollector [options...]
 | `--load FILE`        | Load state from project file                   |
 | `--save FILE`        | Save current state to project file             |
 | `--gui`              | Open GUI after initializing with CLI arguments |
+| `--flet`             | Launch the Flet-based GUI instead               |
 | `--help`, `-h`       | Show help message                              |
 
 ### Workflow Examples
@@ -205,7 +208,7 @@ filecollector --work-dir ./project \
 **Export from a project file:**
 
 ```bash
-filecollector --load my.project.json --export output.txt
+filecollector --load my.fcol --export output.txt
 ```
 
 **Build and save project (for later use in GUI):**
@@ -213,19 +216,19 @@ filecollector --load my.project.json --export output.txt
 ```bash
 filecollector --work-dir ./project \
     --select-file file1.txt --select-file file2.txt \
-    --save my.project.json
+    --save my.fcol
 ```
 
 **View the organization list:**
 
 ```bash
-filecollector --load my.project.json --list-items
+filecollector --load my.fcol --list-items
 ```
 
 **Load project and open GUI for manual adjustment:**
 
 ```bash
-filecollector --load my.project.json --gui
+filecollector --load my.fcol --gui
 ```
 
 **Initialize state with CLI args then open GUI:**
@@ -234,7 +237,7 @@ filecollector --load my.project.json --gui
 filecollector --work-dir ./project --select-file src/main.vala --gui
 ```
 
-> CLI mode and GUI mode share the same data model and business logic — `.project.json` files are fully interchangeable between them. Add `--gui` to pop up the graphical interface after initializing state via CLI arguments, enabling seamless switching between automation and manual review.
+> CLI mode and GUI mode share the same data model and business logic — `.fcol` files are fully interchangeable between them. Add `--gui` to pop up the graphical interface after initializing state via CLI arguments, enabling seamless switching between automation and manual review.
 
 ---
 

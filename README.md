@@ -30,8 +30,9 @@ FileCollector 是一款跨平台的桌面小工具，用于高效收集、编排
 - 🧲 **外部文件支持**：手动添加外部文件，强制使用绝对路径。
 - 🧠 **智能编码检测**：自动识别 `utf-8`、`gbk` 等编码，轻松处理中文文件。
 - 📄 **灵活输出**：可选择绝对路径或相对路径，并可选在文件头部标注工作目录绝对路径。
-- 💾 **项目保存/加载**：将当前工作状态保存为 `.project.json`，下次一键恢复。
+- 💾 **项目保存/加载**：将当前工作状态保存为 `.fcol`，下次一键恢复。
 - 🚀 **跨平台**：基于 PySide6，支持 Windows、macOS、Linux，高分屏字体清晰。
+- 📱 **Flet 版 GUI**：提供基于 Flet 的替代前端，支持移动端和 Web 端，通过 `--flet` 参数启动。
 
 ---
 
@@ -104,6 +105,7 @@ src/
     ├── ipc.py                 # 进程间通信（CLI-GUI 单实例协调）
     ├── i18n.py                # 国际化支持
     ├── ai_client.py           # AI 助手后端（OpenAI 兼容接口 + Function Calling）
+    ├── locales/               # 语言包目录（en / zh_CN）
     └── gui/
         ├── __init__.py
         ├── dialogs.py         # 文字编辑对话框（TextEditDialog）
@@ -152,7 +154,7 @@ src/
 6. **生成 TXT**  
    点击 `📄 生成 TXT`，选择保存位置，即可得到按顺序合并的文本文件。
 7. **保存/恢复工作区**  
-   使用 `💾 保存项目` 将当前勾选状态和编排列表存储为 `.project.json`，下次通过 `📂 加载项目` 恢复。
+   使用 `💾 保存项目` 将当前勾选状态和编排列表存储为 `.fcol`，下次通过 `📂 加载项目` 恢复。
 
 ---
 
@@ -185,6 +187,7 @@ filecollector [选项...]
 | `--load FILE`        | 从项目文件加载状态                |
 | `--save FILE`        | 将当前状态保存到项目文件          |
 | `--gui`              | 使用 CLI 参数初始化后打开图形界面 |
+| `--flet`             | 使用 Flet 版图形界面启动          |
 | `--help`, `-h`       | 显示帮助信息                      |
 
 ### 完整工作流示例
@@ -205,7 +208,7 @@ filecollector --work-dir ./project \
 **从项目文件导出：**
 
 ```bash
-filecollector --load my.project.json --export output.txt
+filecollector --load my.fcol --export output.txt
 ```
 
 **构建并保存项目（供 GUI 使用）：**
@@ -213,19 +216,19 @@ filecollector --load my.project.json --export output.txt
 ```bash
 filecollector --work-dir ./project \
     --select-file file1.txt --select-file file2.txt \
-    --save my.project.json
+    --save my.fcol
 ```
 
 **查看编排列表：**
 
 ```bash
-filecollector --load my.project.json --list-items
+filecollector --load my.fcol --list-items
 ```
 
 **加载项目后用 GUI 手动调整：**
 
 ```bash
-filecollector --load my.project.json --gui
+filecollector --load my.fcol --gui
 ```
 
 **用 CLI 参数初始化状态后打开 GUI：**
@@ -234,7 +237,7 @@ filecollector --load my.project.json --gui
 filecollector --work-dir ./project --select-file src/main.vala --gui
 ```
 
-> CLI 模式与 GUI 模式共享同一套数据模型和业务逻辑，`.project.json` 文件可在两者之间互通使用。添加 `--gui` 参数可在 CLI 参数初始化状态后直接弹出图形界面供人工微调，实现自动化与人工审查的无缝切换。
+> CLI 模式与 GUI 模式共享同一套数据模型和业务逻辑，`.fcol` 文件可在两者之间互通使用。添加 `--gui` 参数可在 CLI 参数初始化状态后直接弹出图形界面供人工微调，实现自动化与人工审查的无缝切换。
 
 ---
 
