@@ -131,7 +131,7 @@ class MainView:
                     ft.Container(
                         content=self.main_row,
                         expand=True,
-                        padding=ft.Padding(left=8, right=8, top=0, bottom=0),
+                        padding=ft.Padding(left=8, right=8, top=0, bottom=8),
                     ),
                 ],
                 spacing=0,

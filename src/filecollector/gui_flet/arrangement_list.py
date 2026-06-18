@@ -31,7 +31,7 @@ class ArrangementListPanel:
         self.list_view = ft.ListView(
             expand=True,
             spacing=4,
-            padding=ft.Padding(left=12, right=12, top=0, bottom=12),
+            padding=ft.Padding(left=12, right=12, top=0, bottom=0),
         )
 
         # 按钮行 1
