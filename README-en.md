@@ -1,8 +1,12 @@
 # FileCollector - File Collection & Organization Tool
 
-> 🤖 This project was developed entirely through **vibe coding**.
->
-> 📖 中文版本：[README.md](README.md)
+<div align="center">
+  <img src="icons/filecollector.svg" alt="FileCollector" width="128" height="128">
+</div>
+
+> This project was developed entirely through **vibe coding**.
+
+[中文版](README.md)
 
 FileCollector is a cross-platform desktop utility for efficiently collecting and organizing files from a working directory into a merged text file.  
 It features a checkable directory tree, flexible organization list, text insertion, drag-and-drop sorting, and automatic encoding detection — perfect for quickly consolidating key code or documents from a project into a single TXT file for analysis or submission to a large language model.
@@ -13,30 +17,30 @@ It features a checkable directory tree, flexible organization list, text inserti
 
 ---
 
-## 📖 Usage Guide
+## Usage Guide
 
 For the usage process and tips of the graphical interface, please refer to the [Usage Guide](docs/USAGE_EN.md).
 
-## ✨ Features
+## Features
 
-- 💻 **Command-Line Mode (CLI)**: Supports all core operations via terminal commands, ideal for scripting and automation.
-- 🤖 **MCP Service**: Packaged as an MCP (Model Context Protocol) service, directly callable by coding tools like Cursor, VS Code + Copilot.
-- 🤖 **Built-in AI Assistant Panel**: A sidebar chat interface inside the GUI — the AI can directly drive file-tree exploration, file selection, orchestration, and merged-text generation.
-- 🔄 **Progressive Experience**: Seamless integration of CLI and GUI — after AI-driven exploration in the background, the graphical interface is always available for manual adjustment.
-- 📂 **Lazy-loaded Directory Tree**: Automatically displays an expandable file tree when opening a folder, with easy file checkbox selection.
-- 📋 **Visual Organization List**: Checked files automatically appear in the list, freely reorderable via drag-and-drop, move up/down, or delete.
-- ✏️ **Custom Text Insertion**: Insert explanatory text at any position, double-click to edit.
-- 🔍 **Instant Preview**: Select a list item to preview file content or full text in the right panel.
-- 🧲 **External File Support**: Manually add external files using absolute paths.
-- 🧠 **Smart Encoding Detection**: Automatically identifies `utf-8`, `gbk`, and other encodings for seamless Chinese file handling.
-- 📄 **Flexible Output**: Choose absolute or relative paths, with optional working directory annotation at file header.
-- 💾 **Project Save/Load**: Save current workspace state as `.fcol` and restore it with one click.
-- 🚀 **Cross-Platform**: Built on PySide6, supporting Windows, macOS, and Linux with crisp high-DPI fonts.
-- 📱 **Flet GUI**: An alternative frontend built with Flet, supporting mobile and Web platforms. Launch with the `--flet` flag.
+- **Command-Line Mode (CLI)**: Supports all core operations via terminal commands, ideal for scripting and automation.
+- **MCP Service**: Packaged as an MCP (Model Context Protocol) service, directly callable by coding tools like Cursor, VS Code + Copilot.
+- **Built-in AI Assistant Panel**: A sidebar chat interface inside the GUI — the AI can directly drive file-tree exploration, file selection, orchestration, and merged-text generation.
+- **Progressive Experience**: Seamless integration of CLI and GUI — after AI-driven exploration in the background, the graphical interface is always available for manual adjustment.
+- **Lazy-loaded Directory Tree**: Automatically displays an expandable file tree when opening a folder, with easy file checkbox selection.
+- **Visual Organization List**: Checked files automatically appear in the list, freely reorderable via drag-and-drop, move up/down, or delete.
+- **Custom Text Insertion**: Insert explanatory text at any position, double-click to edit.
+- **Instant Preview**: Select a list item to preview file content or full text in the right panel.
+- **External File Support**: Manually add external files using absolute paths.
+- **Smart Encoding Detection**: Automatically identifies `utf-8`, `gbk`, and other encodings for seamless Chinese file handling.
+- **Flexible Output**: Choose absolute or relative paths, with optional working directory annotation at file header.
+- **Project Save/Load**: Save current workspace state as `.fcol` and restore it with one click.
+- **Cross-Platform**: Built on PySide6, supporting Windows, macOS, and Linux with crisp high-DPI fonts.
+- **Flet GUI**: An alternative frontend built with Flet, supporting mobile and Web platforms. Launch with the `--flet` flag.
 
 ---
 
-## 🤔 Why Use This Tool?
+## Why Use This Tool?
 
 1. **Solving the Context Dilemma in Coding Tools**: In coding tools, models need to make numerous tool calls to explore the workspace, which can easily get sidetracked by irrelevant files and lose focus. Large projects are prone to context compression. Additionally, the large system prompts in coding tools consume significant tokens. Use this tool to manually select important files, then pass the curated context to a web-side model (with relatively lighter system prompts) for bug analysis and other deep reasoning tasks, maximizing model reasoning performance.
 
@@ -44,9 +48,9 @@ For the usage process and tips of the graphical interface, please refer to the [
 
 ---
 
-## 🛠️ Installation & Usage
+## Installation & Usage
 
-### 🐧 GNOME Users
+### GNOME Users
 
 If you are using the **GNOME desktop environment**, we recommend using the GNOME-optimized version for a more native integration experience:
 
@@ -93,13 +97,15 @@ Visit the [Releases](https://github.com/Sam-Fic/FileCollector/releases) page to 
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 filecollector                  # One-click launcher for Flet GUI (bash)
 requirements.txt               # Python dependency list
 LICENSE                        # MIT license
 README.md / README-en.md       # Project docs (Chinese / English)
+icons/                         # Application icon
+│   └── filecollector.svg
 screenshots/                   # Screenshots for README
 docs/                          # Usage guide + illustrations
 │   ├── USAGE.md               # GUI usage guide (Chinese)
@@ -150,29 +156,13 @@ docs/                          # Usage guide + illustrations
 
 ---
 
-## 📖 User Guide
+## User Guide
 
-1. **Open Working Directory**  
-   Click `📂 Open Folder`, select your project root, and the file tree will appear on the left.
-2. **Check Files**  
-   Check files in the tree to add them to the organization list in order.
-3. **Organize Content**
-   - Drag list items to freely reorder;
-   - Use `Insert Text ↑/↓` to add comments before or after selected items;
-   - Double-click text items to edit;
-   - Click `Add External File` to include files outside the working directory.
-4. **Preview & Adjust**  
-   Select any item to preview the first 50 lines of a file or full text content in the right panel.
-5. **Set Output Options**  
-   Choose **Relative Path** (recommended) or **Absolute Path**; if using relative paths, you can check "Annotate working directory absolute path at file header" for readability.
-6. **Generate TXT**  
-   Click `📄 Generate TXT`, choose a save location, and get a merged text file in order.
-7. **Save/Restore Workspace**  
-   Use `💾 Save Project` to store the current selection and organization as `.fcol`, then restore it later via `📂 Load Project`.
+For the complete GUI workflow (opening directories, checking files, organizing the list, previewing, exporting, etc.), please refer to the [GUI Usage Guide](docs/USAGE_EN.md).
 
 ---
 
-## 🖥️ CLI Mode
+## CLI Mode
 
 FileCollector comes with a built-in command-line mode that lets you perform all core operations directly from the terminal, making it ideal for scripting and automation.
 
@@ -255,7 +245,7 @@ filecollector --work-dir ./project --select-file src/main.vala --gui
 
 ---
 
-## 🗺️ MCP (Model Context Protocol) Service
+## MCP (Model Context Protocol) Service
 
 FileCollector is already packaged as an MCP service. Large language models in coding tools (such as Cursor, VS Code + Copilot) can now directly invoke it to complete the following workflow:
 
@@ -272,15 +262,15 @@ This design separates **file exploration and code selection** (handled by the mo
 
 ---
 
-## 🤖 Built-in AI Assistant Panel
+## Built-in AI Assistant Panel
 
-FileCollector also ships with a **sidebar AI assistant** that lets you drive the whole workflow with natural language — no coding tool or MCP service required. Click the **🤖 AI** button at the top-right of the toolbar to expand or collapse it.
+FileCollector also ships with a **sidebar AI assistant** that lets you drive the whole workflow with natural language — no coding tool or MCP service required. Click the **AI** button at the top-right of the toolbar to expand or collapse it.
 
 ### Key Capabilities
 
 - **Natural-language orchestration**: Tell the AI "add every Python file under `src` to the list, and prepend a task description" — the AI will call the right tools to check files, insert text, reorder items, etc.
 - **File exploration & reading**: The AI can browse the working-directory tree and read file contents on demand to make informed decisions.
-- **Real-time feedback**: Every tool invocation (set work directory, add files, read files, reorder, …) is shown as an expandable tool card so you can audit each step.
+- **Real-time feedback**: Every tool invocation (set work directory, add files, read files, reorder, ...) is shown as an expandable tool card so you can audit each step.
 - **Multi-turn conversation**: The AI keeps the conversation history, so you can iteratively refine the orchestration until you are happy.
 - **Live GUI sync**: Whenever the AI modifies the orchestration list, the middle panel updates immediately and you can take over manually at any moment.
 
@@ -344,7 +334,7 @@ The two are complementary: the MCP service targets in-IDE "organize while you de
 
 ---
 
-## 🔄 Progressive Experience
+## Progressive Experience
 
 GUI and CLI combine to deliver a seamless human-AI collaborative workflow:
 
@@ -359,7 +349,7 @@ GUI and CLI combine to deliver a seamless human-AI collaborative workflow:
 
 ---
 
-## 📦 Build Your Own Package
+## Build Your Own Package
 
 To package as a standalone executable using PyInstaller:
 
@@ -372,19 +362,19 @@ Ensure all dependencies (`requirements.txt`) are installed before packaging.
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 This project is in its early stages. Issues and Pull Requests are welcome.
 
 ---
 
-## 📄 License
+## License
 
 This project uses the **MIT License**, see the [LICENSE](LICENSE) file for details.
 
 ---
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - [PySide6](https://wiki.qt.io/Qt_for_Python) - Modern GUI framework
 - [chardet](https://github.com/chardet/chardet) - Encoding detection library
