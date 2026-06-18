@@ -81,38 +81,32 @@ Click any text file in either the file explorer or the output organization list 
 
 ![Tip 1: Quick File Preview](./images/tip01-preview.png)
 
-### 2. Customizable Panel Layout
-
-The dividers between the file explorer, the output organization list, and the preview area are all draggable. You can freely resize each region to suit the current task.
-
-![Tip 2: Customizable Panel Layout](./images/tip02-resize-panels.png)
-
-### 3. Common Phrase Management
+### 2. Common Phrase Management
 
 Access the **Common Phrases** manager from the top-right menu:
 
 - Click any phrase in the list to edit and maintain its content.
 - When using the **Insert Text Above** or **Insert Text Below** actions, the phrase picker lets you quickly insert a predefined phrase (e.g., a fixed comment format, a problem description template, etc.) with a single click.
 
-![Tip 3: Common Phrase Management](./images/tip03-phrases.png)
+![Tip 2: Common Phrase Management](./images/tip02-phrases.png)
 
-### 4. Save and Open Projects
+### 3. Save and Open Projects
 
 Use the top-right menu to save or open project files. A saved project records the working directory, file selection state, and output organization list, enabling you to:
 
 - Restore the previous work state with a single click on next launch.
 - Share the organization result with teammates for collaborative handoff.
 
-![Tip 4: Save and Open Projects](./images/tip04-project-management.png)
+![Tip 3: Save and Open Projects](./images/tip03-project-management.png)
 
-### 5. Edit Inserted Text Items
+### 4. Edit Inserted Text Items
 
 Double-click any text item that has been inserted into the output organization list to edit its content. This is handy for tweaking comments or notes already added during organization — no need to delete and re-insert.
 
-![Tip 5: Edit Inserted Text Items](./images/tip05-edit-text.png)
+![Tip 4: Edit Inserted Text Items](./images/tip04-edit-text.png)
 
-### 6. File Search
+### 5. File Search
 
 After selecting a working directory, use the search box at the top of the left-side file explorer to quickly find files by name. This is especially useful in large projects, allowing you to locate target files without manually expanding multiple levels of directories.
 
-![Tip 6: File Search](./images/tip06-search.png)
+![Tip 5: File Search](./images/tip05-search.png)
