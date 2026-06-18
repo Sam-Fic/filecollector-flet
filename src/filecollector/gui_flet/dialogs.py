@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+from typing import Optional
 
 import flet as ft
 
@@ -77,16 +78,12 @@ class PhrasesDialog(ft.AlertDialog):
       双击条目触发编辑.
     """
 
-    phrase_selected: str | None = None
-
     def __init__(self, main_view, select_mode: bool = False,
                  on_phrase_selected=None):
         self.main_view = main_view
         self._select_mode = bool(select_mode)
         self.phrases = list(main_view.common_phrases)
         self.selected_index: int = -1
-        # 重置类属性
-        PhrasesDialog.phrase_selected = None
         # 双击检测
         self._last_click_idx: int = -1
         self._last_click_ts: float = 0.0
@@ -188,12 +185,13 @@ class PhrasesDialog(ft.AlertDialog):
                         content=ft.Row(
                             [
                                 ft.Text(display, size=14, expand=True,
-                                        no_wrap=True, tooltip=phrase),
+                                        no_wrap=True, tooltip=phrase,
+                                        color=ft.Colors.WHITE if is_selected else None),
                             ],
                         ),
                         padding=ft.Padding(left=10, top=8, right=10, bottom=8),
                         border_radius=6,
-                        bgcolor=ft.Colors.BLUE_400 if is_selected
+                        bgcolor=ft.Colors.BLUE_600 if is_selected
                         else ft.Colors.SURFACE_CONTAINER_LOW,
                         on_click=lambda e, i=idx: self._on_item_click(i),
                         ink=True,
@@ -315,20 +313,18 @@ class PhrasesDialog(ft.AlertDialog):
         self.main_view.page.show_dialog(confirm_dlg)
 
     def _on_accept(self, e):
-        """确定: 选择模式返回选中条目."""
+        """确定: 选择模式返回选中条目并关闭本弹窗."""
         if self._select_mode:
+            phrase = None
             if 0 <= self.selected_index < len(self.phrases):
-                PhrasesDialog.phrase_selected = self.phrases[self.selected_index]
-            else:
-                PhrasesDialog.phrase_selected = None
+                phrase = self.phrases[self.selected_index]
+            # 先通知调用方回填, 再关闭常用语弹窗 (调用方保留自定义文字弹窗)
+            if self._on_phrase_selected_cb:
+                self._on_phrase_selected_cb(phrase)
         self.main_view.page.pop_dialog()
-        # 选择模式: 触发回调 (关闭对话框后通知调用方)
-        if self._select_mode and self._on_phrase_selected_cb:
-            self._on_phrase_selected_cb(PhrasesDialog.phrase_selected)
 
     def _on_cancel(self, e):
         """取消 (选择模式)."""
-        PhrasesDialog.phrase_selected = None
         self.main_view.page.pop_dialog()
 
     def _on_close(self, e):
@@ -475,13 +471,13 @@ class TextEditDialog(ft.AlertDialog):
     def _on_open_phrases(self, e):
         """打开常用语选择器 (select_mode=True).
 
-        选中短语后填入文本框并提交 (对齐 Qt 版行为).
+        选中短语后只把它回填到自定义文字框, 并关闭常用语弹窗; 不自动触发插入.
+        最终由用户点击自定义文字弹窗的确定/取消来关闭主弹窗.
         """
         def on_phrase_selected(phrase):
             if phrase:
                 self.text_field.value = phrase
-                self.main_view.page.update()
-                self._on_accept(None)
+                self.text_field.update()
 
         phrases_dlg = PhrasesDialog(
             self.main_view,
@@ -493,7 +489,7 @@ class TextEditDialog(ft.AlertDialog):
     def _on_accept(self, e):
         text = self.text_field.value.strip()
         if not text:
-            self.main_view.page.pop_dialog()
+            self._close()
             return
 
         if self.edit_index is not None:
@@ -509,7 +505,14 @@ class TextEditDialog(ft.AlertDialog):
             show_snack(self.main_view.page, _("已插入文字"))
 
         self.main_view.arrangement_panel.refresh()
-        self.main_view.page.pop_dialog()
+        self._close()
 
     def _on_cancel(self, e):
-        self.main_view.page.pop_dialog()
+        self._close()
+
+    def _close(self):
+        """关闭当前 TextEditDialog."""
+        try:
+            self.main_view.page.pop_dialog()
+        except Exception:
+            pass
