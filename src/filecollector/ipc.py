@@ -223,23 +223,37 @@ def _cleanup_server(server_sock):
 # Wire protocol  (shared)
 # ---------------------------------------------------------------------------
 
+def _recv_exact(conn, n):
+    """从 *conn* 精确读取 *n* 个字节.
+
+    TCP 是面向字节流的协议, ``recv(n)`` 并不保证一次返回 n 个字节,
+    可能因拆包只返回 1~n 个字节. 本函数在循环中持续读取直到读满 n
+    个字节, 或对端关闭连接返回空数据时返回 ``None``.
+    """
+    buf = b""
+    while len(buf) < n:
+        chunk = conn.recv(n - len(buf))
+        if not chunk:
+            return None
+        buf += chunk
+    return buf
+
+
 def _handle_connection(conn, callback):
     """Read one message from *conn* and forward the parsed args to
     *callback*."""
     try:
-        raw_len = conn.recv(4)
-        if len(raw_len) < 4:
+        # 精确读取 4 字节长度头部, 防止 TCP 拆包导致 recv 返回不足 4 字节
+        raw_len = _recv_exact(conn, 4)
+        if raw_len is None:
             return
         msg_len = struct.unpack("!I", raw_len)[0]
         if msg_len > MAX_MSG_SIZE:
             return
 
-        data = b""
-        while len(data) < msg_len:
-            chunk = conn.recv(msg_len - len(data))
-            if not chunk:
-                return
-            data += chunk
+        data = _recv_exact(conn, msg_len)
+        if data is None:
+            return
 
         if len(data) == msg_len:
             conn.sendall(b"\x00")

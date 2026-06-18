@@ -32,7 +32,6 @@ Thumbs.db
 .fc-clipboard/
 
 # Build & packaging
-*.spec
 *.manifest
 
 # Testing & coverage
@@ -45,3 +44,4 @@ htmlcov/
 .mypy_cache/
 .pytest_cache/
 .ruff_cache/
+

@@ -707,6 +707,12 @@ class AIPanel:
             self.main_view.page.update()
             return
 
+        # page.update() 可能让出事件循环, 清空对话可能在此时发生.
+        # 写入历史前再次校验代际, 避免把旧轮次的 assistant 消息
+        # (含 tool_calls) 追加到已清空 / 新建的对话中, 形成幽灵历史.
+        if generation != self._session_generation:
+            return
+
         # 写入历史 (即使 content 为空, 也要保留 tool_calls)
         assistant_msg: dict = {"role": "assistant", "content": content}
         if tool_calls:
@@ -729,6 +735,11 @@ class AIPanel:
                     args = {}
                 if not isinstance(args, dict):
                     args = {}
+                # 执行工具前再次校验代际: 清空对话可能在上一轮
+                # page.update() 让出事件循环时发生, 此时不应再执行
+                # 工具 / 渲染工具卡片, 避免污染新对话.
+                if generation != self._session_generation:
+                    return
                 result_str = self._run_tool(name, args)
                 # 工具渲染之后再次检查代际: 清空动作可能在工具执行
                 # 期间发生, 后续 _next_turn 不应发起新请求.
