@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import flet as ft
 from filecollector.engine import FileCollectorEngine
 from filecollector.i18n import _
@@ -15,6 +17,11 @@ def main(page: ft.Page):
     page.window.height = 780
     page.window.min_width = 1100
     page.window.min_height = 560
+
+    _icon_path = Path(__file__).resolve().parent.parent.parent.parent / "icons" / "filecollector.ico"
+    if _icon_path.exists():
+        page.window.icon = str(_icon_path)
+        page.update()
 
     # Material 3 主题
     page.theme_mode = ft.ThemeMode.LIGHT

@@ -67,6 +67,10 @@ class FileCollectorApp(QMainWindow):
         self.setMinimumSize(960, 560)
         self.setStyleSheet(get_stylesheet())
 
+        _icon_path = Path(__file__).resolve().parent.parent.parent.parent / "icons" / "filecollector.svg"
+        if _icon_path.exists():
+            self.setWindowIcon(QIcon(str(_icon_path)))
+
         self.engine = FileCollectorEngine()
         self.undo_manager = UndoManager()
         self.common_phrases: list[str] = []
