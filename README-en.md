@@ -74,6 +74,7 @@ This version is adapted and optimized for GNOME, including:
    ```bash
    pip install -r requirements.txt
    ```
+   > Note: The `keyring` library provides system-level keyring storage for secure API Key management across platforms (Linux: GNOME Keyring, macOS: Keychain, Windows: Credential Locker).
 3. Run the program
    ```bash
    cd src

@@ -74,6 +74,7 @@ FileCollector 是一款跨平台的桌面小工具，用于高效收集、编排
    ```bash
    pip install -r requirements.txt
    ```
+   > 注：`keyring` 库用于系统级密钥环存储，提供跨平台的 API Key 安全存储（Linux: GNOME Keyring, macOS: Keychain, Windows: Credential Locker）。
 3. 运行程序
    ```bash
    cd src

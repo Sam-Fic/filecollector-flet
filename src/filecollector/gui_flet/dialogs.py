@@ -59,12 +59,61 @@ class SettingsDialog(ft.AlertDialog):
         settings["language"] = lang
         save_settings(settings)
 
-        # 提示重启
+        # 应用新语言
         from filecollector.i18n import set_language
         set_language(lang, notify=True)
 
         self.main_view.page.pop_dialog()
-        show_snack(self.main_view.page, _("语言设置已保存，重启应用后生效。"))
+
+        # 弹出确认重启对话框
+        def on_confirm_restart(ev):
+            self.main_view.page.pop_dialog()
+            if ev.control.data == "yes":
+                self._restart_application()
+
+        confirm_dlg = ft.AlertDialog(
+            title=ft.Text(_("提示")),
+            content=ft.Text(_("语言设置已保存，重启应用后生效。是否现在重启？")),
+            actions=[
+                ft.TextButton(_("稍后"), on_click=on_confirm_restart, data="no"),
+                ft.TextButton(_("立即重启"), on_click=on_confirm_restart, data="yes"),
+            ],
+        )
+        self.main_view.page.show_dialog(confirm_dlg)
+
+    def _restart_application(self):
+        """重启应用程序 (强制终止旧进程以释放 IPC 端口与单实例锁)."""
+        import sys
+        import subprocess
+        import os
+        import signal
+
+        is_frozen = getattr(sys, 'frozen', False)
+
+        if is_frozen:
+            cmd = [sys.executable] + sys.argv[1:]
+        else:
+            if sys.argv and sys.argv[0].endswith(".py"):
+                cmd = [sys.executable, sys.argv[0], "--flet"] + sys.argv[1:]
+            else:
+                cmd = [sys.executable, "-m", "filecollector", "--flet"] + sys.argv[1:]
+
+        try:
+            if sys.platform == "win32":
+                CREATE_NEW_PROCESS_GROUP = 0x00000200
+                DETACHED_PROCESS = 0x00000008
+                subprocess.Popen(cmd, creationflags=DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP)
+            else:
+                subprocess.Popen(cmd, start_new_session=True)
+        except Exception:
+            pass
+
+        # 杀死整个进程组 (包含 Flutter 引擎子进程), 避免窗口残留
+        # 新进程已由 start_new_session 隔离, 不受影响
+        if sys.platform != "win32":
+            os.killpg(os.getpgid(0), signal.SIGKILL)
+        else:
+            os._exit(0)
 
     def _on_cancel(self, e):
         self.main_view.page.pop_dialog()

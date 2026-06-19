@@ -4,3 +4,4 @@ markdown-it-py
 pygments
 qtawesome
 flet
+keyring

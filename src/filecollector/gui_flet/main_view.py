@@ -63,6 +63,8 @@ class MainView:
         self._min_width = 1100
         self._resize_guard = False
         self.page.on_resize = self._on_resize
+        # 拦截原生窗口关闭事件，防止 Flet 默认清理逻辑卡死
+        self.page.on_window_event = self._on_window_event
 
     def _on_keyboard(self, e: ft.KeyboardEvent):
         """处理键盘快捷键"""
@@ -379,8 +381,9 @@ class MainView:
             if files:
                 try:
                     self.engine.load_project(files[0].path)
-                    self._refresh_all()
                     self.common_phrases = list(self.engine.common_phrases)
+                    # _refresh_all 内部会同步 checked_paths
+                    self._refresh_all()
                     show_snack(self.page, _("项目已加载: %s") % files[0].path)
                 except Exception as ex:
                     show_snack(self.page, _("加载失败: %s") % ex)
@@ -416,13 +419,45 @@ class MainView:
 
         self.page.run_task(pick)
 
+    def _on_window_event(self, e):
+        """拦截窗口关闭事件 (点击右上角 X)."""
+        if e.data == "close":
+            try:
+                self.page.window.prevent_close = True
+            except Exception:
+                pass
+
+            if self.engine.items:
+                def on_confirm(ev):
+                    if ev.control.data == "yes":
+                        self.page.pop_dialog()
+                        self._force_exit()
+                    else:
+                        self.page.pop_dialog()
+                        try:
+                            self.page.window.prevent_close = False
+                        except Exception:
+                            pass
+
+                dlg = ft.AlertDialog(
+                    title=ft.Text(_("确认退出")),
+                    content=ft.Text(_("编排列表不为空，确定退出吗？")),
+                    actions=[
+                        ft.TextButton(_("取消"), on_click=on_confirm, data="no"),
+                        ft.TextButton(_("确定"), on_click=on_confirm, data="yes"),
+                    ],
+                )
+                self.page.show_dialog(dlg)
+            else:
+                self._force_exit()
+
     def _on_quit(self, e):
         """退出应用 (列表非空时确认, 对齐 Qt 版 closeEvent)."""
         if self.engine.items:
-            def on_confirm(e):
-                if e.control.data == "yes":
+            def on_confirm(ev):
+                if ev.control.data == "yes":
                     self.page.pop_dialog()
-                    self.page.window.close()
+                    self._force_exit()
                 else:
                     self.page.pop_dialog()
 
@@ -436,7 +471,17 @@ class MainView:
             )
             self.page.show_dialog(dlg)
         else:
-            self.page.window.close()
+            self._force_exit()
+
+    def _force_exit(self):
+        """强制退出进程.
+        在 Linux 环境下, Flet 底层的 Flutter engine 在清理 OpenGL context
+        和 compositor shaders 时存在已知 Bug, 调用 page.window.close() 会导致
+        引擎卡死在 "working" 状态并阻塞 Python 主线程.
+        必须跳过 page.window.close()，直接使用 os._exit(0) 通知内核回收进程.
+        """
+        import os
+        os._exit(0)
 
     def _on_phrases(self, e):
         """打开常用语管理"""
@@ -491,6 +536,11 @@ class MainView:
 
     def _refresh_all(self):
         """刷新所有面板"""
+        # 1. 重建目录树结构 (set_work_dir 内部会清空旧的 checked_paths)
+        self.file_tree_panel.set_work_dir(self.engine.work_dir)
+        # 2. 从 engine 恢复最新的勾选状态到文件树面板
+        self.file_tree_panel.checked_paths = set(self.engine.checked_paths)
+        # 3. 刷新各个面板的 UI 显示
         self.file_tree_panel.refresh()
         self.arrangement_panel.refresh()
         self.preview_panel.clear()

@@ -326,12 +326,22 @@ class AIPanel:
         short_single_line = self._is_short_single_line(content, max_w)
 
         msg_key = f"msg_{len(self.chat_list.controls)}"
+
+        def on_link_tap(e):
+            url = e.data
+            if url and (url.startswith("http://") or url.startswith("https://")):
+                self.main_view.page.launch_url(url)
+
         if is_system:
+            bubble_content = ft.Markdown(
+                value=content,
+                selectable=True,
+                extension_set=ft.MarkdownExtensionSet.GITHUB_WEB,
+                code_theme=ft.MarkdownCodeTheme.GITHUB,
+                on_tap_link=on_link_tap,
+            )
             bubble = ft.Container(
-                content=ft.Text(
-                    content, size=12, color=ft.Colors.ON_SURFACE_VARIANT,
-                    text_align=ft.TextAlign.CENTER, no_wrap=False,
-                ),
+                content=bubble_content,
                 padding=ft.Padding(left=12, top=6, right=12, bottom=6),
                 border_radius=10,
                 bgcolor=ft.Colors.AMBER_50,
@@ -345,37 +355,43 @@ class AIPanel:
                 key=msg_key,
             )
         else:
-            bubble = ft.Container(
-                content=ft.Text(
+            if is_user:
+                bubble_content = ft.Text(
                     content,
                     size=14,
                     no_wrap=False,
-                    color=ft.Colors.WHITE if is_user else ft.Colors.ON_SURFACE,
+                    color=ft.Colors.WHITE,
                     selectable=True,
-                ),
+                )
+                bg_color = ft.Colors.BLUE_600
+            else:
+                bubble_content = ft.Markdown(
+                    value=content,
+                    selectable=True,
+                    extension_set=ft.MarkdownExtensionSet.GITHUB_WEB,
+                    code_theme=ft.MarkdownCodeTheme.ATOM_ONE_LIGHT,
+                    on_tap_link=on_link_tap,
+                )
+                bg_color = ft.Colors.SURFACE_CONTAINER_LOW
+
+            bubble = ft.Container(
+                content=bubble_content,
                 padding=12,
                 border_radius=12,
-                bgcolor=ft.Colors.BLUE_600 if is_user else ft.Colors.SURFACE_CONTAINER_LOW,
+                bgcolor=bg_color,
                 width=None if short_single_line else self._bubble_width(
                     content, max_w),
             )
+
             if is_user:
-                # 靠右气泡：左侧留固定间距
                 row = ft.Row(
-                    [
-                        ft.Container(expand=True),
-                        bubble,
-                    ],
+                    [ft.Container(expand=True), bubble],
                     alignment=ft.MainAxisAlignment.START,
                     key=msg_key,
                 )
             else:
-                # 靠左气泡：右侧留固定间距
                 row = ft.Row(
-                    [
-                        bubble,
-                        ft.Container(expand=True),
-                    ],
+                    [bubble, ft.Container(expand=True)],
                     alignment=ft.MainAxisAlignment.START,
                     key=msg_key,
                 )
@@ -407,11 +423,10 @@ class AIPanel:
             color=ft.Colors.BROWN_700,
         )
 
-        # 展开内容 (默认隐藏) - Text 使用 expand 填充容器宽度, 避免撑开
         body = ft.Container(
             content=ft.Text(
                 result_display,
-                size=11,
+                size=12,
                 color=ft.Colors.ON_SURFACE,
                 font_family="monospace",
                 selectable=True,

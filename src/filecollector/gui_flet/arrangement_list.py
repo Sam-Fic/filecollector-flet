@@ -439,17 +439,19 @@ class ArrangementListPanel:
             self.main_view.engine.export(file_path)
 
             if sys.platform == "win32":
-                subprocess.run(
-                    ["clip"],
-                    input=open(file_path, "rb").read(),
-                    check=False,
-                )
+                with open(file_path, "rb") as f:
+                    subprocess.run(
+                        ["clip"],
+                        input=f.read(),
+                        check=False,
+                    )
             elif sys.platform == "darwin":
-                subprocess.run(
-                    ["pbcopy"],
-                    input=open(file_path, "rb").read(),
-                    check=False,
-                )
+                with open(file_path, "rb") as f:
+                    subprocess.run(
+                        ["pbcopy"],
+                        input=f.read(),
+                        check=False,
+                    )
             else:
                 subprocess.run(
                     ["xclip", "-selection", "clipboard", file_path],

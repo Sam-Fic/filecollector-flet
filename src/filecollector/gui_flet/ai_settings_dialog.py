@@ -21,7 +21,7 @@ import threading
 import flet as ft
 
 from filecollector.i18n import _
-from filecollector.config import load_settings, save_settings
+from filecollector.config import load_settings, save_settings, store_api_key_to_keyring, load_api_key_from_keyring
 from filecollector.ai_client import AIClient, AIClientError
 from filecollector.gui_flet.snack import show_snack
 
@@ -40,12 +40,42 @@ def load_ai_settings() -> dict:
     settings = load_settings()
     ai = dict(DEFAULT_SETTINGS)
     ai.update(settings.get("ai", {}) or {})
+    
+    # 1. 优先从系统密钥环读取
+    keyring_key = load_api_key_from_keyring()
+    if keyring_key:
+        ai["api_key"] = keyring_key
+    else:
+        # 2. 迁移逻辑：若密钥环为空但 JSON 有旧明文，尝试迁移
+        json_key = ai.get("api_key", "")
+        if json_key:
+            if store_api_key_to_keyring(json_key):
+                # 迁移成功，清除 JSON 中的明文
+                ai["api_key"] = json_key  # 内存中保留给 UI 显示
+                if "ai" not in settings:
+                    settings["ai"] = {}
+                settings["ai"]["api_key"] = ""
+                save_settings(settings)
+            # 若迁移失败（如系统无密钥环服务），则保留 JSON 明文作为安全降级
     return ai
 
 
 def save_ai_settings(ai: dict) -> None:
     settings = load_settings()
-    settings["ai"] = ai
+    api_key = ai.get("api_key", "")
+    
+    # 尝试存入系统密钥环
+    keyring_success = store_api_key_to_keyring(api_key)
+    
+    ai_to_save = ai.copy()
+    if keyring_success:
+        # 密钥环存储成功，JSON 中强制留空，杜绝明文
+        ai_to_save["api_key"] = ""
+    else:
+        # 降级策略：密钥环不可用，保留明文在 JSON 中以防用户配置丢失
+        ai_to_save["api_key"] = api_key
+        
+    settings["ai"] = ai_to_save
     save_settings(settings)
 
 

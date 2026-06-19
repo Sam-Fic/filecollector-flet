@@ -5,13 +5,15 @@ from __future__ import annotations
 from pathlib import Path
 
 import flet as ft
-from filecollector.i18n import _
+from filecollector.i18n import _, initialize as i18n_initialize
 from filecollector.gui_flet.main_view import MainView
 from filecollector.gui_flet.snack import show_snack
 
 
 def main(page: ft.Page):
     """Flet 应用主入口"""
+    # 在任何 _() 调用之前，先从 settings.json 加载用户语言配置
+    i18n_initialize()
     page.title = _("FileCollector - 文件收集与编排工具")
     page.window.width = 1300
     page.window.height = 780

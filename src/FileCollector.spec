@@ -14,8 +14,10 @@ block_cipher = None
 hiddenimports = [
     'chardet',
     'charset_normalizer',
+    'keyring',
 ]
 hiddenimports += collect_submodules('chardet')
+hiddenimports += collect_submodules('keyring')
 
 a = Analysis(
     ['file_collector.py'],
