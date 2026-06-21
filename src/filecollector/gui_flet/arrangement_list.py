@@ -108,12 +108,13 @@ class ArrangementListPanel:
         self.path_mode_group = ft.RadioGroup(
             content=ft.Row(
                 [
-                    ft.Radio(value="relative", label=_("相对路径"),
+                    ft.Radio(value="relative", label=_("使用相对路径"),
                              visual_density=ft.VisualDensity.COMPACT),
                     ft.Radio(value="absolute", label=_("使用绝对路径"),
                              visual_density=ft.VisualDensity.COMPACT),
                 ],
                 spacing=16,
+                alignment=ft.MainAxisAlignment.CENTER,
                 vertical_alignment=ft.CrossAxisAlignment.CENTER,
             ),
             value="relative" if not self.main_view.engine.use_absolute else "absolute",
@@ -125,15 +126,18 @@ class ArrangementListPanel:
             visual_density=ft.VisualDensity.COMPACT,
         )
 
-        opt_row = ft.Row(
+        opt_row = ft.Column(
             [
                 self.path_mode_group,
-                self.check_header,
+                ft.Row(
+                    [self.check_header],
+                    alignment=ft.MainAxisAlignment.CENTER,
+                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                ),
             ],
-            spacing=16,
-            alignment=ft.MainAxisAlignment.START,
-            vertical_alignment=ft.CrossAxisAlignment.CENTER,
-            wrap=True,
+            spacing=8,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            alignment=ft.MainAxisAlignment.CENTER,
         )
 
         # 按钮行 3 - 生成

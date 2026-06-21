@@ -739,7 +739,7 @@ class MainView:
             self.engine.use_absolute = value
             self.arrangement_panel.refresh()
             return _("路径模式: %s") % (
-                _("绝对路径") if value else _("相对路径"))
+                _("使用绝对路径") if value else _("使用相对路径"))
 
         if name == "set_show_header":
             value = bool(args.get("value"))
