@@ -134,11 +134,11 @@ class AIPanel:
             expand=True,
         )
 
-        # 发送 / 停止按钮
-        self.send_btn = ft.ElevatedButton(
-            _("发送"),
-            icon=ft.Icons.SEND,
-            on_click=self._on_send_or_stop,
+        # 发送 / 停止按钮容器 (Flet 0.85 中直接修改 ElevatedButton.text 有时
+        # 不会触发客户端刷新, 因此把按钮放在 Row 里, busy 状态变化时重建)
+        self.send_btn_row = ft.Row(
+            [self._make_send_btn(busy=False)],
+            alignment=ft.MainAxisAlignment.END,
         )
         self.clear_btn = ft.TextButton(
             _("清空对话"),
@@ -190,7 +190,7 @@ class AIPanel:
                                 ft.Row(
                                     [self.clear_btn,
                                      ft.Container(expand=True),
-                                     self.send_btn],
+                                     self.send_btn_row],
                                     spacing=8,
                                 ),
                             ],
@@ -423,6 +423,7 @@ class AIPanel:
             color=ft.Colors.BROWN_700,
         )
 
+        # 展开态: 完整结果容器 (默认不可见)
         body = ft.Container(
             content=ft.Text(
                 result_display,
@@ -433,10 +434,8 @@ class AIPanel:
                 no_wrap=False,
                 expand=True,
             ),
-            bgcolor=ft.Colors.with_opacity(0.3, ft.Colors.BLACK),
             padding=8,
             border_radius=6,
-            visible=False,
         )
 
         # 折叠态预览文本 (默认显示) - 使用 expand 避免撑开
@@ -447,15 +446,28 @@ class AIPanel:
             italic=True,
             no_wrap=True,
             overflow=ft.TextOverflow.ELLIPSIS,
-            visible=True,
             expand=True,
+        )
+
+        # 外层容器: 通过 visible 控制展开/折叠 (visible=False 时不占空间)
+        # 注意: 必须切换外层容器的 visible, 而非内层 body/preview_text 的 visible,
+        # 否则外层容器仍会占位 (或仍不可见), 导致展开后内容消失.
+        body_wrapper = ft.Container(
+            content=body,
+            padding=ft.Padding(left=8, top=0, right=8, bottom=8),
+            visible=False,
+        )
+        preview_wrapper = ft.Container(
+            content=preview_text,
+            padding=ft.Padding(left=30, top=0, right=8, bottom=6),
+            visible=True,
         )
 
         def _toggle(e):
             """切换展开/折叠状态."""
-            is_expanded = body.visible
-            body.visible = not is_expanded
-            preview_text.visible = is_expanded
+            is_expanded = body_wrapper.visible
+            body_wrapper.visible = not is_expanded
+            preview_wrapper.visible = is_expanded
             toggle_icon.icon = (
                 ft.Icons.EXPAND_MORE if not is_expanded
                 else ft.Icons.CHEVRON_RIGHT
@@ -499,16 +511,8 @@ class AIPanel:
         card_content = ft.Column(
             [
                 header_tap,
-                ft.Container(
-                    content=preview_text,
-                    padding=ft.Padding(left=30, top=0, right=8, bottom=6),
-                    visible=True,
-                ),
-                ft.Container(
-                    content=body,
-                    padding=ft.Padding(left=8, top=0, right=8, bottom=8),
-                    visible=False,
-                ),
+                preview_wrapper,
+                body_wrapper,
             ],
             spacing=0,
             tight=True,
@@ -566,22 +570,32 @@ class AIPanel:
         if self.main_view.page:
             self.main_view.page.update()
 
+    def _make_send_btn(self, busy: bool):
+        """创建发送/停止按钮."""
+        if busy:
+            return ft.ElevatedButton(
+                _("停止"),
+                icon=ft.Icons.STOP,
+                on_click=self._on_send_or_stop,
+                bgcolor=ft.Colors.RED_600,
+                color=ft.Colors.WHITE,
+            )
+        return ft.ElevatedButton(
+            _("发送"),
+            icon=ft.Icons.SEND,
+            on_click=self._on_send_or_stop,
+        )
+
     def _set_busy(self, busy: bool) -> None:
         self._busy = busy
         if busy:
-            self.send_btn.text = _("停止")
-            self.send_btn.icon = ft.Icons.STOP
-            self.send_btn.bgcolor = ft.Colors.RED_600
-            self.send_btn.color = ft.Colors.WHITE
             self.status_label.value = _("正在思考...")
             self.input_field.disabled = True
         else:
-            self.send_btn.text = _("发送")
-            self.send_btn.icon = ft.Icons.SEND
-            self.send_btn.bgcolor = None
-            self.send_btn.color = None
             self._update_status()
             self.input_field.disabled = False
+        # 重建按钮并替换, 确保 Flet 客户端正确刷新文字/图标/颜色
+        self.send_btn_row.controls = [self._make_send_btn(busy)]
         if self.main_view.page:
             self.main_view.page.update()
 
