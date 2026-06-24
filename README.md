@@ -128,7 +128,7 @@ docs/                          # 使用说明文档 + 插图
         ├── i18n.py                # 国际化支持
         ├── ai_client.py           # AI 助手后端（OpenAI 兼容接口 + Function Calling）
         ├── binary_converter.py    # 二进制文件转 Base64（图片缩放 + 文档转 PDF 渲染）
-        ├── multimodal_ai_client.py # 多模态 AI 客户端（发送 Base64 图片给视觉模型）
+        ├── multimodal_ai_client.py # 视觉语言大模型 (VLM) 客户端（发送 Base64 图片给视觉模型）
         ├── preprocess_cache.py    # 预转换缓存（SHA256 哈希 + manifest 管理）
         ├── locales/               # 语言包目录（en / zh_CN）
         └── gui_flet/              # Flet 跨平台 GUI 实现
@@ -280,20 +280,20 @@ AI 通过以下 10 个工具与 GUI 引擎交互（与 CLI / MCP 共享同一套
 | `list_files`       | 浏览工作目录（递归列出符合条件的文件） |
 | `read_file`        | 读取文件内容（带行号）                 |
 
-### 二进制文件预转换（多模态 AI）
+### 二进制文件预转换（视觉语言大模型 VLM）
 
-FileCollector 支持在发送给 AI 之前自动将二进制文件转换为多模态 AI 可理解的格式，无需用户手动处理。
+FileCollector 支持在发送给 AI 之前自动将二进制文件转换为视觉语言大模型（VLM）可理解的格式，无需用户手动处理。
 
-- **图片文件**（PNG、JPEG、WebP、BMP、TIFF 等）：自动缩放至最大 2048px 并编码为 Base64，直接发送给多模态 AI 进行文字提取或内容理解。
-- **文档文件**（PDF、DOCX、PPTX、XLSX、ODT、ODP、ODS、RTF 等）：先通过 LibreOffice 转换为 PDF，再通过 `pdftoppm` 渲染为图片序列，逐页发送给多模态 AI。
+- **图片文件**（PNG、JPEG、WebP、BMP、TIFF 等）：自动缩放至最大 2048px 并编码为 Base64，直接发送给 VLM 进行文字提取或内容理解。
+- **文档文件**（PDF、DOCX、PPTX、XLSX、ODT、ODP、ODS、RTF 等）：先通过 LibreOffice 转换为 PDF，再通过 `pdftoppm` 渲染为图片序列，逐页发送给 VLM。
 - **转换缓存**：转换结果缓存在工作目录下的 `.filecollector_cache/` 目录中，基于文件 SHA256 哈希判断是否需要重新转换，避免重复处理。
-- **可配置扩展名**：在 AI 设置对话框中可自定义允许被多模态 AI 处理的二进制文件扩展名列表，修改后自动重新评估预处理队列。
+- **可配置扩展名**：在 AI 设置对话框中可自定义允许被 VLM 处理的二进制文件扩展名列表，修改后自动重新评估预处理队列。
 
-### 多模态 AI 配置
+### 视觉语言大模型 (VLM) 配置
 
-打开 **AI 设置**（菜单栏 → AI 设置），切换到 **多模态 AI** 选项卡：
+打开 **AI 设置**（菜单栏 → AI 设置），切换到 **VLM** 选项卡：
 
-1. 勾选 **启用多模态 AI**。
+1. 勾选 **启用视觉语言大模型 (VLM)**。
 2. 填入 **API 基础地址**（兼容 OpenAI Chat Completions 协议，例如 `https://api.openai.com/v1`）。
 3. 填入 **API 密钥** 和 **模型名称**（如 `gpt-4o`、`claude-3-opus` 等支持视觉的模型）。
 4. （可选）自定义 **预处理提示词**，留空则使用内置提示。

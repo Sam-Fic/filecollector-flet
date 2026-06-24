@@ -128,7 +128,7 @@ docs/                          # Usage guide + illustrations
         ├── i18n.py                # Internationalization support
         ├── ai_client.py           # AI assistant backend (OpenAI-compatible API + Function Calling)
         ├── binary_converter.py    # Binary file to Base64 conversion (image scaling + document-to-PDF rendering)
-        ├── multimodal_ai_client.py # Multimodal AI client (sends Base64 images to vision models)
+        ├── multimodal_ai_client.py # Vision-Language Model (VLM) client (sends Base64 images to vision models)
         ├── preprocess_cache.py    # Preprocessing cache (SHA256 hash + manifest management)
         ├── locales/               # Locale directories (en / zh_CN)
         └── gui_flet/              # Flet cross-platform GUI implementation
@@ -280,20 +280,20 @@ The AI interacts with the GUI engine through these 10 tools (sharing the same se
 | `list_files`       | Browse the working directory (recursive, filtered) |
 | `read_file`        | Read a file's text content (with line numbers)     |
 
-### Binary File Pre-conversion (Multimodal AI)
+### Binary File Pre-conversion (Vision-Language Model VLM)
 
-FileCollector can automatically convert binary files into formats that multimodal AI can understand before sending them, eliminating manual preprocessing.
+FileCollector can automatically convert binary files into formats that a Vision-Language Model (VLM) can understand before sending them, eliminating manual preprocessing.
 
-- **Image files** (PNG, JPEG, WebP, BMP, TIFF, etc.): Automatically scaled to a maximum of 2048px and encoded as Base64, then sent directly to multimodal AI for text extraction or content understanding.
-- **Document files** (PDF, DOCX, PPTX, XLSX, ODT, ODP, ODS, RTF, etc.): First converted to PDF via LibreOffice, then rendered as image sequences via `pdftoppm`, and sent page-by-page to multimodal AI.
+- **Image files** (PNG, JPEG, WebP, BMP, TIFF, etc.): Automatically scaled to a maximum of 2048px and encoded as Base64, then sent directly to a VLM for text extraction or content understanding.
+- **Document files** (PDF, DOCX, PPTX, XLSX, ODT, ODP, ODS, RTF, etc.): First converted to PDF via LibreOffice, then rendered as image sequences via `pdftoppm`, and sent page-by-page to a VLM.
 - **Conversion cache**: Converted results are cached in the `.filecollector_cache/` directory under the working directory. The system uses SHA256 file hashes to determine whether re-conversion is needed, avoiding redundant processing.
-- **Configurable extensions**: In the AI Settings dialog, you can customize the list of binary file extensions allowed for multimodal AI processing. Changes automatically trigger re-evaluation of the preprocessing queue.
+- **Configurable extensions**: In the AI Settings dialog, you can customize the list of binary file extensions allowed for VLM processing. Changes automatically trigger re-evaluation of the preprocessing queue.
 
-### Multimodal AI Configuration
+### Vision-Language Model (VLM) Configuration
 
-Open **AI Settings** (Menu → AI Settings) and switch to the **Multimodal AI** tab:
+Open **AI Settings** (Menu → AI Settings) and switch to the **VLM** tab:
 
-1. Check **Enable Multimodal AI**.
+1. Check **Enable Vision-Language Model (VLM)**.
 2. Enter the **API Base URL** (compatible with OpenAI Chat Completions protocol, e.g. `https://api.openai.com/v1`).
 3. Enter the **API Key** and **Model Name** (e.g. `gpt-4o`, `claude-3-opus`, or other vision-capable models).
 4. (Optional) Customize the **Preprocessing Prompt** — leave empty to use the built-in prompt.
