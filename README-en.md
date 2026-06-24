@@ -282,7 +282,7 @@ The AI interacts with the GUI engine through these 10 tools (sharing the same se
 
 ### Binary File Pre-conversion (Vision-Language Model VLM)
 
-FileCollector can automatically convert binary files into formats that a Vision-Language Model (VLM) can understand before sending them, eliminating manual preprocessing.
+FileCollector can automatically convert binary files into Markdown format, eliminating manual preprocessing.
 
 - **Image files** (PNG, JPEG, WebP, BMP, TIFF, etc.): Automatically scaled to a maximum of 2048px and encoded as Base64, then sent directly to a VLM for text extraction or content understanding.
 - **Document files** (PDF, DOCX, PPTX, XLSX, ODT, ODP, ODS, RTF, etc.): First converted to PDF via LibreOffice, then rendered as image sequences via `pdftoppm`, and sent page-by-page to a VLM.
