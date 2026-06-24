@@ -33,6 +33,11 @@ Thumbs.db
 
 # Build & packaging
 *.manifest
+# Flet build 输出（flet build linux 全部产物都在 build/ 下）
+build/
+# linuxdeploy 生成的 AppImage 及辅助二进制（BUILD.md 第 5 节示例）
+*.AppImage
+linuxdeploy*
 
 # Testing & coverage
 .coverage
