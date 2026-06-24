@@ -127,6 +127,8 @@ class FileTreePanel:
         "venv", ".idea", ".vscode", "build", "dist", ".cache",
         ".mypy_cache", ".pytest_cache", ".next", ".nuxt", "target",
         ".gradle", ".venv", "env",
+        # 多模态 AI 缓存目录 (与 GNOME 版一致, 永远不显示)
+        ".filecollector_cache",
     }
 
     def __init__(self, main_view):
@@ -325,7 +327,9 @@ class FileTreePanel:
 
         # 标题行：与文件行保持完全一致的高度和结构
         # left_padding = indent * _INDENT_STEP：层级越深，缩进越大
-        header = ft.Container(
+        # 注: ft.Container 在当前 Flet 版本不支持 on_secondary_click,
+        #    用 GestureDetector 包裹实现右键事件
+        header_inner = ft.Container(
             content=ft.Row(
                 [
                     ft.Container(
@@ -349,6 +353,10 @@ class FileTreePanel:
                 n, a, col, e),
             ink=True,
             border_radius=4,
+        )
+        header = ft.GestureDetector(
+            content=header_inner,
+            on_secondary_tap=lambda e, p=path_str: self._on_row_right_click(p, e),
         )
 
         return ft.Column([header, children_col], spacing=0)
@@ -439,7 +447,8 @@ class FileTreePanel:
         # 文件行：箭头占位 + checkbox + 图标 + 名称
         # 占位宽度与目录箭头一致，保证同层级 checkbox 对齐
         # left_padding = indent * _INDENT_STEP：与目录 header 使用同一套层级缩进
-        row = ft.Container(
+        # 用 GestureDetector 包裹以支持右键 (ft.Container 不支持 on_secondary_click)
+        row_inner = ft.Container(
             content=ft.Row(
                 [
                     ft.Container(width=_ARROW_WIDTH),
@@ -456,6 +465,10 @@ class FileTreePanel:
             on_click=lambda e, c=cb: c.toggle(),
             ink=True,
             border_radius=4,
+        )
+        row = ft.GestureDetector(
+            content=row_inner,
+            on_secondary_tap=lambda e, p=path_str: self._on_row_right_click(p, e),
         )
         return row
 
@@ -551,6 +564,178 @@ class FileTreePanel:
         # 刷新所有目录三态
         self._refresh_all_dir_displays()
         self._sync_to_engine()
+        try:
+            self.main_view.page.update()
+        except Exception:
+            pass
+
+    # ====================================================== 右键菜单
+    def _on_row_right_click(self, path_str: str, e) -> None:
+        """行右键 - 弹出操作菜单 (复制路径 / 复制内容 / 文件管理器中显示)."""
+        is_dir = path_str in self._dir_widgets
+        is_file = path_str in self._file_widgets
+        if not (is_dir or is_file):
+            return
+        self._show_row_context_menu(path_str, is_dir=is_dir)
+
+    def _show_row_context_menu(self, path_str: str, is_dir: bool) -> None:
+        """构造并显示右键菜单 (使用 AlertDialog, 沿用最早期的简洁样式)."""
+        from filecollector.gui_flet.snack import show_snack
+        # 关闭已存在的
+        if getattr(self, "_open_ctx_menu", None) is not None:
+            try:
+                self.main_view.page.pop_dialog()
+            except Exception:
+                pass
+            self._open_ctx_menu = None
+
+        name = os.path.basename(path_str.rstrip("/")) or path_str
+        items: list[ft.Control] = [
+            ft.Text(name, weight=ft.FontWeight.BOLD, size=14),
+            ft.Text(path_str, size=11, color=ft.Colors.GREY_600,
+                    selectable=False, no_wrap=True),
+            ft.Divider(height=8, thickness=1),
+        ]
+
+        def close_then(fn):
+            def _wrap(_e):
+                self._close_ctx_menu()
+                try:
+                    fn()
+                except Exception as ex:
+                    show_snack(self.main_view.page, _("操作失败: %s") % ex)
+            return _wrap
+
+        # 复制路径
+        items.append(self._ctx_item(
+            icon=ft.Icons.CONTENT_COPY,
+            text=_("复制路径"),
+            on_click=close_then(lambda p=path_str: self._ctx_copy_path(p)),
+        ))
+
+        # 复制文件内容 (仅文件且 < 1MB)
+        if not is_dir:
+            items.append(self._ctx_item(
+                icon=ft.Icons.COPY_ALL,
+                text=_("复制文件内容"),
+                on_click=close_then(lambda p=path_str: self._ctx_copy_content(p)),
+            ))
+
+        # 在文件管理器中显示
+        items.append(self._ctx_item(
+            icon=ft.Icons.FOLDER_OPEN,
+            text=_("在文件管理器中显示"),
+            on_click=close_then(lambda p=path_str: self._ctx_show_in_folder(p)),
+        ))
+
+        # 目录额外: 在终端中打开 (可选, 不强制支持)
+        if is_dir:
+            items.append(ft.Divider(height=8, thickness=1))
+            items.append(self._ctx_item(
+                icon=ft.Icons.REFRESH,
+                text=_("刷新子树"),
+                on_click=close_then(lambda p=path_str: self._ctx_refresh_subtree(p)),
+            ))
+
+        # 回到最早期样式: 直接用 AlertDialog, 不加任何额外 padding/modal 控制
+        # 四周统一 24px 内边距, 让菜单与对话框边缘留出合理的视觉空隙
+        dlg = ft.AlertDialog(
+            content=ft.Container(
+                content=ft.Column(items, spacing=2, tight=True),
+                width=280,
+                padding=ft.Padding(left=24, right=24, top=24, bottom=24),
+            ),
+            content_padding=ft.Padding(0, 0, 0, 0),
+            actions_padding=ft.Padding(0, 0, 0, 0),
+            actions=[],
+        )
+        self._open_ctx_menu = dlg
+        try:
+            self.main_view.page.show_dialog(dlg)
+        except Exception:
+            self._open_ctx_menu = None
+
+    def _ctx_item(self, icon: str, text: str, on_click=None) -> ft.Control:
+        return ft.Container(
+            content=ft.Row(
+                [
+                    ft.Icon(icon, size=18, color=ft.Colors.GREY_700),
+                    ft.Text(text, size=13, expand=True),
+                ],
+                spacing=10,
+                vertical_alignment=ft.CrossAxisAlignment.CENTER,
+            ),
+            padding=ft.Padding(left=8, top=6, right=8, bottom=6),
+            border_radius=6,
+            on_click=on_click,
+            ink=True,
+        )
+
+    def _close_ctx_menu(self):
+        """关闭右键菜单 (AlertDialog 用 pop_dialog)."""
+        if getattr(self, "_open_ctx_menu", None) is not None:
+            try:
+                self.main_view.page.pop_dialog()
+            except Exception:
+                pass
+            self._open_ctx_menu = None
+
+    def _ctx_copy_path(self, path_str: str) -> None:
+        from filecollector.gui_flet.snack import show_snack
+        try:
+            self.main_view.page.set_clipboard(path_str)
+            show_snack(self.main_view.page, _("路径已复制到剪贴板"))
+        except Exception as ex:
+            show_snack(self.main_view.page, _("复制失败: %s") % ex)
+
+    def _ctx_copy_content(self, path_str: str) -> None:
+        """复制文件文本内容 (限制大小, 二进制拒绝)."""
+        from filecollector.gui_flet.snack import show_snack
+        from filecollector.utils import safe_read_file
+        try:
+            size = os.path.getsize(path_str)
+        except OSError as ex:
+            show_snack(self.main_view.page, _("读取文件失败") + ": " + str(ex))
+            return
+        MAX_SIZE = 1024 * 1024  # 1MB
+        if size > MAX_SIZE:
+            show_snack(self.main_view.page, _("文件过大，无法复制内容"))
+            return
+        try:
+            # 简单嗅探: 含 NUL 字节视为二进制
+            with open(path_str, "rb") as f:
+                sniff = f.read(8192)
+            if b"\x00" in sniff:
+                show_snack(self.main_view.page, _("文件为二进制格式, 不支持复制内容"))
+                return
+            content, _enc = safe_read_file(path_str)
+            self.main_view.page.set_clipboard(content)
+            show_snack(self.main_view.page, _("内容已复制到剪贴板"))
+        except Exception as ex:
+            show_snack(self.main_view.page, _("读取文件失败") + ": " + str(ex))
+
+    def _ctx_show_in_folder(self, path_str: str) -> None:
+        from filecollector.gui_flet.snack import show_snack
+        try:
+            self.main_view.open_file_location(path_str)
+        except Exception as ex:
+            show_snack(self.main_view.page, _("无法打开文件管理器: %s") % ex)
+
+    def _ctx_refresh_subtree(self, path_str: str) -> None:
+        """强制重新加载某个目录的子树."""
+        node = self._dir_nodes.get(path_str)
+        if node is None:
+            return
+        # 清空旧 children, 标记未加载
+        node.children = []
+        node.loaded = False
+        # 清空对应 UI 容器
+        children_col = self._dir_tiles.get(path_str)
+        if children_col is not None:
+            children_col.controls = []
+        self._load_children(node)
+        self._populate_dir_children(node)
+        self._refresh_dir_display(node)
         try:
             self.main_view.page.update()
         except Exception:

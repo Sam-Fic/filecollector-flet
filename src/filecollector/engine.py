@@ -105,6 +105,12 @@ class FileCollectorEngine:
                             except ValueError:
                                 display = str(file_p.resolve())
                         f.write(f"{display}:\n")
+                        # 优先使用 AI 预处理结果 (Markdown 形式),
+                        # 让二进制文件 (PDF / 图片 / Office) 也能被正常导出为可读文本
+                        pre_md = getattr(data, "preprocessed_content", None)
+                        if pre_md:
+                            f.write(pre_md)
+                            continue
                         try:
                             content, _ = safe_read_file(data.path)
                             f.write(content)

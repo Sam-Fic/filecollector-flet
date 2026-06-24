@@ -14,7 +14,10 @@ from filecollector.engine import FileCollectorEngine
 from filecollector.models import ItemData
 from filecollector.utils import safe_read_file
 from filecollector.i18n import _, add_listener, remove_listener
-from filecollector.config import load_settings, save_settings
+from filecollector.config import (
+    load_settings, save_settings,
+    get_allowed_binary_extensions,
+)
 from filecollector.gui_flet.file_tree import FileTreePanel
 from filecollector.gui_flet.arrangement_list import ArrangementListPanel
 from filecollector.gui_flet.preview_panel import PreviewPanel
@@ -25,6 +28,7 @@ from filecollector.gui_flet.ai_settings_dialog import (
 from filecollector.gui_flet.dialogs import (
     SettingsDialog, PhrasesDialog, ShortcutsDialog, TextEditDialog
 )
+from filecollector.gui_flet.preprocess_runner import PreprocessRunner
 from filecollector.gui_flet.snack import show_snack
 from filecollector.gui_flet.undo import UndoManager
 
@@ -116,6 +120,15 @@ class MainView:
 
         # AI 面板（默认隐藏）
         self.ai_panel = AIPanel(self)
+
+        # 多模态预处理 runner (编排列表新增 / 移除 binary 条目后触发)
+        self.preprocess_runner = PreprocessRunner(
+            main_view=self,
+            get_work_dir=self._get_work_dir_for_preprocess,
+            get_allowed_exts=self._get_allowed_binary_exts,
+            on_status=self._on_preprocess_status,
+            on_preview=self._on_preprocess_preview,
+        )
 
         # 三栏分割器
         self.main_row = ft.Row(
@@ -223,7 +236,13 @@ class MainView:
                             icon=ft.Icons.CHAT,
                             on_click=self._on_phrases,
                         ),
-                        ft.PopupMenuItem(),
+                        ft.PopupMenuItem(),  # 分隔符
+                        ft.PopupMenuItem(
+                            content=ft.Text(_("清除工作区缓存")),
+                            icon=ft.Icons.CLEANING_SERVICES,
+                            on_click=self._on_clear_cache,
+                        ),
+                        ft.PopupMenuItem(),  # 分隔符
                         ft.PopupMenuItem(
                             content=ft.Text(_("键盘快捷键")),
                             icon=ft.Icons.KEYBOARD,
@@ -487,6 +506,54 @@ class MainView:
         """打开常用语管理"""
         dlg = PhrasesDialog(self)
         self.page.show_dialog(dlg)
+
+    def _on_clear_cache(self, e):
+        """清除工作区缓存 (确认 + 实际清理 + 通知)."""
+        if not self.engine.work_dir:
+            show_snack(self.page, _("尚未设置工作目录"))
+            return
+
+        def on_confirm(ev):
+            self.page.pop_dialog()
+            if ev.control.data == "yes":
+                cleared = self.preprocess_runner.clear_workspace_cache()
+                self.arrangement_panel.refresh()
+                self.preview_panel.clear()
+                msg = _("工作区缓存已清除")
+                if cleared:
+                    msg += f" ({cleared})"
+                show_snack(self.page, msg)
+
+        def on_cancel(ev):
+            self.page.pop_dialog()
+
+        dlg = ft.AlertDialog(
+            title=ft.Text(_("确认清除缓存？")),
+            content=ft.Text(_(
+                "这将删除当前工作目录下的 .filecollector_cache 隐藏文件夹。\n"
+                "下次处理相同文件时，将重新调用多模态模型并消耗 API Token。"
+            )),
+            actions=[
+                ft.TextButton(_("取消"), on_click=on_cancel),
+                ft.TextButton(
+                    _("清除"), on_click=on_confirm, data="yes",
+                ),
+            ],
+        )
+        self.page.show_dialog(dlg)
+
+    def _on_ai_settings_changed(self):
+        """AI 设置 (含允许扩展名) 变更后, 重新评估编排列表中的二进制条目."""
+        if not getattr(self, "preprocess_runner", None):
+            return
+        try:
+            self.preprocess_runner.reevaluate_queue()
+        except Exception:
+            pass
+        try:
+            self.arrangement_panel.refresh()
+        except Exception:
+            pass
 
     def _on_shortcuts(self, e):
         """打开快捷键帮助"""
@@ -974,3 +1041,43 @@ class MainView:
         if truncated:
             lines.append(_("… 仅显示前 %d 项, 完整列表请用 kind 过滤") % max_items)
         return "\n".join(lines)
+
+    # ==================================================================
+    # 多模态预处理: 给 PreprocessRunner 用的钩子
+    # ==================================================================
+    def _get_work_dir_for_preprocess(self) -> Optional[str]:
+        wd = self.engine.work_dir
+        return str(wd) if wd else None
+
+    def _get_allowed_binary_exts(self) -> list[str]:
+        """返回当前允许被多模态 AI 转换的扩展名列表 (实时读取 settings)."""
+        try:
+            return list(get_allowed_binary_extensions())
+        except Exception:
+            return []
+
+    def _on_preprocess_status(self, item: ItemData) -> None:
+        """状态变化 (来自后台线程). 刷新列表与预览 (若预览的就是该条目)."""
+        try:
+            self.arrangement_panel.notify_preprocess_status_changed(item)
+        except Exception:
+            pass
+        # 同步刷新预览面板: 状态变化 (如 CHECKING -> PROCESSING) 时,
+        # 预览区的提示语必须与列表徽标保持一致, 否则用户会看到错位的状态.
+        try:
+            sel = getattr(self.arrangement_panel, "selected_index", -1)
+            items = self.engine.items
+            if 0 <= sel < len(items) and items[sel] is item:
+                self.show_preview(item)
+        except Exception:
+            pass
+
+    def _on_preprocess_preview(self, item: ItemData) -> None:
+        """预处理结果 (来自后台线程). 若当前正显示该条目, 立即更新预览."""
+        try:
+            sel = getattr(self.arrangement_panel, "selected_index", -1)
+            items = self.engine.items
+            if 0 <= sel < len(items) and items[sel] is item:
+                self.show_preview(item)
+        except Exception:
+            pass

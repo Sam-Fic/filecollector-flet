@@ -25,6 +25,7 @@ For the usage process and tips of the graphical interface, please refer to the [
 
 - **Command-Line Mode (CLI)**: Supports all core operations via terminal commands, ideal for scripting and automation.
 - **MCP Service**: Packaged as an MCP (Model Context Protocol) service, directly callable by coding tools like Cursor, VS Code + Copilot.
+- **Binary File Pre-conversion**: Automatically converts images, PDFs, Office documents, and other binary files into Markdown format, with caching and configurable extensions.
 - **Built-in AI Assistant Panel**: A sidebar chat interface inside the GUI — the AI can directly drive file-tree exploration, file selection, orchestration, and merged-text generation.
 - **Progressive Experience**: Seamless integration of CLI and GUI — after AI-driven exploration in the background, the graphical interface is always available for manual adjustment.
 - **Lazy-loaded Directory Tree**: Automatically displays an expandable file tree when opening a folder, with easy file checkbox selection.
@@ -127,6 +128,9 @@ docs/                          # Usage guide + illustrations
         ├── ipc.py                 # Inter-process communication (CLI-GUI single-instance coordination)
         ├── i18n.py                # Internationalization support
         ├── ai_client.py           # AI assistant backend (OpenAI-compatible API + Function Calling)
+        ├── binary_converter.py    # Binary file to Base64 conversion (image scaling + document-to-PDF rendering)
+        ├── multimodal_ai_client.py # Multimodal AI client (sends Base64 images to vision models)
+        ├── preprocess_cache.py    # Preprocessing cache (SHA256 hash + manifest management)
         ├── locales/               # Locale directories (en / zh_CN)
         └── gui_flet/              # Flet cross-platform GUI implementation
             ├── __init__.py
@@ -276,6 +280,25 @@ The AI interacts with the GUI engine through these 10 tools (sharing the same se
 | `set_show_header`  | Toggle the working-directory header in exports     |
 | `list_files`       | Browse the working directory (recursive, filtered) |
 | `read_file`        | Read a file's text content (with line numbers)     |
+
+### Binary File Pre-conversion (Multimodal AI)
+
+FileCollector can automatically convert binary files into formats that multimodal AI can understand before sending them, eliminating manual preprocessing.
+
+- **Image files** (PNG, JPEG, WebP, BMP, TIFF, etc.): Automatically scaled to a maximum of 2048px and encoded as Base64, then sent directly to multimodal AI for text extraction or content understanding.
+- **Document files** (PDF, DOCX, PPTX, XLSX, ODT, ODP, ODS, RTF, etc.): First converted to PDF via LibreOffice, then rendered as image sequences via `pdftoppm`, and sent page-by-page to multimodal AI.
+- **Conversion cache**: Converted results are cached in the `.filecollector_cache/` directory under the working directory. The system uses SHA256 file hashes to determine whether re-conversion is needed, avoiding redundant processing.
+- **Configurable extensions**: In the AI Settings dialog, you can customize the list of binary file extensions allowed for multimodal AI processing. Changes automatically trigger re-evaluation of the preprocessing queue.
+
+### Multimodal AI Configuration
+
+Open **AI Settings** (Menu → AI Settings) and switch to the **Multimodal AI** tab:
+
+1. Check **Enable Multimodal AI**.
+2. Enter the **API Base URL** (compatible with OpenAI Chat Completions protocol, e.g. `https://api.openai.com/v1`).
+3. Enter the **API Key** and **Model Name** (e.g. `gpt-4o`, `claude-3-opus`, or other vision-capable models).
+4. (Optional) Customize the **Preprocessing Prompt** — leave empty to use the built-in prompt.
+5. Click **Test Connection** to verify the configuration, then save.
 
 ### Configuration
 

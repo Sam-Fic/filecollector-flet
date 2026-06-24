@@ -234,6 +234,111 @@ _lock = threading.RLock()
         "… showing the first %d item(s); use kind to filter for a complete view",
     "停止": "Stop",
     "已停止": "Stopped",
+    # ---- 多模态 AI 预处理 ----
+    "AI 助手 (侧边栏)": "AI Assistant (Sidebar)",
+    "启用多模态 AI": "Enable Multimodal AI",
+    "多模态 AI (二进制文件预处理)": "Multimodal AI (Binary File Preprocessing)",
+    "自定义系统提示词 (可选)": "Custom System Prompt (Optional)",
+    "配置多模态视觉大模型 API, 用于将 PDF、Word、PPT、图片等转为 Markdown。":
+        "Configure a multimodal vision API to convert PDF, Word, PPT, images, etc. into Markdown.",
+    "验证侧边栏 AI 配置是否可用": "Verify sidebar AI configuration",
+    "验证多模态 AI 配置是否可用": "Verify multimodal AI configuration",
+    "关闭后二进制文件将不会自动转换":
+        "Binary files will not be auto-converted when disabled",
+    "⚠ %s (缺失)": "⚠ %s (missing)",
+    "已添加 %d 个文件": "Added %d file(s)",
+    "已添加 %d 个文件，跳过 %d 个重复文件":
+        "Added %d file(s), skipped %d duplicate(s)",
+    "所选文件已全部存在，跳过 %d 个重复文件":
+        "All selected files already exist, skipped %d duplicate(s)",
+    "来自外部文件": "External file",
+    "AI 转换失败": "AI conversion failed",
+    "AI 转换完成": "AI conversion complete",
+    "已读取本地缓存": "Loaded from local cache",
+    "强制重新调用多模态模型转换":
+        "Force re-run multimodal model conversion",
+    "正在处理中...": "Processing...",
+    "等待处理": "Pending",
+    "重试转换": "Retry conversion",
+    "重新进行 AI 转换": "Re-run AI conversion",
+    "清除工作区缓存": "Clear Workspace Cache",
+    "确认清除缓存？": "Confirm Cache Deletion?",
+    "这将删除当前工作目录下的 .filecollector_cache 隐藏文件夹。\n"
+    "下次处理相同文件时，将重新调用多模态模型并消耗 API Token。":
+        "This will delete the .filecollector_cache hidden folder in the current working directory.\n"
+        "The next time the same files are processed, the multimodal model will be called again, consuming API tokens.",
+    "清除": "Clear",
+    "工作区缓存已清除": "Workspace cache cleared",
+    "尚未设置工作目录": "No working directory set yet",
+    "编辑文本": "Edit Text",
+    "在上方插入文本": "Insert Text Above",
+    "在下方插入文本": "Insert Text Below",
+    "路径已复制到剪贴板": "Path copied to clipboard",
+    "在文件管理器中显示": "Show in File Manager",
+    "复制路径": "Copy Path",
+    "复制文件内容": "Copy File Content",
+    "文件过大，无法复制内容": "File too large to copy content",
+    "读取文件失败": "Failed to read file",
+    "无法打开文件管理器": "Cannot open file manager",
+    "操作失败: %s": "Operation failed: %s",
+    "文件为二进制格式, 不支持复制内容":
+        "File is binary, content copy not supported",
+    "内容已复制到剪贴板": "Content copied to clipboard",
+    "刷新子树": "Refresh Subtree",
+    "检查缓存…": "Checking cache…",
+    "AI 转换中…": "AI converting…",
+    "已转换": "Converted",
+    "转换失败": "Conversion failed",
+    "AI 预处理状态: %s": "AI preprocess status: %s",
+    "正在检查本地缓存…": "Checking local cache…",
+    "AI 转换失败。\n\n可点击右上角 '重新进行 AI 转换' 按钮重试。":
+        "AI conversion failed.\n\nClick the 'Re-run AI conversion' button at the top right to retry.",
+    "AI 正在转换中, 请稍候…":
+        "AI is converting, please wait…",
+    "等待处理 (排队中)…": "Pending (queued)…",
+    "尚未开始处理。": "Not yet started.",
+    "AI 转换失败, 可点击重试":
+        "AI conversion failed, click to retry",
+    "已重新触发 AI 转换": "AI conversion re-triggered",
+    "AI 助手未启用": "AI assistant is not enabled",
+    "AI 设置已保存": "AI settings saved",
+    "默认": "Default",
+    "恢复为默认扩展名列表":
+        "Restore to default extension list",
+    "允许转换的二进制扩展名 (逗号分隔, 如 .pdf, .docx)":
+        "Allowed binary extensions to convert (comma separated, e.g. .pdf, .docx)",
+    "留空则不允许任何文件被自动转换":
+        "Leave empty to disallow auto-conversion of any file",
+    "打开缓存": "Open cache",
+    "尚未设置工作目录": "No working directory set yet",
+    "复制失败: %s": "Copy failed: %s",
+    "⚠ 配置 API 时请确保使用可信网络与 HTTPS, 避免密钥泄露。":
+        "⚠ When configuring the API, please ensure a trusted network and HTTPS to avoid key leakage.",
+    "启用 AI 助手": "Enable AI Assistant",
+    "侧边栏": "Sidebar",
+    "多模态": "Multimodal",
+    "API 基础地址": "API Base URL",
+    "API 密钥": "API Key",
+    "模型名称": "Model Name",
+    "请求超时 (秒)": "Request Timeout (sec)",
+    "留空则使用默认系统提示词":
+        "Leave empty to use the default system prompt",
+    "测试连接": "Test Connection",
+    "正在测试...": "Testing...",
+    "✓ 连接成功": "✓ Connected",
+    "✗ 失败: %s": "✗ Failed: %s",
+    "✗ 请先填写 API 基础地址、密钥和模型名称。":
+        "✗ Please fill in API base URL, key, and model name first.",
+    "扫描忽略目录 (逗号分隔)":
+        "Ignored scan directories (comma separated)",
+    "扫描忽略目录": "Ignored Scan Directories",
+    "这些目录不会出现在文件树中, 也不会被自动收集。":
+        "These directories won't appear in the file tree and won't be auto-collected.",
+    "安全警告": "Security Warning",
+    "取消": "Cancel",
+    "保存": "Save",
+    "AI 助手设置": "AI Assistant Settings",
+    "AI 设置": "AI Settings",
 }
 
 _LISTENERS: list[Callable[[str], None]] = []
