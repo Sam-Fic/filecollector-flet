@@ -731,6 +731,15 @@ class MainView:
             # 推一次到 tree, 让勾选文件显示为已选
             self.file_tree_panel.refresh()
             self.arrangement_panel.refresh()
+            # 触发新增 binary 条目的 VLM 预处理 (先查缓存, 命中复用, 未命中再调 VLM).
+            # 对齐文件树勾选路径 (arrangement_list._after_items_changed),
+            # 否则 AI 通过 add_files 工具加入的二进制文件会丢失自动转换/缓存复用.
+            runner = getattr(self, "preprocess_runner", None)
+            if runner:
+                try:
+                    runner.reevaluate_queue()
+                except Exception:
+                    pass
             total = len(added)
             if total and not skipped:
                 return _("已添加 %d 个文件") % total
