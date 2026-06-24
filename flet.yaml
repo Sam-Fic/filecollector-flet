@@ -1,0 +1,13 @@
+include_packages:
+  - flet
+  - chardet
+  - markdown-it-py
+  - pygments
+  - keyring
+
+requirements:
+  - PySide6
+  - qtawesome
+
+app_path: src/filecollector/gui_flet/__init__.py
+icon: icons/filecollector.ico

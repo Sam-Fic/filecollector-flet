@@ -128,21 +128,6 @@ docs/                          # 使用说明文档 + 插图
         ├── i18n.py                # 国际化支持
         ├── ai_client.py           # AI 助手后端（OpenAI 兼容接口 + Function Calling）
         ├── locales/               # 语言包目录（en / zh_CN）
-        ├── gui/                   # PySide6 GUI 实现
-        │   ├── __init__.py
-        │   ├── dialogs.py         # 文字编辑对话框（TextEditDialog）
-        │   ├── main_window.py     # 主窗口（FileCollectorApp，依赖 PySide6）
-        │   ├── file_tree.py       # 文件树组件（懒加载目录树 + 勾选）
-        │   ├── gui_actions.py     # GUI 动作定义与快捷键绑定
-        │   ├── settings_dialog.py # 全局设置对话框
-        │   ├── style.py           # 全局样式定义
-        │   ├── toast.py           # 轻量提示条组件
-        │   ├── undo.py            # 撤销/重做支持
-        │   ├── shortcuts_dialog.py # 快捷键查看对话框
-        │   ├── phrases_dialog.py  # 常用短语插入对话框
-        │   ├── ai_panel.py        # AI 助手聊天面板（圆角气泡 + 工具调用卡片）
-        │   ├── ai_markdown.py     # AI 聊天的 Markdown 渲染辅助（markdown-it + Pygments）
-        │   └── ai_settings_dialog.py # AI 助手配置对话框
         └── gui_flet/              # Flet 跨平台 GUI 实现
             ├── __init__.py
             ├── main_view.py       # 主视图（Flet 入口）
@@ -193,7 +178,6 @@ filecollector [选项...]
 | `--load FILE`        | 从项目文件加载状态                |
 | `--save FILE`        | 将当前状态保存到项目文件          |
 | `--gui`              | 使用 CLI 参数初始化后打开图形界面 |
-| `--flet`             | 使用 Flet 版图形界面启动          |
 | `--help`, `-h`       | 显示帮助信息                      |
 
 ### 完整工作流示例
@@ -363,4 +347,3 @@ pyinstaller --onefile --windowed --name "FileCollector" file_collector.py
 - [chardet](https://github.com/chardet/chardet) - 编码检测库
 - [markdown-it-py](https://github.com/executablebooks/mdit-py) - Markdown 解析库，用于 AI 聊天面板的富文本渲染
 - [Pygments](https://pygments.org/) - 语法高亮库，用于 AI 聊天中代码块的着色显示
-- [PySide6](https://wiki.qt.io/Qt_for_Python) - 备选 GUI 框架

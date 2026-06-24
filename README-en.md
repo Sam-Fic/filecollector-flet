@@ -128,21 +128,6 @@ docs/                          # Usage guide + illustrations
         ├── i18n.py                # Internationalization support
         ├── ai_client.py           # AI assistant backend (OpenAI-compatible API + Function Calling)
         ├── locales/               # Locale directories (en / zh_CN)
-        ├── gui/                   # PySide6 GUI implementation
-        │   ├── __init__.py
-        │   ├── dialogs.py         # Text edit dialog (TextEditDialog)
-        │   ├── main_window.py     # Main window (FileCollectorApp, depends on PySide6)
-        │   ├── file_tree.py       # File tree widget (lazy-loaded directory tree + checkboxes)
-        │   ├── gui_actions.py     # GUI action definitions and shortcut bindings
-        │   ├── settings_dialog.py # Global settings dialog
-        │   ├── style.py           # Global style definitions
-        │   ├── toast.py           # Lightweight toast notification widget
-        │   ├── undo.py            # Undo/redo support
-        │   ├── shortcuts_dialog.py # Shortcut viewer dialog
-        │   ├── phrases_dialog.py  # Common phrases insertion dialog
-        │   ├── ai_panel.py        # AI assistant chat panel (rounded bubbles + tool-call cards)
-        │   ├── ai_markdown.py     # Markdown rendering helper for the AI chat (markdown-it + Pygments)
-        │   └── ai_settings_dialog.py # AI assistant configuration dialog
         └── gui_flet/              # Flet cross-platform GUI implementation
             ├── __init__.py
             ├── main_view.py       # Main view (Flet entry point)
@@ -193,7 +178,6 @@ filecollector [options...]
 | `--load FILE`        | Load state from project file                   |
 | `--save FILE`        | Save current state to project file             |
 | `--gui`              | Open GUI after initializing with CLI arguments |
-| `--flet`             | Launch the Flet-based GUI instead               |
 | `--help`, `-h`       | Show help message                              |
 
 ### Workflow Examples
@@ -382,4 +366,3 @@ This project uses the **MIT License**, see the [LICENSE](LICENSE) file for detai
 - [chardet](https://github.com/chardet/chardet) - Encoding detection library
 - [markdown-it-py](https://github.com/executablebooks/mdit-py) - Markdown parser for rich text rendering in the AI chat panel
 - [Pygments](https://pygments.org/) - Syntax highlighting library for code block coloring in AI chat
-- [PySide6](https://wiki.qt.io/Qt_for_Python) - Alternative GUI framework
