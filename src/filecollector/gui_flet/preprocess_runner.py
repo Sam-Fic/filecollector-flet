@@ -1,4 +1,4 @@
-"""多模态 AI 预处理流程编排 (后台线程 + UI 回调).
+"""视觉语言大模型 (VLM) 预处理流程编排 (后台线程 + UI 回调).
 
 对齐 GNOME 版 check_and_apply_cache + start_preprocess_task:
 - 先进入 CHECKING 状态, 避免"处理中..."误显示
@@ -73,7 +73,7 @@ def _get_prompt_for_item(item: ItemData, override: str = "") -> str:
 
 
 class PreprocessRunner:
-    """单 main_view 范围内共用的多模态预处理编排器."""
+    """单 main_view 范围内共用的 VLM 预处理编排器."""
 
     def __init__(self, main_view, get_work_dir: Callable[[], Optional[str]],
                  get_allowed_exts: Callable[[], list[str]],
@@ -90,7 +90,7 @@ class PreprocessRunner:
 
     # ------------------------------------------------------------------ 公共查询
     def get_allowed_exts(self) -> list[str]:
-        """返回当前 main_view 配置的允许被多模态 AI 转换的扩展名列表.
+        """返回当前 main_view 配置的允许被 VLM 转换的扩展名列表.
 
         转发到构造时传入的 ``get_allowed_exts`` callable,
         方便 UI 端 (arrangement_list / preview_panel) 直接调用而无需绕道 main_view.

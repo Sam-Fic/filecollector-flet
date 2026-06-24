@@ -234,15 +234,16 @@ _lock = threading.RLock()
         "… showing the first %d item(s); use kind to filter for a complete view",
     "停止": "Stop",
     "已停止": "Stopped",
-    # ---- 多模态 AI 预处理 ----
+    # ---- 视觉语言大模型 (VLM) 预处理 ----
     "AI 助手 (侧边栏)": "AI Assistant (Sidebar)",
-    "启用多模态 AI": "Enable Multimodal AI",
-    "多模态 AI (二进制文件预处理)": "Multimodal AI (Binary File Preprocessing)",
+    "启用视觉语言大模型 (VLM)": "Enable Vision-Language Model (VLM)",
+    "视觉语言大模型 (二进制文件预处理)": "Vision-Language Model (Binary File Preprocessing)",
     "自定义系统提示词 (可选)": "Custom System Prompt (Optional)",
-    "配置多模态视觉大模型 API, 用于将 PDF、Word、PPT、图片等转为 Markdown。":
-        "Configure a multimodal vision API to convert PDF, Word, PPT, images, etc. into Markdown.",
+    "配置视觉语言大模型 (VLM) API, 用于将 PDF、Word、PPT、图片等转为 Markdown。":
+        "Configure a Vision-Language Model (VLM) API to convert PDF, Word, PPT, images, etc. into Markdown.",
     "验证侧边栏 AI 配置是否可用": "Verify sidebar AI configuration",
-    "验证多模态 AI 配置是否可用": "Verify multimodal AI configuration",
+    "验证视觉语言大模型 (VLM) 配置是否可用":
+        "Verify Vision-Language Model (VLM) configuration",
     "关闭后二进制文件将不会自动转换":
         "Binary files will not be auto-converted when disabled",
     "⚠ %s (缺失)": "⚠ %s (missing)",
@@ -255,8 +256,7 @@ _lock = threading.RLock()
     "AI 转换失败": "AI conversion failed",
     "AI 转换完成": "AI conversion complete",
     "已读取本地缓存": "Loaded from local cache",
-    "强制重新调用多模态模型转换":
-        "Force re-run multimodal model conversion",
+    "强制重新调用 VLM 转换": "Force re-run VLM conversion",
     "正在处理中...": "Processing...",
     "等待处理": "Pending",
     "重试转换": "Retry conversion",
@@ -264,9 +264,9 @@ _lock = threading.RLock()
     "清除工作区缓存": "Clear Workspace Cache",
     "确认清除缓存？": "Confirm Cache Deletion?",
     "这将删除当前工作目录下的 .filecollector_cache 隐藏文件夹。\n"
-    "下次处理相同文件时，将重新调用多模态模型并消耗 API Token。":
+    "下次处理相同文件时，将重新调用视觉语言大模型（VLM）并消耗 API Token。":
         "This will delete the .filecollector_cache hidden folder in the current working directory.\n"
-        "The next time the same files are processed, the multimodal model will be called again, consuming API tokens.",
+        "The next time the same files are processed, the Vision-Language Model will be called again, consuming API tokens.",
     "清除": "Clear",
     "工作区缓存已清除": "Workspace cache cleared",
     "尚未设置工作目录": "No working directory set yet",
@@ -316,7 +316,8 @@ _lock = threading.RLock()
         "⚠ When configuring the API, please ensure a trusted network and HTTPS to avoid key leakage.",
     "启用 AI 助手": "Enable AI Assistant",
     "侧边栏": "Sidebar",
-    "多模态": "Multimodal",
+    "多模态": "VLM",  # 旧 key, 兼容旧调用, 推荐使用 "VLM"
+    "VLM": "VLM",
     "API 基础地址": "API Base URL",
     "API 密钥": "API Key",
     "模型名称": "Model Name",
@@ -339,6 +340,35 @@ _lock = threading.RLock()
     "保存": "Save",
     "AI 助手设置": "AI Assistant Settings",
     "AI 设置": "AI Settings",
+    # ---- 补充遗漏 ----
+    "使用相对路径": "Use Relative Path",
+    "保存失败: %s": "Save failed: %s",
+    "加载失败: %s": "Load failed: %s",
+    "复制到剪贴板失败: %s": "Copy to clipboard failed: %s",
+    "头部信息: %s": "Header info: %s",
+    "工作目录已切换到 %s": "Working directory changed to %s",
+    "已关闭": "Off",
+    "已开启": "On",
+    "已删除索引 %d": "Deleted index %d",
+    "已将 [%d] 移动到 [%d]": "Moved [%d] to [%d]",
+    "已清空编排列表": "Arrangement list cleared",
+    "未知工具: %s": "Unknown tool: %s",
+    "源与目标相同, 无需移动": "Source and destination are the same; no move needed",
+    "生成失败: %s": "Generation failed: %s",
+    "请先选择一个条目": "Please select an item first",
+    "路径模式: %s": "Path mode: %s",
+    "无法打开文件管理器: %s": "Cannot open file manager: %s",
+    "项目保存 / 加载 (.fcol)": "Project save/load (.fcol)",
+    "错误: text 必须是字符串": "Error: 'text' must be a string",
+    "错误: index 必须是整数": "Error: 'index' must be an integer",
+    "错误: index %d 超出范围 (0..%d)": "Error: index %d out of range (0..%d)",
+    "错误: paths 必须是非空数组": "Error: 'paths' must be a non-empty array",
+    "错误: from_index / to_index 必须是整数": "Error: 'from_index' / 'to_index' must be integers",
+    "错误: 索引超出范围 (0..%d)": "Error: index out of range (0..%d)",
+    "配置 OpenAI 兼容 API, 在 AI 边栏使用自然语言编排文件。":
+        "Configure an OpenAI-compatible API to drive the AI sidebar.",
+    "配置视觉语言大模型（VLM）API, 用于将 PDF、Word、PPT、图片等转为 Markdown。":
+        "Configure a Vision-Language Model (VLM) API to convert PDF, Word, PPT, images, etc. into Markdown.",
 }
 
 _LISTENERS: list[Callable[[str], None]] = []

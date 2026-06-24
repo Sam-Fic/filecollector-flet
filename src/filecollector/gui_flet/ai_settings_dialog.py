@@ -1,11 +1,11 @@
 """AI 助手设置对话框.
 
-合并 **侧边栏 AI 助手** 与 **多模态 AI (二进制文件预处理)** 配置于一个弹窗,
+合并 **侧边栏 AI 助手** 与 **视觉语言大模型 (VLM, 二进制文件预处理)** 配置于一个弹窗,
 对齐 GNOME 版 ai_settings_dialog.vala.
 
 布局 (从上到下):
     1. 侧边栏 AI 助手  (启用 / URL / Key / Model / 超时 / 提示词 / 测试)
-    2. 多模态 AI        (启用 / URL / Key / Model / 超时 / 提示词 / 允许扩展名 / 测试)
+    2. VLM              (启用 / URL / Key / Model / 超时 / 提示词 / 允许扩展名 / 测试)
     3. 扫描忽略目录
     4. 安全警告
 """
@@ -99,7 +99,7 @@ def _make_http_check_row(label: str, url_field: ft.TextField,
 # 完整的设置弹窗
 # ====================================================================
 class AISettingsDialog(ft.AlertDialog):
-    """AI 设置: 侧边栏 + 多模态 合并入口."""
+    """AI 设置: 侧边栏 + 视觉语言大模型 (VLM) 合并入口."""
 
     def __init__(self, main_view):
         self.main_view = main_view
@@ -154,9 +154,9 @@ class AISettingsDialog(ft.AlertDialog):
         self.sb_test_label = ft.Text("", size=12, color=ft.Colors.GREY_600)
         _make_http_check_row(_("侧边栏"), self.sb_url, self.sb_warn)
 
-        # --- 多模态 AI 控件 ---
+        # --- 视觉语言大模型 (VLM) 控件 ---
         self.mm_enabled = ft.Checkbox(
-            label=_("启用多模态 AI"),
+            label=_("启用视觉语言大模型 (VLM)"),
             value=bool(self.mm_cfg.get("enabled")),
         )
         self.mm_url = ft.TextField(
@@ -210,7 +210,7 @@ class AISettingsDialog(ft.AlertDialog):
             on_click=self._on_test_mm,
         )
         self.mm_test_label = ft.Text("", size=12, color=ft.Colors.GREY_600)
-        _make_http_check_row(_("多模态"), self.mm_url, self.mm_warn)
+        _make_http_check_row(_("VLM"), self.mm_url, self.mm_warn)
 
         # 扫描忽略目录 (沿用原 SettingsDialog 的字段, 此处仅展示)
         ignored_text = self._load_ignored_dirs_text()
@@ -240,8 +240,8 @@ class AISettingsDialog(ft.AlertDialog):
         )
 
         mm_card = _GroupCard(
-            _("多模态 AI (二进制文件预处理)"),
-            _("配置多模态视觉大模型 API, 用于将 PDF、Word、PPT、图片等转为 Markdown。"),
+            _("视觉语言大模型 (二进制文件预处理)"),
+            _("配置视觉语言大模型（VLM）API, 用于将 PDF、Word、PPT、图片等转为 Markdown。"),
             [
                 self.mm_enabled,
                 self.mm_url, self.mm_warn, self.mm_key, self.mm_model,
@@ -436,7 +436,7 @@ class AISettingsDialog(ft.AlertDialog):
         }
         save_sidebar_ai_settings(sb_cfg)
 
-        # 多模态
+        # VLM
         try:
             mm_timeout = float(self.mm_timeout.value or 120.0)
         except ValueError:

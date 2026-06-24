@@ -121,7 +121,7 @@ class MainView:
         # AI 面板（默认隐藏）
         self.ai_panel = AIPanel(self)
 
-        # 多模态预处理 runner (编排列表新增 / 移除 binary 条目后触发)
+        # VLM 预处理 runner (编排列表新增 / 移除 binary 条目后触发)
         self.preprocess_runner = PreprocessRunner(
             main_view=self,
             get_work_dir=self._get_work_dir_for_preprocess,
@@ -227,7 +227,7 @@ class MainView:
                             on_click=self._on_settings,
                         ),
                         ft.PopupMenuItem(
-                            content=ft.Text(_("AI 助手设置")),
+                            content=ft.Text(_("AI 设置")),
                             icon=ft.Icons.SMART_TOY,
                             on_click=self._on_ai_settings,
                         ),
@@ -531,7 +531,7 @@ class MainView:
             title=ft.Text(_("确认清除缓存？")),
             content=ft.Text(_(
                 "这将删除当前工作目录下的 .filecollector_cache 隐藏文件夹。\n"
-                "下次处理相同文件时，将重新调用多模态模型并消耗 API Token。"
+                "下次处理相同文件时，将重新调用视觉语言大模型（VLM）并消耗 API Token。"
             )),
             actions=[
                 ft.TextButton(_("取消"), on_click=on_cancel),
@@ -1043,14 +1043,14 @@ class MainView:
         return "\n".join(lines)
 
     # ==================================================================
-    # 多模态预处理: 给 PreprocessRunner 用的钩子
+    # VLM 预处理: 给 PreprocessRunner 用的钩子
     # ==================================================================
     def _get_work_dir_for_preprocess(self) -> Optional[str]:
         wd = self.engine.work_dir
         return str(wd) if wd else None
 
     def _get_allowed_binary_exts(self) -> list[str]:
-        """返回当前允许被多模态 AI 转换的扩展名列表 (实时读取 settings)."""
+        """返回当前允许被 VLM 转换的扩展名列表 (实时读取 settings)."""
         try:
             return list(get_allowed_binary_extensions())
         except Exception:

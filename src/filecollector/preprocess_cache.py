@@ -1,4 +1,4 @@
-"""多模态 AI 预处理缓存.
+"""视觉语言大模型 (VLM) 预处理缓存.
 
 对齐 GNOME 版 PreprocessCache:
 - 目录: ``<work_dir>/.filecollector_cache/``

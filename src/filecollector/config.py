@@ -13,7 +13,7 @@ except ImportError:
 # 与 GNOME 版保持一致的 Schema 域名
 KEYRING_SERVICE = "com.github.samfic.filecollector"
 KEYRING_API_KEY = "ai_api_key"
-# 多模态 AI 单独的 keyring 用户名 (避免与侧边栏 API key 冲突)
+# VLM 单独的 keyring 用户名 (避免与侧边栏 API key 冲突)
 KEYRING_MM_API_KEY = "mm_api_key"
 
 
@@ -166,7 +166,7 @@ def save_sidebar_ai_settings(cfg: dict) -> None:
 
 
 # ====================================================================
-# 多模态 AI 设置 (二进制文件 -> Markdown 预处理)
+# VLM 设置 (二进制文件 -> Markdown 预处理)
 # ====================================================================
 MULTIMODAL_AI_DEFAULTS = {
     "enabled": False,
@@ -179,7 +179,7 @@ MULTIMODAL_AI_DEFAULTS = {
 
 
 def load_multimodal_ai_settings() -> dict:
-    """读取多模态 AI 配置 (与侧边栏同样的密钥环优先策略)."""
+    """读取 VLM 配置 (与侧边栏同样的密钥环优先策略)."""
     settings = load_settings()
     cfg = dict(MULTIMODAL_AI_DEFAULTS)
     cfg.update(settings.get("multimodal_ai", {}) or {})
@@ -200,7 +200,7 @@ def load_multimodal_ai_settings() -> dict:
 
 
 def save_multimodal_ai_settings(cfg: dict) -> None:
-    """保存多模态 AI 配置 (与侧边栏同样的策略)."""
+    """保存 VLM 配置 (与侧边栏同样的策略)."""
     settings = load_settings()
     api_key = cfg.get("api_key", "")
 
@@ -217,7 +217,7 @@ def save_multimodal_ai_settings(cfg: dict) -> None:
 
 
 # ====================================================================
-# 允许被多模态 AI 转换的二进制扩展名
+# 允许被 VLM 转换的二进制扩展名
 # ====================================================================
 def get_allowed_binary_extensions() -> list[str]:
     """读取允许转换的扩展名列表. 缺失时返回默认列表."""
@@ -299,7 +299,7 @@ def clear_api_key_from_keyring() -> bool:
 
 
 def store_mm_api_key_to_keyring(api_key: str) -> bool:
-    """将多模态 API Key 存入系统密钥环. 若为空则清除."""
+    """将 VLM API Key 存入系统密钥环. 若为空则清除."""
     if not KEYRING_AVAILABLE:
         return False
     if not api_key:
@@ -308,23 +308,23 @@ def store_mm_api_key_to_keyring(api_key: str) -> bool:
         keyring.set_password(KEYRING_SERVICE, KEYRING_MM_API_KEY, api_key)
         return True
     except Exception as e:
-        logging.warning(f"多模态 API Key 写入密钥环失败: {e}")
+        logging.warning(f"VLM API Key 写入密钥环失败: {e}")
         return False
 
 
 def load_mm_api_key_from_keyring() -> str:
-    """从系统密钥环读取多模态 API Key."""
+    """从系统密钥环读取 VLM API Key."""
     if not KEYRING_AVAILABLE:
         return ""
     try:
         return keyring.get_password(KEYRING_SERVICE, KEYRING_MM_API_KEY) or ""
     except Exception as e:
-        logging.warning(f"多模态 API Key 读取失败: {e}")
+        logging.warning(f"VLM API Key 读取失败: {e}")
         return ""
 
 
 def clear_mm_api_key_from_keyring() -> bool:
-    """从系统密钥环清除多模态 API Key."""
+    """从系统密钥环清除 VLM API Key."""
     if not KEYRING_AVAILABLE:
         return False
     try:

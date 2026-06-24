@@ -127,7 +127,7 @@ class FileTreePanel:
         "venv", ".idea", ".vscode", "build", "dist", ".cache",
         ".mypy_cache", ".pytest_cache", ".next", ".nuxt", "target",
         ".gradle", ".venv", "env",
-        # 多模态 AI 缓存目录 (与 GNOME 版一致, 永远不显示)
+        # VLM 缓存目录 (与 GNOME 版一致, 永远不显示)
         ".filecollector_cache",
     }
 

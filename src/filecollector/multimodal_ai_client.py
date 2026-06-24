@@ -1,4 +1,4 @@
-"""多模态 AI 客户端 (二进制文件 -> Markdown).
+"""视觉语言大模型 (VLM) 客户端 (二进制文件 -> Markdown).
 
 对齐 GNOME 版 MultimodalAIClient:
 - 调用 OpenAI 兼容 Chat Completions 端点
@@ -21,7 +21,7 @@ from typing import Any
 
 
 class MultimodalAIClientError(Exception):
-    """多模态 AI 调用失败的对外异常 (消息已面向用户)."""
+    """视觉语言大模型 (VLM) 调用失败的对外异常 (消息已面向用户)."""
 
 
 class MultimodalAIClient:

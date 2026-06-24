@@ -1,6 +1,6 @@
 """编排列表面板 - 中间面板.
 
-Flet 版本 - 复刻 GNOME 版 arragement_list 的核心交互, 同时引入多模态预处理:
+Flet 版本 - 复刻 GNOME 版 arragement_list 的核心交互, 同时引入 VLM 预处理:
 - 显示文件/文本条目, 支持单击选中, 双击编辑
 - 二进制条目右侧显示预处理状态徽标 (PENDING / CHECKING / PROCESSING / COMPLETED / FAILED)
 - 右键菜单 (secondary click) 提供:
@@ -622,7 +622,7 @@ class ArrangementListPanel:
 
     # =============================================================== 菜单动作
     def _on_retry_ai(self, idx: int):
-        """强制重新调用多模态模型转换."""
+        """强制重新调用 VLM 转换."""
         runner = getattr(self.main_view, "preprocess_runner", None)
         if not runner:
             show_snack(self.main_view.page, _("AI 助手未启用"))

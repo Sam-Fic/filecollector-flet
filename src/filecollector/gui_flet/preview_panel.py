@@ -5,7 +5,7 @@
 - 仅在内容区右上角悬浮一个"重新进行 AI 转换"按钮 (仅 binary 条目可见)
 - 内容渲染:
   - 普通文本/文本条目: ft.Text
-  - 多模态 AI 预处理过的二进制: ft.Markdown 渲染 preprocessed_content
+  - 视觉语言大模型 (VLM) 预处理过的二进制: ft.Markdown 渲染 preprocessed_content
   - 其他状态: 显示简洁的状态文字
 """
 
@@ -151,7 +151,7 @@ class PreviewPanel:
             self._set_retry_visible(False)
             return
 
-        # 文件: 判断是否 binary (走多模态预览) 或普通文本
+        # 文件: 判断是否 binary (走 VLM 预览) 或普通文本
         runner = getattr(self.main_view, "preprocess_runner", None)
         allowed = runner.get_allowed_exts() if runner else []
         is_binary = data.is_allowed_binary_target(allowed)
@@ -180,7 +180,7 @@ class PreviewPanel:
         self._set_text_visible(True)
         self.content_text.value = text
 
-    # ============================================================== 二进制 + 多模态
+    # ============================================================== 二进制 + VLM
     def _show_binary(self, data: ItemData) -> None:
         st = data.preprocess_status
         # 转换进行中 (PENDING/CHECKING/PROCESSING) 时不显示按钮
