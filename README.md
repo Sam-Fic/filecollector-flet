@@ -79,7 +79,7 @@ FileCollector 是一款跨平台的桌面小工具，用于高效收集、编排
 3. 运行程序
    ```bash
    cd src
-   python file_collector.py
+   python -m filecollector
    ```
 
 也可以使用项目根目录的一键启动脚本直接运行 Flet 版本（无需 `cd`）：
@@ -115,7 +115,6 @@ docs/                          # 使用说明文档 + 插图
 │   ├── USAGE_EN.md            # GUI 使用说明（英文）
 │   └── images/                # 文档配图
 └── src/
-    ├── file_collector.py          # 向后兼容入口（薄封装 → 委托到包）
     ├── FileCollector.spec         # PyInstaller 构建配置
     └── filecollector/             # 核心 Python 包
         ├── __init__.py            # 包声明，导出 ItemData / FileCollectorEngine
@@ -345,7 +344,7 @@ GUI 与 CLI 结合，实现了无缝的人机协同工作流：
 
 ```bash
 pip install pyinstaller
-pyinstaller --onefile --windowed --name "FileCollector" file_collector.py
+cd src && pyinstaller FileCollector.spec
 ```
 
 打包前请确保已安装所有依赖（`requirements.txt`）。

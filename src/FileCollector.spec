@@ -20,8 +20,8 @@ hiddenimports += collect_submodules('chardet')
 hiddenimports += collect_submodules('keyring')
 
 a = Analysis(
-    ['file_collector.py'],
-    pathex=[],
+    ['filecollector/__main__.py'],
+    pathex=['.'],
     binaries=[],
     datas=[],
     hiddenimports=hiddenimports,

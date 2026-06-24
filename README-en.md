@@ -79,7 +79,7 @@ This version is adapted and optimized for GNOME, including:
 3. Run the program
    ```bash
    cd src
-   python file_collector.py
+   python -m filecollector
    ```
 
 Alternatively, use the one-click launcher in the project root to start the Flet GUI directly (no `cd` needed):
@@ -115,7 +115,6 @@ docs/                          # Usage guide + illustrations
 │   ├── USAGE_EN.md            # GUI usage guide (English)
 │   └── images/                # Documentation images
 └── src/
-    ├── file_collector.py          # Legacy entry point (thin wrapper → delegates to package)
     ├── FileCollector.spec         # PyInstaller build config
     └── filecollector/             # Core Python package
         ├── __init__.py            # Package declaration, exports ItemData / FileCollectorEngine
@@ -364,7 +363,7 @@ To package as a standalone executable using PyInstaller:
 
 ```bash
 pip install pyinstaller
-pyinstaller --onefile --windowed --name "FileCollector" file_collector.py
+cd src && pyinstaller FileCollector.spec
 ```
 
 Ensure all dependencies (`requirements.txt`) are installed before packaging.
