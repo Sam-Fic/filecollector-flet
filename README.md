@@ -282,7 +282,7 @@ AI 通过以下 10 个工具与 GUI 引擎交互（与 CLI / MCP 共享同一套
 
 ### 二进制文件预转换（视觉语言大模型 VLM）
 
-FileCollector 支持自动将二进制文件转换为 Markdown 格式，无需用户手动处理。使
+FileCollector 支持自动将二进制文件转换为 Markdown 格式，无需用户手动处理。
 
 - **图片文件**（PNG、JPEG、WebP、BMP、TIFF 等）：自动缩放至最大 2048px 并编码为 Base64，直接发送给 VLM 进行文字提取或内容理解。
 - **文档文件**（PDF、DOCX、PPTX、XLSX、ODT、ODP、ODS、RTF 等）：先通过 LibreOffice 转换为 PDF，再通过 `pdftoppm` 渲染为图片序列，逐页发送给 VLM。
