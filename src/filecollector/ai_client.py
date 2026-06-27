@@ -347,7 +347,9 @@ TOOL_SCHEMA: list[dict] = [
         "function": {
             "name": "get_git_log",
             "description": (
-                "List recent Git commits. Use this to find a specific historical change."
+                "List recent Git commits in reverse chronological order (newest first). "
+                "Each entry includes: short hash, author, date (YYYY-MM-DD), and commit message. "
+                "Use this to find commit hashes for range operations or to understand recent history."
             ),
             "parameters": {
                 "type": "object",
@@ -377,6 +379,73 @@ TOOL_SCHEMA: list[dict] = [
                     },
                 },
                 "required": ["commit_hash"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "add_git_diff",
+            "description": (
+                "Inject the current Git diff (working tree or staged) directly into the orchestration list. "
+                "Bypasses the LLM context entirely — the diff is fetched locally and inserted as a text block. "
+                "Use this when the user asks to 'export diff', 'add changes to context', or 'collect PR diff'. "
+                "This saves tokens and avoids API truncation for large diffs."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "staged": {
+                        "type": "boolean",
+                        "description": "Whether to get the staged diff (true) or unstaged (false). Default false.",
+                    },
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "add_git_commit_diff",
+            "description": (
+                "Inject the diff of a specific Git commit directly into the orchestration list. "
+                "Requires the commit hash. Use this to export historical changes without passing the diff text through the LLM."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "commit_hash": {
+                        "type": "string",
+                        "description": "The hash of the commit whose diff to inject.",
+                    },
+                },
+                "required": ["commit_hash"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "add_git_diff_range",
+            "description": (
+                "Inject the combined diff of a range of commits (from_hash..to_hash) directly into the orchestration list. "
+                "Use this when the user asks to 'add all diffs from commit X to Y' or 'export changes since commit X'. "
+                "This is much more efficient than calling add_git_commit_diff for each commit individually."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "from_hash": {
+                        "type": "string",
+                        "description": "The starting commit hash (exclusive). Use 'HEAD~N' or a specific hash.",
+                    },
+                    "to_hash": {
+                        "type": "string",
+                        "description": "The ending commit hash (inclusive). Defaults to 'HEAD'.",
+                    },
+                },
+                "required": ["from_hash"],
             },
         },
     },
@@ -440,7 +509,10 @@ def build_system_prompt(work_dir: str | None, items: list[dict], use_absolute: b
         "- get_git_status(): check what files are modified/untracked in the working tree.\n"
         "- get_git_diff(staged?): read the exact code changes to understand the user's current task.\n"
         "- get_git_log(max_count?): list recent commits to find historical context.\n"
-        "- get_git_commit_diff(commit_hash): inspect the code changes of a specific past commit.\n\n"
+        "- get_git_commit_diff(commit_hash): inspect the code changes of a specific past commit.\n"
+        "- add_git_diff(staged?): inject the current Git diff directly into the list (bypasses LLM context, saves tokens).\n"
+        "- add_git_commit_diff(commit_hash): inject a specific commit's diff directly into the list.\n"
+        "- add_git_diff_range(from_hash, to_hash?): inject the combined diff of a commit range (from..to) into the list.\n\n"
         "Workflow rules:\n"
         "1. Prefer tool calls over asking the user for paths you can discover yourself. "
         "If the user says 'add all files about X' or 'find files matching Y', call "
@@ -466,7 +538,14 @@ def build_system_prompt(work_dir: str | None, items: list[dict], use_absolute: b
         "the bug I just fixed', ALWAYS call `get_git_status` and `get_git_diff` first. "
         "Analyze the diff to identify ALL related files (including headers, configs, or "
         "test files that might not show up in the diff but are relevant), then use "
-        "`add_files` to collect them."
+        "`add_files` to collect them.\n"
+        "8. CRITICAL: When the user asks to 'export diff', 'add changes to context', or 'collect PR diff', "
+        "NEVER use `get_git_diff` combined with `add_text`. Passing large diffs through the LLM context wastes tokens "
+        "and risks API truncation. ALWAYS use the dedicated `add_git_diff` or `add_git_commit_diff` tools. "
+        "These tools fetch the diff locally and inject it into the list bypassing the LLM context entirely.\n"
+        "9. When the user asks to 'add all diffs from commit X to Y' or 'export changes since commit X', "
+        "use `add_git_diff_range(from_hash, to_hash)` instead of calling `add_git_commit_diff` multiple times. "
+        "This is much more efficient. First call `get_git_log` to find the exact hashes if needed."
     )
 
 
