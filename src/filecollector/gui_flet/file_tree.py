@@ -169,6 +169,17 @@ class FileTreePanel:
             expand=True,
         )
 
+        # 目录加载进度条 (默认隐藏)
+        self._load_label = ft.Text(
+            "", size=11, color=ft.Colors.GREY_600, visible=False)
+        self._load_progress = ft.ProgressBar(
+            value=0, height=3, visible=False)
+        self._load_progress_box = ft.Column(
+            [self._load_label, self._load_progress],
+            spacing=2,
+            visible=False,
+        )
+
         # 面板容器
         self.container = ft.Container(
             content=ft.Column(
@@ -188,6 +199,11 @@ class FileTreePanel:
                         content=self.search_field,
                         padding=ft.Padding(
                             left=12, right=12, bottom=8, top=0),
+                    ),
+                    ft.Container(
+                        content=self._load_progress_box,
+                        padding=ft.Padding(
+                            left=12, right=12, bottom=4, top=0),
                     ),
                     ft.Container(
                         content=self.tree_content,
@@ -393,18 +409,79 @@ class FileTreePanel:
         children_col.visible = is_expanded
         if is_expanded and not node.loaded:
             self._load_children(node)
-            self._populate_dir_children(node)
-            # 展开后立刻按当前 checked_paths 刷新一次三态
-            self._refresh_dir_display(node)
-        # 更新箭头方向
-        arrow.icon = (
-            ft.Icons.EXPAND_MORE if is_expanded else ft.Icons.CHEVRON_RIGHT
-        )
+            total = len(node.children)
+            if total > 100:
+                # 大目录: 异步分批加载 + 进度条
+                self._populate_dir_children_async(node, children_col)
+            else:
+                self._populate_dir_children(node)
+                self._refresh_dir_display(node)
+        else:
+            # 更新箭头方向
+            arrow.icon = (
+                ft.Icons.EXPAND_MORE if is_expanded
+                else ft.Icons.CHEVRON_RIGHT)
+            try:
+                arrow.update()
+                self.main_view.page.update()
+            except Exception:
+                pass
+
+    def _populate_dir_children_async(self, node: _DirNode,
+                                     children_col: ft.Column):
+        """大目录异步分批加载 (每批 100 个, 显示进度条)."""
+        import asyncio
+        total = len(node.children)
+        indent = self._node_indent(node)
+        chunk_size = 100
+
+        self._load_label.value = _("正在加载 %d 个项目...") % total
+        self._load_progress.value = 0
+        self._load_progress_box.visible = True
+        self._load_label.visible = True
+        self._load_progress.visible = True
         try:
-            arrow.update()
             self.main_view.page.update()
         except Exception:
             pass
+
+        async def _load():
+            children_col.controls.clear()
+            for i in range(0, total, chunk_size):
+                chunk = node.children[i:i + chunk_size]
+                for child in chunk:
+                    if isinstance(child, _DirNode):
+                        children_col.controls.append(
+                            self._build_dir_node(child, indent + 1))
+                    else:
+                        children_col.controls.append(
+                            self._build_file_row(child.path, indent + 1))
+                self._load_progress.value = min(
+                    (i + chunk_size) / total, 1.0)
+                self._load_label.value = _("已加载 %d / %d") % (
+                    min(i + chunk_size, total), total)
+                try:
+                    self.main_view.page.update()
+                except Exception:
+                    pass
+                await asyncio.sleep(0)  # 让出事件循环
+
+            self._load_progress_box.visible = False
+            self._load_label.visible = False
+            self._load_progress.visible = False
+            self._refresh_dir_display(node)
+            try:
+                self.main_view.page.update()
+            except Exception:
+                pass
+
+        try:
+            self.main_view.page.run_task(_load)
+        except Exception:
+            # fallback: 同步加载
+            self._populate_dir_children(node)
+            self._refresh_dir_display(node)
+            self._load_progress_box.visible = False
 
     def _build_file_row(self, file_path: Path, indent: int) -> ft.Container:
         """创建文件行 (含二态 checkbox)."""
