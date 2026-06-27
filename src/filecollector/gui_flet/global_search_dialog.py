@@ -161,7 +161,7 @@ class GlobalSearchDialog(ft.AlertDialog):
 
         self._search_service = SearchService(
             root_dir=str(work_dir),
-            keyword=keyword,
+            query=keyword,
             case_sensitive=self._case_toggle.selected,
             cancel_event=self._cancel_event,
             on_result=self._on_result,
