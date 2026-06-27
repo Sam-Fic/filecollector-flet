@@ -210,9 +210,11 @@ class AIPanel:
         )
 
     # ------------------------------------------------------------------ 消息渲染
-    def _render_user(self, text: str) -> None:
-        self._rendered.append({"type": "user", "content": text})
-        self._append_bubble("user", text)
+    def _render_user(self, text: str, undo_token: int = -1) -> None:
+        self._rendered.append({
+            "type": "user", "content": text, "undo_token": undo_token,
+        })
+        self._append_user_bubble(text, undo_token)
 
     def _render_assistant(self, text: str) -> None:
         self._rendered.append({"type": "assistant", "content": text})
@@ -307,7 +309,8 @@ class AIPanel:
         for msg in self._rendered:
             mtype = msg.get("type")
             if mtype == "user":
-                self._append_bubble("user", msg["content"])
+                self._append_user_bubble(
+                    msg["content"], msg.get("undo_token", -1))
             elif mtype == "assistant":
                 self._append_bubble("assistant", msg["content"])
             elif mtype == "system":
@@ -397,6 +400,113 @@ class AIPanel:
                 )
 
         self.chat_list.controls.append(row)
+
+    def _append_user_bubble(self, text: str, undo_token: int = -1) -> None:
+        """添加用户消息气泡 (带撤回按钮)."""
+        max_w = self._current_max_bubble_width()
+        short_single_line = self._is_short_single_line(text, max_w)
+        msg_key = f"msg_{len(self.chat_list.controls)}"
+
+        bubble_content = ft.Text(
+            text,
+            size=14,
+            no_wrap=False,
+            color=ft.Colors.WHITE,
+            selectable=True,
+            expand=True,
+        )
+
+        # 撤回按钮 (仅当 undo_token 有效时显示)
+        revert_controls = []
+        if undo_token >= 0:
+            revert_btn = ft.IconButton(
+                icon=ft.Icons.UNDO,
+                tooltip=_("撤回此消息及后续所有 AI 回复与操作"),
+                icon_size=16,
+                icon_color=ft.Colors.WHITE70,
+                style=ft.ButtonStyle(
+                    shape=ft.CircleBorder(),
+                    padding=ft.Padding(4, 4, 4, 4),
+                ),
+                on_click=lambda e, t=undo_token, txt=text: self._on_revert_requested(
+                    t, txt),
+            )
+            revert_controls.append(revert_btn)
+
+        bubble = ft.Container(
+            content=bubble_content,
+            padding=12,
+            border_radius=12,
+            bgcolor=ft.Colors.BLUE_600,
+            width=None if short_single_line else self._bubble_width(
+                text, max_w),
+        )
+
+        row = ft.Row(
+            [ft.Container(expand=True), bubble, *revert_controls],
+            alignment=ft.MainAxisAlignment.START,
+            key=msg_key,
+        )
+        self.chat_list.controls.append(row)
+
+    def _on_revert_requested(self, token: int, text: str) -> None:
+        """撤回用户消息及后续所有 AI 操作."""
+        if token < 0:
+            return
+
+        def on_confirm(e):
+            self.main_view.page.pop_dialog()
+            if e.control.data != "revert":
+                return
+            # 停止当前任务
+            if self._busy:
+                self._request_stop()
+            # 撤销到 token 位置
+            self.main_view._revert_to_undo_token(token)
+            # 移除 rendered 中该消息及后续所有
+            revert_idx = -1
+            for i, msg in enumerate(self._rendered):
+                if (msg.get("undo_token") == token
+                        and msg.get("type") == "user"):
+                    revert_idx = i
+                    break
+            if revert_idx >= 0:
+                del self._rendered[revert_idx:]
+                self._messages.clear()
+                # 重建 UI
+                self.chat_list.controls.clear()
+                for msg in self._rendered:
+                    mtype = msg.get("type")
+                    if mtype == "user":
+                        self._append_user_bubble(
+                            msg["content"], msg.get("undo_token", -1))
+                    elif mtype == "assistant":
+                        self._append_bubble("assistant", msg["content"])
+                    elif mtype == "system":
+                        self._append_bubble("system", msg["content"])
+                    elif mtype == "tool":
+                        self._append_tool_bubble(
+                            msg["name"], msg["args"], msg["result"])
+                # 回填输入框
+                self.input_field.value = text
+                self.input_field.focus()
+                self.main_view.page.update()
+
+        dlg = ft.AlertDialog(
+            title=ft.Text(_("确认撤回")),
+            content=ft.Text(
+                _("这将撤销此消息之后 AI 的所有回复以及对文件列表的修改。是否继续？")),
+            actions=[
+                ft.TextButton(_("取消"), on_click=on_confirm, data="cancel"),
+                ft.TextButton(
+                    _("撤回"),
+                    on_click=on_confirm,
+                    data="revert",
+                    style=ft.ButtonStyle(color=ft.Colors.RED_600),
+                ),
+            ],
+        )
+        self.main_view.page.show_dialog(dlg)
 
     def _append_tool_bubble(self, name: str, args: dict, result: str) -> None:
         """添加工具调用卡片 (居中, 可展开/折叠, 对齐 Qt 版 _add_tool_bubble).
@@ -637,7 +747,6 @@ class AIPanel:
             self.main_view.page.update()
             return
 
-        self._render_user(text)
         self.input_field.value = ""
         self.main_view.page.update()
 
@@ -657,10 +766,13 @@ class AIPanel:
 
     # ------------------------------------------------------------------ 对话循环
     def _send_user_message(self, text: str) -> None:
+        # 获取 undo token (当前撤销栈大小), 用于撤回功能
+        token = self.main_view.undo_manager.get_stack_size()
         # 新一轮用户输入: 清除上一次的停止标记, 允许后续工具循环继续
         self._stop_requested = False
         self._rebuild_system_message()
         self._messages.append({"role": "user", "content": text})
+        self._render_user(text, token)
         self._next_turn()
 
     def _rebuild_system_message(self) -> None:

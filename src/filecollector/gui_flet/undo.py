@@ -86,6 +86,10 @@ class UndoManager:
     def can_redo(self):
         return len(self.redo_stack) > 0
 
+    def get_stack_size(self) -> int:
+        """返回当前撤销栈大小 (供 undo token 使用)."""
+        return len(self.undo_stack)
+
     def clear(self):
         self.undo_stack.clear()
         self.redo_stack.clear()
