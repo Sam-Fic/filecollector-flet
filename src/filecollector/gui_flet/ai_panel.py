@@ -19,6 +19,7 @@ from filecollector.i18n import _
 from filecollector.ai_client import (
     AIClient, AIClientError, TOOL_SCHEMA, build_system_prompt,
 )
+from filecollector.config import load_templates
 from filecollector.gui_flet.ai_settings_dialog import load_ai_settings
 
 
@@ -49,6 +50,8 @@ class AIPanel:
         # 会话代际: 每次清空对话自增, 后台 API / 工具结果回到主线程时
         # 用于识别旧轮次, 避免把孤立消息加到已清空的列表里.
         self._session_generation: int = 0
+        # 模板触发回调: (header_text, footer_text) -> None
+        self.template_triggered = None
 
         self._build_ui()
         self.configure(load_ai_settings())
@@ -747,6 +750,13 @@ class AIPanel:
             self.main_view.page.update()
             return
 
+        # /t 或 /template 斜杠指令
+        if text.startswith(("/template ", "/t ")) or text in ("/template", "/t"):
+            self.input_field.value = ""
+            self.main_view.page.update()
+            self._execute_template_command(text)
+            return
+
         self.input_field.value = ""
         self.main_view.page.update()
 
@@ -763,6 +773,49 @@ class AIPanel:
         # 重新渲染欢迎语 (如果仍启用)
         self.configure(self._ai_settings)
         self.main_view.page.update()
+
+    def _execute_template_command(self, text: str) -> None:
+        """执行 /t <id> 或 /template <id> 斜杠指令."""
+        parts = text.split(" ", 1)
+        template_id = parts[1].strip() if len(parts) > 1 else ""
+
+        templates = load_templates()
+        tpl = None
+        for t in templates:
+            if t.get("id") == template_id:
+                tpl = t
+                break
+
+        if tpl is None:
+            # 显示可用模板列表
+            sb = []
+            if template_id:
+                sb.append(_("未找到模板: %s") % template_id)
+            else:
+                sb.append(_("请输入模板 ID，例如: /t bug"))
+            sb.append("")
+            sb.append(_("可用模板:"))
+            for t in templates:
+                line = f"  /t {t['id']} — {t['name']}"
+                desc = t.get("description", "")
+                if desc:
+                    line += f" ({desc})"
+                sb.append(line)
+            self._render_system("\n".join(sb))
+            self.main_view.page.update()
+            return
+
+        # 触发模板: 在编排列表头尾插入占位文本
+        if self.template_triggered:
+            self.template_triggered(
+                tpl.get("header_text", ""),
+                tpl.get("footer_text", ""),
+            )
+
+        # 发送 AI 提示词
+        display_msg = f"[应用模板: {tpl['name']}]\n{tpl['ai_prompt']}"
+        self._render_user(display_msg)
+        self._send_user_message(tpl["ai_prompt"])
 
     # ------------------------------------------------------------------ 对话循环
     def _send_user_message(self, text: str) -> None:

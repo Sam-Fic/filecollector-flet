@@ -332,3 +332,59 @@ def clear_mm_api_key_from_keyring() -> bool:
         return True
     except Exception:
         return True
+
+
+# ====================================================================
+# 提示词模板管理
+# ====================================================================
+def get_templates_path() -> str:
+    return os.path.join(_ensure_dir(), "templates.json")
+
+
+def get_default_templates() -> list[dict]:
+    return [
+        {
+            "id": "bug",
+            "name": "Bug 分析",
+            "description": "排查逻辑错误与异常",
+            "header_text": "# 问题描述\n[请在此补充具体的 Bug 现象、复现步骤及报错日志]",
+            "footer_text": "# 期望输出\n[请提供修复方案或代码补丁]",
+            "ai_prompt": "请分析当前编排列表中的代码，重点排查与 Bug 相关的逻辑错误、异常处理及日志输出。",
+        },
+        {
+            "id": "api",
+            "name": "API 文档生成",
+            "description": "梳理 RESTful 接口",
+            "header_text": "# API 接口文档\n",
+            "footer_text": "\n# 附录与数据字典",
+            "ai_prompt": "请根据当前列表中的 Controller/Router 文件，梳理并生成结构化的 RESTful API 文档。",
+        },
+        {
+            "id": "refactor",
+            "name": "代码重构",
+            "description": "优化代码结构",
+            "header_text": "# 重构目标\n[请说明重构的目的]",
+            "footer_text": "# 验收标准",
+            "ai_prompt": "请审查以下代码，寻找重复逻辑、过长函数及不符合 SOLID 原则的设计，并提供重构建议。",
+        },
+    ]
+
+
+def load_templates() -> list[dict]:
+    path = get_templates_path()
+    if not os.path.exists(path):
+        return get_default_templates()
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            if isinstance(data, list) and len(data) > 0:
+                return data
+    except Exception:
+        pass
+    return get_default_templates()
+
+
+def save_templates(templates: list) -> None:
+    path = get_templates_path()
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(templates, f, ensure_ascii=False, indent=2)

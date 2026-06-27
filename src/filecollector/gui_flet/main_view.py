@@ -1262,41 +1262,6 @@ class MainView:
         snack.open = True
         self.page.update()
 
-    def _revert_to_undo_token(self, token: int) -> None:
-        """将撤销栈回退到指定 token 位置 (供 AI 撤回使用).
-
-        逐次弹出 undo 栈直到栈大小 <= token, 每次恢复上一个快照.
-        """
-        needs_refresh = False
-        while self.undo_manager.can_undo and self.undo_manager.get_stack_size() > token:
-            state = self.undo_manager.undo(self.engine.snapshot())
-            if state is None:
-                break
-            self.engine.restore(state)
-            needs_refresh = True
-        if needs_refresh:
-            self._refresh_all()
-
-    def _on_ai_batch_operation(self, summary: str) -> None:
-        """AI 批量操作完成后, 显示带撤销按钮的 SnackBar."""
-        if not self.undo_manager.can_undo:
-            return
-
-        def on_undo(e):
-            snack.open = False
-            self._on_undo(None)
-            show_snack(self.page, _("已撤销 AI 的操作"))
-
-        snack = ft.SnackBar(
-            content=ft.Text(summary),
-            action=_("撤销"),
-            on_action=on_undo,
-            duration=6000,
-        )
-        self.page.overlay.append(snack)
-        snack.open = True
-        self.page.update()
-
     def _refresh_all(self):
         """刷新所有面板"""
         # 1. 重建目录树结构 (set_work_dir 内部会清空旧的 checked_paths)
