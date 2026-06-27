@@ -135,6 +135,7 @@ class FileTreePanel:
         self.main_view = main_view
         self.work_dir: Optional[Path] = None
         self.checked_paths: set[str] = set()
+        self._tree_labels: set[ft.Text] = set()  # 搜索高亮用
 
         # UI 引用
         self._dir_widgets: dict[str, TreeCheckbox] = {}
@@ -340,8 +341,8 @@ class FileTreePanel:
                     cb,
                     ft.Icon(ft.Icons.FOLDER, size=18,
                             color=ft.Colors.AMBER_600),
-                    ft.Text(node.path.name, size=14,
-                            weight=ft.FontWeight.W_500),
+                    self._make_tree_label(
+                        node.path.name, weight=ft.FontWeight.W_500),
                 ],
                 spacing=0,
                 vertical_alignment=ft.CrossAxisAlignment.CENTER,
@@ -454,7 +455,7 @@ class FileTreePanel:
                     ft.Container(width=_ARROW_WIDTH),
                     cb,
                     ft.Icon(icon_name, size=18, color=icon_color),
-                    ft.Text(file_path.name, size=14),
+                    self._make_tree_label(file_path.name),
                 ],
                 spacing=0,
                 vertical_alignment=ft.CrossAxisAlignment.CENTER,
@@ -748,12 +749,61 @@ class FileTreePanel:
         self.main_view.arrangement_panel.sync_from_tree()
         self.main_view.arrangement_panel.refresh()
 
+    # ====================================================== 搜索标签高亮
+    def _make_tree_label(self, name: str, *, weight=ft.FontWeight.NORMAL,
+                         size: int = 14) -> ft.Text:
+        """创建文件树标签 (搜索时高亮匹配子串)."""
+        query = (self.search_field.value or "").strip()
+        label = ft.Text(size=size, weight=weight)
+        self._apply_label_highlight(label, name, query)
+        label.data = name  # 存储原始名称, 供后续更新
+        self._tree_labels.add(label)
+        return label
+
+    def _apply_label_highlight(self, label: ft.Text, name: str, query: str):
+        """应用搜索高亮到标签 (bold + underline 匹配部分)."""
+        if not query:
+            label.value = name
+            label.spans = None
+            return
+        lower_name = name.lower()
+        lower_query = query.lower()
+        idx = lower_name.find(lower_query)
+        if idx < 0:
+            label.value = name
+            label.spans = None
+            return
+        spans = []
+        if idx > 0:
+            spans.append(ft.TextSpan(name[:idx]))
+        spans.append(ft.TextSpan(
+            name[idx:idx + len(query)],
+            style=ft.TextStyle(
+                weight=ft.FontWeight.BOLD,
+                decoration=ft.TextDecoration.UNDERLINE,
+            ),
+        ))
+        end = idx + len(query)
+        if end < len(name):
+            spans.append(ft.TextSpan(name[end:]))
+        label.value = None
+        label.spans = spans
+
+    def _refresh_tree_label_highlights(self):
+        """搜索文字变化时, 刷新所有已创建标签的高亮."""
+        query = (self.search_field.value or "").strip()
+        for label in self._tree_labels:
+            name = getattr(label, "data", None)
+            if name:
+                self._apply_label_highlight(label, name, query)
+
     # ====================================================== 搜索
     def _on_search_change(self, e):
-        """搜索框变化: 仅过滤已加载节点."""
+        """搜索框变化: 过滤已加载节点 + 高亮匹配文字."""
         query = self.search_field.value.strip().lower()
         self._filter_tree(self.tree_content.controls, query)
         self._sync_arrows_with_visibility()
+        self._refresh_tree_label_highlights()
         try:
             self.main_view.page.update()
         except Exception:
