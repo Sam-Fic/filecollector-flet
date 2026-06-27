@@ -684,7 +684,11 @@ class AIPanel:
             return f'pattern={args.get("pattern", "*")}'
         if name == "list_items":
             return f'kind={args.get("kind", "all")}'
-        return json.dumps(args, ensure_ascii=False)
+        # 美化 JSON 输出
+        try:
+            return json.dumps(args, ensure_ascii=False, indent=2)
+        except Exception:
+            return json.dumps(args, ensure_ascii=False)
 
     # ------------------------------------------------------------------ 状态
     def _update_status(self) -> None:

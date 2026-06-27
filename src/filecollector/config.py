@@ -54,7 +54,7 @@ def get_common_phrases_path() -> str:
 
 def get_recovery_path() -> str:
     """自动恢复文件路径 (崩溃恢复用)."""
-    return os.path.join(_ensure_dir(), "session_recovery.json")
+    return os.path.join(_ensure_dir(), "session_recovery.fcol")
 
 
 def get_work_dir_cache_path(work_dir) -> str:
