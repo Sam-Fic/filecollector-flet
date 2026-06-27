@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import threading
 from collections import defaultdict
 from typing import Optional
@@ -19,12 +20,11 @@ class GlobalSearchDialog(ft.AlertDialog):
         self.main_view = main_view
         self._search_service: Optional[SearchService] = None
         self._cancel_event: Optional[threading.Event] = None
-        # file_path -> list[Checkbox] (同文件多行共享选择状态)
         self._checkboxes: dict[str, list[ft.Checkbox]] = defaultdict(list)
         self._matched_files: set[str] = set()
         self._selected_files: set[str] = set()
         self._pending_results: list[tuple[str, str, int, str]] = []
-        self._file_count: int = 0  # 搜索完成后快照, 用于按钮显示
+        self._file_count: int = 0
 
         # 搜索框
         self._search_field = ft.TextField(
@@ -39,19 +39,13 @@ class GlobalSearchDialog(ft.AlertDialog):
             on_click=self._on_case_toggle,
         )
 
-        # 状态标签
         self._status_label = ft.Text(
             "", size=12, color=ft.Colors.GREY_600, visible=False)
         self._spinner = ft.ProgressRing(
             width=16, height=16, stroke_width=2, visible=False)
 
-        # 结果列表
-        self._result_list = ft.ListView(
-            expand=True,
-            spacing=2,
-        )
+        self._result_list = ft.ListView(expand=True, spacing=2)
 
-        # 按钮
         self._btn_toggle_select = ft.ElevatedButton(
             _("全选"), on_click=self._on_toggle_select, disabled=True)
         self._btn_add_selected = ft.ElevatedButton(
@@ -162,7 +156,7 @@ class GlobalSearchDialog(ft.AlertDialog):
         )
         self._search_service.start()
 
-    # ── 后台线程回调: 只收集数据 ──────────────────────────────
+    # ── 后台线程回调 ──────────────────────────────────────────
 
     def _on_result(self, file_path: str, rel_path: str,
                    line_number: int, line_content: str):
@@ -171,17 +165,16 @@ class GlobalSearchDialog(ft.AlertDialog):
             (file_path, rel_path, line_number, line_content))
 
     def _on_progress(self, scanned: int, matched: int):
-        async def _update():
-            self._status_label.value = _(
-                "已扫描 %d 个文件，找到 %d 个匹配项...") % (scanned, matched)
-            self.main_view.page.update()
-        self._post(_update)
+        self._safe_update_ui(
+            self._status_label,
+            _("已扫描 %d 个文件，找到 %d 个匹配项...") % (scanned, matched))
 
     def _on_finished(self, total_scanned: int, total_matched: int):
         results = list(self._pending_results)
         n_files = len(self._matched_files)
+        self._file_count = n_files
 
-        async def _build():
+        def _build():
             self._spinner.visible = False
             self._status_label.value = _(
                 "搜索完成：扫描 %d 个文件，找到 %d 个匹配项（涉及 %d 个独立文件）"
@@ -190,7 +183,6 @@ class GlobalSearchDialog(ft.AlertDialog):
             self._result_list.controls.clear()
             self._checkboxes.clear()
             self._selected_files.clear()
-            self._file_count = n_files
 
             for file_path, rel_path, line_number, line_content in results:
                 self._add_result_row(file_path, rel_path,
@@ -203,10 +195,38 @@ class GlobalSearchDialog(ft.AlertDialog):
             self._apply_labels()
             self.main_view.page.update()
 
-        self._post(_build)
+        self._run_on_ui(_build)
+
+    # ── 线程安全 UI 调度 ──────────────────────────────────────
+
+    def _run_on_ui(self, fn) -> None:
+        """把回调安全地送到 UI 线程 (asyncio 线程安全调度)."""
+        page = self.main_view.page
+        if page is None:
+            return
+        try:
+            loop = page.loop
+            if loop and loop.is_running():
+                loop.call_soon_threadsafe(fn)
+                return
+        except Exception:
+            pass
+        # fallback: 直接调用
+        try:
+            fn()
+        except Exception:
+            pass
+
+    def _safe_update_ui(self, control, value) -> None:
+        """后台线程安全更新单个控件属性."""
+        def _do():
+            control.value = value
+            self.main_view.page.update()
+        self._run_on_ui(_do)
+
+    # ── 结果行构建 (UI 线程) ──────────────────────────────────
 
     def _add_result_row(self, file_path, rel_path, line_number, line_content):
-        """在 UI 线程构建单条结果行 (也供全选同步复用)."""
         check = ft.Checkbox(value=(file_path in self._selected_files))
 
         def _on_change(e):
@@ -214,7 +234,6 @@ class GlobalSearchDialog(ft.AlertDialog):
                 self._selected_files.add(file_path)
             else:
                 self._selected_files.discard(file_path)
-            # 同步同文件所有 checkbox
             for cb in self._checkboxes.get(file_path, []):
                 if cb is not check:
                     cb.value = check.value
@@ -260,19 +279,9 @@ class GlobalSearchDialog(ft.AlertDialog):
         )
         self._result_list.controls.append(row)
 
-    def _post(self, async_fn) -> None:
-        page = getattr(self.main_view, "page", None)
-        if page is None:
-            return
-        try:
-            page.run_task(async_fn)
-        except Exception:
-            pass
-
-    # ── UI 线程交互 ──────────────────────────────────────────
+    # ── 按钮交互 (UI 线程) ──────────────────────────────────
 
     def _apply_labels(self):
-        """同步按钮文字 (基于快照 _file_count, 不从 _matched_files 读)."""
         n_sel = len(self._selected_files)
         n_all = self._file_count
         all_sel = n_all > 0 and n_sel >= n_all
