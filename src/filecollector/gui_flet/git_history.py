@@ -216,7 +216,87 @@ class GitHistoryPanel:
             ink=True,
             tooltip=f"{commit.short_hash} - {commit.message}\n{commit.author} | {commit.date}",
         )
-        return container
+        return ft.GestureDetector(
+            content=container,
+            on_secondary_tap=lambda e, c=commit: self._on_commit_right_click(c, e),
+        )
+
+    def _on_commit_right_click(self, commit: GitCommit, e):
+        """右键 commit: 弹出上下文菜单."""
+        from filecollector.gui_flet.snack import show_snack
+
+        def _copy_short_hash(ev):
+            self.main_view.page.set_clipboard(commit.short_hash)
+            show_snack(self.main_view.page,
+                       _("已复制短哈希: %s") % commit.short_hash)
+            self.main_view.page.pop_dialog()
+
+        def _copy_full_hash(ev):
+            self.main_view.page.set_clipboard(commit.hash)
+            show_snack(self.main_view.page,
+                       _("已复制完整哈希: %s") % commit.hash)
+            self.main_view.page.pop_dialog()
+
+        def _copy_message(ev):
+            self.main_view.page.set_clipboard(commit.message)
+            show_snack(self.main_view.page, _("已复制提交信息"))
+            self.main_view.page.pop_dialog()
+
+        items = [
+            ft.Container(
+                content=ft.Row(
+                    [
+                        ft.Text(commit.short_hash, size=13,
+                                weight=ft.FontWeight.BOLD,
+                                font_family="monospace"),
+                        ft.Text(commit.message[:40], size=12,
+                                color=ft.Colors.GREY_600,
+                                expand=True, no_wrap=True,
+                                overflow=ft.TextOverflow.ELLIPSIS),
+                    ], spacing=8,
+                ),
+                padding=ft.Padding(left=8, top=4, right=8, bottom=4),
+            ),
+            ft.Divider(height=8, thickness=1),
+            self._ctx_menu_item(
+                ft.Icons.CONTENT_COPY, _("复制短哈希 (%s)") % commit.short_hash,
+                _copy_short_hash),
+            self._ctx_menu_item(
+                ft.Icons.TAG, _("复制完整哈希"),
+                _copy_full_hash),
+            self._ctx_menu_item(
+                ft.Icons.MESSAGE, _("复制提交信息"),
+                _copy_message),
+        ]
+
+        dlg = ft.AlertDialog(
+            content=ft.Container(
+                content=ft.Column(items, spacing=2, tight=True),
+                width=280,
+                padding=ft.Padding(left=24, right=24, top=20, bottom=20),
+            ),
+            content_padding=ft.Padding(0, 0, 0, 0),
+            actions_padding=ft.Padding(0, 0, 0, 0),
+            actions=[],
+        )
+        self.main_view.page.show_dialog(dlg)
+
+    @staticmethod
+    def _ctx_menu_item(icon: str, text: str, on_click) -> ft.Container:
+        return ft.Container(
+            content=ft.Row(
+                [
+                    ft.Icon(icon, size=18, color=ft.Colors.GREY_700),
+                    ft.Text(text, size=13, expand=True),
+                ],
+                spacing=10,
+                vertical_alignment=ft.CrossAxisAlignment.CENTER,
+            ),
+            padding=ft.Padding(left=8, top=6, right=8, bottom=6),
+            border_radius=6,
+            on_click=on_click,
+            ink=True,
+        )
 
     def _on_commit_click(self, commit: GitCommit):
         """点击 commit: 选中并触发预览."""
