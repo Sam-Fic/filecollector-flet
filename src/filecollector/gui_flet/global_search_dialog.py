@@ -3,13 +3,12 @@
 对齐 GNOME 版 global_search_dialog.vala:
 - 搜索框 + 大小写切换
 - 后台异步扫描, 实时更新结果列表
-- 结果行: 文件路径 + 行号 + 匹配内容 (高亮关键词)
+- 结果行: 文件路径 + 行号 + 匹配内容
 - 全选/全不选 + 添加选中文件 / 添加全部
 """
 
 from __future__ import annotations
 
-import os
 import threading
 from pathlib import Path
 from typing import Optional
@@ -27,9 +26,10 @@ class GlobalSearchDialog(ft.AlertDialog):
         self.main_view = main_view
         self._search_service: Optional[SearchService] = None
         self._cancel_event: Optional[threading.Event] = None
+        # 文件路径 -> checkbox 控件映射 (全选/全不选时同步)
+        self._checkboxes: dict[str, ft.Checkbox] = {}
         self._matched_files: set[str] = set()
         self._selected_files: set[str] = set()
-        self._result_rows: list[ft.Control] = []
 
         # 搜索框
         self._search_field = ft.TextField(
@@ -77,7 +77,6 @@ class GlobalSearchDialog(ft.AlertDialog):
             content=ft.Container(
                 content=ft.Column(
                     [
-                        # 搜索栏
                         ft.Row(
                             [
                                 self._search_field,
@@ -90,18 +89,15 @@ class GlobalSearchDialog(ft.AlertDialog):
                             ],
                             spacing=4,
                         ),
-                        # 状态栏
                         ft.Row(
                             [self._spinner, self._status_label],
                             spacing=8,
                         ),
-                        # 结果列表
                         ft.Container(
                             content=self._result_list,
                             expand=True,
                             height=350,
                         ),
-                        # 按钮行
                         ft.Row(
                             [
                                 self._btn_toggle_select,
@@ -147,9 +143,9 @@ class GlobalSearchDialog(ft.AlertDialog):
 
         self._cancel_event = threading.Event()
         self._result_list.controls.clear()
+        self._checkboxes.clear()
         self._matched_files.clear()
         self._selected_files.clear()
-        self._result_rows.clear()
 
         self._spinner.visible = True
         self._status_label.visible = True
@@ -170,61 +166,62 @@ class GlobalSearchDialog(ft.AlertDialog):
         )
         self._search_service.start()
 
+    # ── 搜索回调 (来自后台线程, 只收集数据, 不操作 UI) ──────────
+
     def _on_result(self, file_path: str, rel_path: str,
                    line_number: int, line_content: str):
-        """单条搜索结果回调 (来自后台线程)."""
+        """单条搜索结果回调 (后台线程)."""
         self._matched_files.add(file_path)
-
-        keyword = (self._search_field.value or "").strip()
-        case_sensitive = self._case_toggle.selected
-
-        # 构建结果行
-        path_label = ft.Text(
-            f"{rel_path} : {line_number}",
-            size=12,
-            weight=ft.FontWeight.W_600,
-            no_wrap=True,
-            overflow=ft.TextOverflow.ELLIPSIS,
-            expand=True,
-        )
-
-        # 匹配内容 (高亮关键词)
-        code_text = ft.Text(
-            line_content.strip()[:200],
-            size=12,
-            font_family="monospace",
-            no_wrap=True,
-            overflow=ft.TextOverflow.ELLIPSIS,
-            expand=True,
-        )
-
-        check = ft.Checkbox(
-            value=False,
-            on_change=lambda e, fp=file_path: self._on_check_toggled(
-                fp, e.control.value),
-        )
-
-        row = ft.Container(
-            content=ft.Row(
-                [
-                    check,
-                    ft.Column(
-                        [path_label, code_text],
-                        spacing=2,
-                        expand=True,
-                        tight=True,
-                    ),
-                ],
-                spacing=8,
-                vertical_alignment=ft.CrossAxisAlignment.CENTER,
-            ),
-            padding=ft.Padding(left=8, top=6, right=8, bottom=6),
-            border_radius=6,
-        )
-
+        # 传递数据到 UI 线程创建控件
         async def _add():
-            self._result_rows.append(row)
+            check = ft.Checkbox(value=False)
+            self._checkboxes[file_path] = check
+
+            def _on_check(e):
+                if check.value:
+                    self._selected_files.add(file_path)
+                else:
+                    self._selected_files.discard(file_path)
+                self._sync_button_labels()
+
+            check.on_change = _on_check
+
+            row = ft.Container(
+                content=ft.Row(
+                    [
+                        check,
+                        ft.Column(
+                            [
+                                ft.Text(
+                                    f"{rel_path} : {line_number}",
+                                    size=12,
+                                    weight=ft.FontWeight.W_600,
+                                    no_wrap=True,
+                                    overflow=ft.TextOverflow.ELLIPSIS,
+                                    expand=True,
+                                ),
+                                ft.Text(
+                                    line_content.strip()[:200],
+                                    size=12,
+                                    font_family="monospace",
+                                    no_wrap=True,
+                                    overflow=ft.TextOverflow.ELLIPSIS,
+                                    expand=True,
+                                ),
+                            ],
+                            spacing=2,
+                            expand=True,
+                            tight=True,
+                        ),
+                    ],
+                    spacing=8,
+                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                ),
+                padding=ft.Padding(left=8, top=6, right=8, bottom=6),
+                border_radius=6,
+            )
             self._result_list.controls.append(row)
+            self._sync_button_labels()
             self.main_view.page.update()
 
         self._post(_add)
@@ -246,7 +243,7 @@ class GlobalSearchDialog(ft.AlertDialog):
             self._btn_add_selected.disabled = not has
             self._btn_add_all.disabled = not has
             self._btn_toggle_select.disabled = not has
-            self._update_button_labels()
+            self._sync_button_labels()
             self.main_view.page.update()
         self._post(_update)
 
@@ -260,40 +257,30 @@ class GlobalSearchDialog(ft.AlertDialog):
         except Exception:
             pass
 
-    def _on_check_toggled(self, file_path: str, value: bool):
-        if value:
-            self._selected_files.add(file_path)
-        else:
-            self._selected_files.discard(file_path)
-        self._update_button_labels()
-        self.main_view.page.update()
+    # ── 按钮交互 (UI 线程) ──────────────────────────────────
 
-    def _on_toggle_select(self, e):
-        all_selected = (len(self._matched_files) > 0
-                        and len(self._selected_files) >= len(self._matched_files))
-        if all_selected:
-            self._selected_files.clear()
-        else:
-            self._selected_files = set(self._matched_files)
-        # 同步所有 checkbox
-        for child in self._result_list.controls:
-            if isinstance(child, ft.Container):
-                row = child.content
-                if isinstance(row, ft.Row):
-                    for ctrl in row.controls:
-                        if isinstance(ctrl, ft.Checkbox):
-                            # 无法直接映射, 需要重建列表
-                            pass
-        self._update_button_labels()
-        self.main_view.page.update()
-
-    def _update_button_labels(self):
+    def _sync_button_labels(self):
+        """同步按钮文字 (根据 _matched_files / _selected_files)."""
         n_sel = len(self._selected_files)
         n_all = len(self._matched_files)
         all_selected = n_all > 0 and n_sel >= n_all
         self._btn_toggle_select.text = _("全不选") if all_selected else _("全选")
         self._btn_add_selected.text = _("添加选中文件到编排列表 (%d)") % n_sel
         self._btn_add_all.text = _("添加全部 (%d)") % n_all
+
+    def _on_toggle_select(self, e):
+        all_selected = (len(self._matched_files) > 0
+                        and len(self._selected_files) >= len(self._matched_files))
+        if all_selected:
+            self._selected_files.clear()
+            for fp, cb in self._checkboxes.items():
+                cb.value = False
+        else:
+            self._selected_files = set(self._matched_files)
+            for fp, cb in self._checkboxes.items():
+                cb.value = True
+        self._sync_button_labels()
+        self.main_view.page.update()
 
     def _on_add_selected(self, e):
         if not self._selected_files:
@@ -318,7 +305,6 @@ class GlobalSearchDialog(ft.AlertDialog):
                 added += 1
         self.main_view.file_tree_panel.refresh()
         self.main_view.arrangement_panel.refresh()
-        # 触发预处理
         runner = getattr(self.main_view, "preprocess_runner", None)
         if runner:
             try:
