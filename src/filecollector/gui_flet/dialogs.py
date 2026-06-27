@@ -336,18 +336,21 @@ class PhrasesDialog(ft.AlertDialog):
         self.main_view.page.show_dialog(dlg)
 
     def _on_delete(self, e):
-        """删除选中常用语 (带确认)."""
+        """删除选中常用语 (带确认, 使用文本匹配避免 stale index)."""
         if not (0 <= self.selected_index < len(self.phrases)):
             return
+        phrase_to_delete = self.phrases[self.selected_index]
 
         def on_confirm(e):
-            self.main_view.page.pop_dialog()  # 关闭确认对话框
-            if 0 <= self.selected_index < len(self.phrases):
-                self.phrases.pop(self.selected_index)
-                self.selected_index = min(
-                    self.selected_index, len(self.phrases) - 1)
-                self._persist()
-                self._refresh_list()
+            self.main_view.page.pop_dialog()
+            try:
+                self.phrases.remove(phrase_to_delete)
+            except ValueError:
+                return
+            self.selected_index = min(
+                self.selected_index, max(len(self.phrases) - 1, 0))
+            self._persist()
+            self._refresh_list()
 
         def on_cancel(e):
             self.main_view.page.pop_dialog()  # 关闭确认对话框

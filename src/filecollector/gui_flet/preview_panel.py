@@ -238,12 +238,18 @@ class PreviewPanel:
 
     # ============================================================== Diff 预览
     def show_diff(self, title: str, diff_text: str):
-        """渲染 diff 内容到预览区 (红绿高亮, 对齐 GNOME 版 render_diff_to_preview)."""
+        """渲染 diff 内容到预览区 (按文件分段 + 紫色分隔线)."""
         self._current_item = None
         self._set_retry_visible(False)
 
-        # 使用 Markdown 渲染 diff, 以 ```diff 代码块实现语法高亮
-        md_content = f"**{title}**\n\n```diff\n{diff_text}\n```"
+        sections = self._split_diff_by_file(diff_text)
+        parts = [f"**{title}**\n"]
+        for fname, body in sections:
+            if fname:
+                parts.append(f"\n---\n\n##### `{fname}`\n")
+            parts.append(f"\n```diff\n{body}\n```")
+
+        md_content = "\n".join(parts)
         self._set_md_visible(True)
         self._set_text_visible(False)
         self.content_md.value = md_content
@@ -252,6 +258,29 @@ class PreviewPanel:
             self.main_view.page.update()
         except Exception:
             pass
+
+    @staticmethod
+    def _split_diff_by_file(diff_text: str) -> list[tuple[str, str]]:
+        """将 diff 按 'diff --git' 行切分为 [(filename, body), ...]."""
+        import re
+        chunks: list[tuple[str, str]] = []
+        current_file = ""
+        current_lines: list[str] = []
+
+        for line in diff_text.split("\n"):
+            if line.startswith("diff --git"):
+                if current_lines:
+                    chunks.append((current_file, "\n".join(current_lines)))
+                current_lines = [line]
+                m = re.search(r" b/(.+)$", line)
+                current_file = m.group(1) if m else ""
+            else:
+                current_lines.append(line)
+
+        if current_lines:
+            chunks.append((current_file, "\n".join(current_lines)))
+
+        return chunks if chunks else [("", diff_text)]
 
     def show_raw_text(self, text: str):
         """显示纯文本 (无 Markdown), 用于加载中提示等."""

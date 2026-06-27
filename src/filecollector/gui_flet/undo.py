@@ -19,6 +19,15 @@ class UndoManager:
     def __init__(self):
         self.undo_stack = []
         self.redo_stack = []
+        self._in_progress = False
+
+    def set_in_progress(self, val: bool):
+        """调用方在批量 undo/redo 操作期间设为 True, 防止中间态被推入栈."""
+        self._in_progress = val
+
+    @property
+    def in_progress(self) -> bool:
+        return self._in_progress
 
     @staticmethod
     def _estimate_state_bytes(state) -> int:
