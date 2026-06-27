@@ -308,6 +308,78 @@ TOOL_SCHEMA: list[dict] = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_git_status",
+            "description": (
+                "Get the current Git working tree status (modified, added, untracked files). "
+                "Use this to understand what the user is currently working on before selecting files."
+            ),
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_git_diff",
+            "description": (
+                "Get the Git diff of the working tree or staged area. "
+                "Use this to read the exact code changes and decide which files are relevant to the context."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "staged": {
+                        "type": "boolean",
+                        "description": (
+                            "Whether to get the staged diff (true) or unstaged working tree diff (false). "
+                            "Default is false."
+                        ),
+                    },
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_git_log",
+            "description": (
+                "List recent Git commits. Use this to find a specific historical change."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "max_count": {
+                        "type": "integer",
+                        "description": "Maximum number of commits to return. Default 10, max 50.",
+                    },
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_git_commit_diff",
+            "description": (
+                "Get the diff of a specific Git commit by its hash."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "commit_hash": {
+                        "type": "string",
+                        "description": "The hash of the commit to inspect.",
+                    },
+                },
+                "required": ["commit_hash"],
+            },
+        },
+    },
 ]
 
 
@@ -364,7 +436,11 @@ def build_system_prompt(work_dir: str | None, items: list[dict], use_absolute: b
         "- move_item(from_index, to_index): move an item\n"
         "- clear_items(): empty the orchestration list\n"
         "- set_use_absolute(value): toggle absolute/relative path mode\n"
-        "- set_show_header(value): toggle writing the work-directory header in exports\n\n"
+        "- set_show_header(value): toggle writing the work-directory header in exports\n"
+        "- get_git_status(): check what files are modified/untracked in the working tree.\n"
+        "- get_git_diff(staged?): read the exact code changes to understand the user's current task.\n"
+        "- get_git_log(max_count?): list recent commits to find historical context.\n"
+        "- get_git_commit_diff(commit_hash): inspect the code changes of a specific past commit.\n\n"
         "Workflow rules:\n"
         "1. Prefer tool calls over asking the user for paths you can discover yourself. "
         "If the user says 'add all files about X' or 'find files matching Y', call "
@@ -385,7 +461,12 @@ def build_system_prompt(work_dir: str | None, items: list[dict], use_absolute: b
         "call list_items to confirm what actually landed in the list before reporting to the user. "
         "If something is missing or wrong, fix it in the same turn — don't assume success.\n"
         "6. Be concise and professional. Reply in the same language the user uses. "
-        "When no tool call is needed, just explain in natural language."
+        "When no tool call is needed, just explain in natural language.\n"
+        "7. When the user asks to 'collect files for my current PR' or 'gather context for "
+        "the bug I just fixed', ALWAYS call `get_git_status` and `get_git_diff` first. "
+        "Analyze the diff to identify ALL related files (including headers, configs, or "
+        "test files that might not show up in the diff but are relevant), then use "
+        "`add_files` to collect them."
     )
 
 

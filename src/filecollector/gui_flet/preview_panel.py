@@ -236,6 +236,29 @@ class PreviewPanel:
         except Exception:
             pass
 
+    # ============================================================== Diff 预览
+    def show_diff(self, title: str, diff_text: str):
+        """渲染 diff 内容到预览区 (红绿高亮, 对齐 GNOME 版 render_diff_to_preview)."""
+        self._current_item = None
+        self._set_retry_visible(False)
+
+        # 使用 Markdown 渲染 diff, 以 ```diff 代码块实现语法高亮
+        md_content = f"**{title}**\n\n```diff\n{diff_text}\n```"
+        self._set_md_visible(True)
+        self._set_text_visible(False)
+        self.content_md.value = md_content
+
+        try:
+            self.main_view.page.update()
+        except Exception:
+            pass
+
+    def show_raw_text(self, text: str):
+        """显示纯文本 (无 Markdown), 用于加载中提示等."""
+        self._set_md_visible(False)
+        self._set_text_visible(True)
+        self.content_text.value = text
+
     # ============================================================== 清空
     def clear(self):
         self._current_item = None
