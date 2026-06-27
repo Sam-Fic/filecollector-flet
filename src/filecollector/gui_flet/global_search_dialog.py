@@ -222,28 +222,22 @@ class GlobalSearchDialog(ft.AlertDialog):
             border_radius=6,
         )
 
-        def _add_to_ui():
+        async def _add():
             self._result_rows.append(row)
             self._result_list.controls.append(row)
             self.main_view.page.update()
 
-        try:
-            self.main_view.page.run_task(lambda: _add_to_ui())
-        except Exception:
-            pass
+        self._post(_add)
 
     def _on_progress(self, scanned: int, matched: int):
-        def _update():
+        async def _update():
             self._status_label.value = _(
                 "已扫描 %d 个文件，找到 %d 个匹配项...") % (scanned, matched)
             self.main_view.page.update()
-        try:
-            self.main_view.page.run_task(lambda: _update())
-        except Exception:
-            pass
+        self._post(_update)
 
     def _on_finished(self, total_scanned: int, total_matched: int):
-        def _update():
+        async def _update():
             self._spinner.visible = False
             self._status_label.value = _(
                 "搜索完成：扫描 %d 个文件，找到 %d 个匹配项（涉及 %d 个独立文件）"
@@ -254,8 +248,15 @@ class GlobalSearchDialog(ft.AlertDialog):
             self._btn_toggle_select.disabled = not has
             self._update_button_labels()
             self.main_view.page.update()
+        self._post(_update)
+
+    def _post(self, async_fn) -> None:
+        """把 async 回调安全地送到 Flet UI 线程."""
+        page = getattr(self.main_view, "page", None)
+        if page is None:
+            return
         try:
-            self.main_view.page.run_task(lambda: _update())
+            page.run_task(async_fn)
         except Exception:
             pass
 
