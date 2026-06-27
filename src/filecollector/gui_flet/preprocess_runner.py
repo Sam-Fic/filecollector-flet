@@ -8,13 +8,17 @@
 - 全部通过 ``main_view.page.run_task`` 安全回到 UI 线程更新状态
 
 UI 侧只关心 ``on_status(item)`` / ``on_preview(item)`` 回调, 不需要管线程细节.
+
+VLM 预处理队列版:
+- ``check_and_apply_cache`` / ``reevaluate_queue`` / ``retry`` 统一通过
+  ``VLMQueueManager`` 调度, 受并发上限 / 暂停 / 取消 控制.
+- 队列 executor 负责完整的 缓存检查 + VLM 转换 流程.
 """
 
 from __future__ import annotations
 
 import logging
 import threading
-import time
 from typing import Callable, Optional
 
 from filecollector.binary_converter import (
@@ -87,14 +91,12 @@ class PreprocessRunner:
         # 跟踪在跑线程, 防止 main_view 销毁后还有 worker 持有引用
         self._threads: set[threading.Thread] = set()
         self._lock = threading.Lock()
+        # VLM 预处理队列 (由 main_view 初始化后注入)
+        self.vlm_queue: Optional[object] = None  # VLMQueueManager
 
     # ------------------------------------------------------------------ 公共查询
     def get_allowed_exts(self) -> list[str]:
-        """返回当前 main_view 配置的允许被 VLM 转换的扩展名列表.
-
-        转发到构造时传入的 ``get_allowed_exts`` callable,
-        方便 UI 端 (arrangement_list / preview_panel) 直接调用而无需绕道 main_view.
-        """
+        """返回当前 main_view 配置的允许被 VLM 转换的扩展名列表."""
         try:
             return list(self._get_allowed_exts() or [])
         except Exception:
@@ -102,29 +104,16 @@ class PreprocessRunner:
 
     # ------------------------------------------------------------------ 入口
     def check_and_apply_cache(self, item: ItemData) -> None:
-        """对单条 binary item 走"先查缓存, 命中直 COMPLETED, 未命中再起后台转换"流程."""
+        """对单条 binary item 提交到队列 (由队列控制并发)."""
         if item is None or item.type != "file":
             return
         if not item.is_allowed_binary_target(self._get_allowed_exts()):
             return
-
-        item.preprocess_status = PreprocessStatus.CHECKING
-        self._on_status(item)
-
-        work_dir = self._get_work_dir()
-        if not work_dir:
-            self._start_preprocess(item)
-            return
-
-        t = threading.Thread(
-            target=self._cache_check_worker,
-            args=(item, work_dir),
-            daemon=True,
-            name="fc-cache-check",
-        )
-        with self._lock:
-            self._threads.add(t)
-        t.start()
+        if self.vlm_queue is not None:
+            self.vlm_queue.enqueue(item)
+        else:
+            # 降级: 无队列时直接起线程 (向后兼容)
+            self._direct_check_and_apply_cache(item)
 
     def retry(self, item: ItemData) -> None:
         """强制重新预处理 (清掉旧缓存)."""
@@ -178,7 +167,7 @@ class PreprocessRunner:
     def reevaluate_queue(self) -> None:
         """允许扩展名列表变化后, 重新评估编排列表中各项.
 
-        - 新进入允许列表: 触发缓存检查
+        - 新进入允许列表: 触发缓存检查 (通过队列)
         - 离开允许列表: 清空预处理状态
         """
         allowed = self._get_allowed_exts()
@@ -197,7 +186,170 @@ class PreprocessRunner:
                     it.from_cache = False
                     self._on_status(it)
 
-    # ------------------------------------------------------------------ 后台 worker
+    # ------------------------------------------------------------------ 队列执行器
+    def vlm_task_executor(self, item: ItemData, queue_manager) -> None:
+        """队列执行器: 在后台线程中完成 缓存检查 + VLM 转换.
+
+        对齐 GNOME 版 vlm_task_executor, 所有 UI 更新通过 _post 切回主线程.
+        队列的 notify_finished 也在 UI 回调中触发, 确保状态更新先于调度.
+        """
+        # 1. 检查缓存
+        work_dir = self._get_work_dir()
+        cached_md = None
+        file_hash = ""
+
+        if work_dir and item.path:
+            try:
+                file_hash = compute_file_hash(item.path)
+                cache = PreprocessCache(work_dir)
+                cached_md = cache.get_cached_markdown(item.path, file_hash)
+            except Exception as e:
+                logging.warning(f"Cache check failed: {e}")
+
+        if queue_manager.check_cancelled():
+            self._post(lambda: queue_manager.notify_finished(item))
+            return
+
+        if cached_md is not None:
+            md = cached_md
+
+            def _apply_cached():
+                item.preprocessed_content = md
+                item.preprocess_status = PreprocessStatus.COMPLETED
+                item.from_cache = True
+                self._on_status(item)
+                self._on_preview(item)
+                queue_manager.notify_finished(item)
+
+            self._post(_apply_cached)
+            return
+
+        # 2. 调用 VLM
+        def _go_processing():
+            item.preprocess_status = PreprocessStatus.PROCESSING
+            self._on_status(item)
+
+        self._post(_go_processing)
+
+        try:
+            settings = load_multimodal_ai_settings()
+        except Exception:
+            settings = {}
+
+        if not settings.get("enabled") or not (settings.get("api_key") or ""):
+            def _fail_no_config():
+                item.preprocess_status = PreprocessStatus.FAILED
+                self._on_status(item)
+                self._on_preview(item)
+                queue_manager.notify_finished(item)
+            self._post(_fail_no_config)
+            return
+
+        if queue_manager.check_cancelled():
+            self._post(lambda: queue_manager.notify_finished(item))
+            return
+
+        try:
+            images = convert_to_base64_images(item.path or "")
+        except Exception as e:
+            logging.warning(f"BinaryConverter 失败: {e}")
+            images = None
+
+        if not images:
+            def _fail_convert():
+                item.preprocess_status = PreprocessStatus.FAILED
+                self._on_status(item)
+                self._on_preview(item)
+                queue_manager.notify_finished(item)
+            self._post(_fail_convert)
+            return
+
+        mime_types: list[str] = []
+        if item.is_image_target() and len(images) == 1:
+            mime_types = [get_output_mime_for_image(item.path or "")]
+        else:
+            mime_types = ["image/png"] * len(images)
+
+        prompt = _get_prompt_for_item(
+            item, settings.get("system_prompt_override", "") or "")
+
+        if queue_manager.check_cancelled():
+            self._post(lambda: queue_manager.notify_finished(item))
+            return
+
+        try:
+            client = MultimodalAIClient(
+                base_url=settings.get("base_url", ""),
+                api_key=settings.get("api_key", ""),
+                model=settings.get("model", ""),
+                prompt=prompt,
+                timeout=float(settings.get("timeout", 120.0) or 120.0),
+            )
+            md = client.process_images(images, mime_types).strip()
+        except MultimodalAIClientError as e:
+            logging.warning(f"VLM 调用失败: {e}")
+            def _fail_api():
+                item.preprocess_status = PreprocessStatus.FAILED
+                self._on_status(item)
+                self._on_preview(item)
+                queue_manager.notify_finished(item)
+            self._post(_fail_api)
+            return
+        except Exception as e:
+            logging.warning(f"VLM 任务异常: {e}")
+            def _fail_exc():
+                item.preprocess_status = PreprocessStatus.FAILED
+                self._on_status(item)
+                self._on_preview(item)
+                queue_manager.notify_finished(item)
+            self._post(_fail_exc)
+            return
+
+        if queue_manager.check_cancelled():
+            self._post(lambda: queue_manager.notify_finished(item))
+            return
+
+        # 写缓存
+        if work_dir and item.path:
+            try:
+                if not file_hash:
+                    file_hash = compute_file_hash(item.path)
+                cache = PreprocessCache(work_dir)
+                cache.save_markdown(item.path, file_hash, md)
+            except Exception as e:
+                logging.warning(f"写缓存失败: {e}")
+
+        def _done():
+            item.preprocessed_content = md
+            item.preprocess_status = PreprocessStatus.COMPLETED
+            item.from_cache = False
+            self._on_status(item)
+            self._on_preview(item)
+            queue_manager.notify_finished(item)
+
+        self._post(_done)
+
+    # ------------------------------------------------------------------ 降级直通
+    def _direct_check_and_apply_cache(self, item: ItemData) -> None:
+        """无队列时降级: 直接起后台线程 (旧行为)."""
+        item.preprocess_status = PreprocessStatus.CHECKING
+        self._on_status(item)
+
+        work_dir = self._get_work_dir()
+        if not work_dir:
+            self._start_preprocess_direct(item)
+            return
+
+        t = threading.Thread(
+            target=self._cache_check_worker,
+            args=(item, work_dir),
+            daemon=True,
+            name="fc-cache-check",
+        )
+        with self._lock:
+            self._threads.add(t)
+        t.start()
+
     def _cache_check_worker(self, item: ItemData, work_dir: str) -> None:
         try:
             file_hash = compute_file_hash(item.path or "")
@@ -206,7 +358,6 @@ class PreprocessRunner:
         except Exception as e:
             logging.warning(f"Cache check failed: {e}")
             cached = None
-            file_hash = ""
 
         if cached is not None:
             md = cached
@@ -221,17 +372,16 @@ class PreprocessRunner:
             self._post(_apply)
             return
 
-        # 缓存未命中: 先 PENDING, 再起真实转换线程
         def _pending():
             item.preprocess_status = PreprocessStatus.PENDING
             self._on_status(item)
-            self._start_preprocess(item)
+            self._start_preprocess_direct(item)
 
         self._post(_pending)
 
-    def _start_preprocess(self, item: ItemData) -> None:
+    def _start_preprocess_direct(self, item: ItemData) -> None:
         t = threading.Thread(
-            target=self._vlm_worker,
+            target=self._vlm_worker_direct,
             args=(item,),
             daemon=True,
             name="fc-vlm-task",
@@ -240,12 +390,10 @@ class PreprocessRunner:
             self._threads.add(t)
         t.start()
 
-    def _vlm_worker(self, item: ItemData) -> None:
-        # 切到 PROCESSING
+    def _vlm_worker_direct(self, item: ItemData) -> None:
         def _go():
             item.preprocess_status = PreprocessStatus.PROCESSING
             self._on_status(item)
-
         self._post(_go)
 
         try:
@@ -274,7 +422,6 @@ class PreprocessRunner:
             self._post(_fail)
             return
 
-        # 拼 mime 列表 (图片用 jpeg/png, 文档渲染出来的全是 png)
         mime_types: list[str] = []
         if item.is_image_target() and len(images) == 1:
             mime_types = [get_output_mime_for_image(item.path or "")]
@@ -293,16 +440,8 @@ class PreprocessRunner:
                 timeout=float(settings.get("timeout", 120.0) or 120.0),
             )
             md = client.process_images(images, mime_types).strip()
-        except MultimodalAIClientError as e:
-            logging.warning(f"VLM 调用失败: {e}")
-            def _fail(msg=str(e)):
-                item.preprocess_status = PreprocessStatus.FAILED
-                self._on_status(item)
-                self._on_preview(item)
-            self._post(_fail)
-            return
-        except Exception as e:
-            logging.warning(f"VLM 任务异常: {e}")
+        except (MultimodalAIClientError, Exception) as e:
+            logging.warning(f"VLM 任务失败: {e}")
             def _fail():
                 item.preprocess_status = PreprocessStatus.FAILED
                 self._on_status(item)
@@ -310,7 +449,6 @@ class PreprocessRunner:
             self._post(_fail)
             return
 
-        # 写缓存 (如果有 work_dir)
         work_dir = self._get_work_dir()
         if work_dir and item.path:
             try:
