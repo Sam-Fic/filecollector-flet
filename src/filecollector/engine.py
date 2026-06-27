@@ -79,49 +79,57 @@ class FileCollectorEngine:
         self.show_header = bool(state["show_header"])
 
     # ------------------------------------------------------------------ Export / clipboard target file
+    def generate_text(self) -> str:
+        """生成合并文本并返回字符串 (供剪贴板等场景复用)."""
+        import io
+        buf = io.StringIO()
+        self._write_export(buf)
+        return buf.getvalue()
+
     def export(self, file_path: str) -> None:
         out_path = Path(file_path)
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        # 原子写入: 先写临时文件, 成功后再 rename, 避免磁盘满/崩溃导致残留半文件
         tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
         try:
-            with tmp_path.open("w", encoding="utf-8", errors="replace") as f:  # encoding容错
-                if not self.use_absolute and self.show_header and self.work_dir:
-                    f.write(f"# 工作目录绝对路径: {self.work_dir}\n\n")
-
-                for i, data in enumerate(self.items):
-                    if i > 0:
-                        f.write("\n\n")
-                    if data.type == "file":
-                        file_p = Path(data.path)
-                        if not file_p.exists():
-                            f.write(f"[文件不存在: {data.path}]\n")
-                            continue
-                        if data.force_absolute or self.use_absolute or not self.work_dir:
-                            display = str(file_p.resolve())
-                        else:
-                            try:
-                                display = str(file_p.resolve().relative_to(self.work_dir))
-                            except ValueError:
-                                display = str(file_p.resolve())
-                        f.write(f"{display}:\n")
-                        # 优先使用 AI 预处理结果 (Markdown 形式),
-                        # 让二进制文件 (PDF / 图片 / Office) 也能被正常导出为可读文本
-                        pre_md = getattr(data, "preprocessed_content", None)
-                        if pre_md:
-                            f.write(pre_md)
-                            continue
-                        try:
-                            content, _ = safe_read_file(data.path)
-                            f.write(content)
-                        except Exception as e:
-                            f.write(f"[读取错误: {e}]")
-                    else:
-                        f.write(data.content)
+            with tmp_path.open("w", encoding="utf-8", errors="replace") as f:
+                self._write_export(f)
             tmp_path.replace(out_path)
         except Exception:
             tmp_path.unlink(missing_ok=True)
             raise
+
+    def _write_export(self, f) -> None:
+        """将合并内容写入 file-like 对象 (文件或 StringIO)."""
+        if not self.use_absolute and self.show_header and self.work_dir:
+            f.write(f"# 工作目录绝对路径: {self.work_dir}\n\n")
+
+        for i, data in enumerate(self.items):
+            if i > 0:
+                f.write("\n\n")
+            if data.type == "file":
+                file_p = Path(data.path)
+                if not file_p.exists():
+                    f.write(f"[文件不存在: {data.path}]\n")
+                    continue
+                if data.force_absolute or self.use_absolute or not self.work_dir:
+                    display = str(file_p.resolve())
+                else:
+                    try:
+                        display = str(file_p.resolve().relative_to(self.work_dir))
+                    except ValueError:
+                        display = str(file_p.resolve())
+                f.write(f"{display}:\n")
+                pre_md = getattr(data, "preprocessed_content", None)
+                if pre_md:
+                    f.write(pre_md)
+                    continue
+                try:
+                    content, _ = safe_read_file(data.path)
+                    f.write(content)
+                except Exception as e:
+                    f.write(f"[读取错误: {e}]")
+            else:
+                f.write(data.content)
 
     # ------------------------------------------------------------------ Project I/O (Qt default: .project.json / GNOME: .fcol)
     def _normalize_project_path(self, file_path: str) -> str:
