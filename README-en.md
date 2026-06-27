@@ -27,6 +27,7 @@ For the usage process and tips of the graphical interface, please refer to the [
 - **MCP Service**: Packaged as an MCP (Model Context Protocol) service, directly callable by coding tools like Cursor, VS Code + Copilot.
 - **Binary File Pre-conversion**: Automatically converts images, PDFs, Office documents, and other binary files into Markdown format, with caching and configurable extensions.
 - **Built-in AI Assistant Panel**: A sidebar chat interface inside the GUI — the AI can directly drive file-tree exploration, file selection, orchestration, and merged-text generation.
+- **Git History Integration**: One-click collection of changed files, export Diff code blocks, quickly build Git context for AI.
 - **Progressive Experience**: Seamless integration of CLI and GUI — after AI-driven exploration in the background, the graphical interface is always available for manual adjustment.
 - **Lazy-loaded Directory Tree**: Automatically displays an expandable file tree when opening a folder, with easy file checkbox selection.
 - **Visual Organization List**: Checked files automatically appear in the list, freely reorderable via drag-and-drop, move up/down, or delete.
@@ -367,6 +368,34 @@ cd src && pyinstaller FileCollector.spec
 ```
 
 Ensure all dependencies (`requirements.txt`) are installed before packaging.
+
+---
+
+## Git History Integration
+
+FileCollector includes built-in Git read-only inspection capabilities, making it easy for developers to quickly collect files and Diff context related to their current changes. Click the **Git icon** in the top toolbar to switch from file tree mode to Git commit history mode.
+
+### Action Buttons
+
+After switching to Git mode, the action buttons below the center orchestration list will switch to the following three Git-specific functions:
+
+| Button | Purpose |
+| --- | --- |
+| **Add All Changed Files** | Runs `git status` to retrieve all modified and newly added files in the working directory, then batch-adds them to the orchestration list. Useful for the scenario: "I want to collect all files involved in my current changes." |
+| **Export Working Tree Diff** | Runs `git diff` to get all unstaged code changes in the working directory, then inserts them as a `diff` code block into the orchestration list. Useful for the scenario: "Let AI analyze my current code changes." |
+| **Export Selected Commit Diff** | After selecting a commit from the left Git commit list, runs `git show` to get the full diff of that commit, then inserts it as a `diff` code block into the orchestration list. Useful for the scenario: "Let AI analyze the code changes in a specific historical commit." When a commit is selected, the right preview panel renders a real-time red/green highlighted diff view. |
+
+### Typical Workflow
+
+1. Click the Git icon in the top toolbar to switch to Git commit history mode.
+2. The left panel automatically loads the most recent 100 commits, with search support by commit message or hash.
+3. Click a commit to instantly preview its code diff with red/green highlighting in the right panel.
+4. Click **Export Selected Commit Diff** to insert the diff code block into the orchestration list.
+5. Click **Add All Changed Files** to add all currently changed files to the orchestration list.
+6. Switch back to file tree mode to supplement with other related files via checkboxes.
+7. Generate the merged text and hand it to AI for in-depth analysis.
+
+> **Tip**: All Git operations are **read-only inspections** (`git status`, `git diff`, `git log`, `git show`). They will never execute write operations like `commit` or `push`, ensuring your Git workflow remains unaffected.
 
 ---
 
