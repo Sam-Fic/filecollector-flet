@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import threading
-from pathlib import Path
+from collections import defaultdict
 from typing import Optional
 
 import flet as ft
@@ -19,12 +19,12 @@ class GlobalSearchDialog(ft.AlertDialog):
         self.main_view = main_view
         self._search_service: Optional[SearchService] = None
         self._cancel_event: Optional[threading.Event] = None
-        # 搜索期间收集结果 (后台线程写, 完成后一次性搬到 UI)
-        self._pending_results: list[tuple[str, str, int, str]] = []
+        # file_path -> list[Checkbox] (同文件多行共享选择状态)
+        self._checkboxes: dict[str, list[ft.Checkbox]] = defaultdict(list)
         self._matched_files: set[str] = set()
         self._selected_files: set[str] = set()
-        # file_path -> checkbox (UI 线程创建后存入)
-        self._checkboxes: dict[str, ft.Checkbox] = {}
+        self._pending_results: list[tuple[str, str, int, str]] = []
+        self._file_count: int = 0  # 搜索完成后快照, 用于按钮显示
 
         # 搜索框
         self._search_field = ft.TextField(
@@ -141,6 +141,7 @@ class GlobalSearchDialog(ft.AlertDialog):
         self._matched_files.clear()
         self._selected_files.clear()
         self._pending_results.clear()
+        self._file_count = 0
 
         self._spinner.visible = True
         self._status_label.visible = True
@@ -165,7 +166,6 @@ class GlobalSearchDialog(ft.AlertDialog):
 
     def _on_result(self, file_path: str, rel_path: str,
                    line_number: int, line_content: str):
-        """后台线程: 收集结果, 不操作 UI."""
         self._matched_files.add(file_path)
         self._pending_results.append(
             (file_path, rel_path, line_number, line_content))
@@ -178,79 +178,87 @@ class GlobalSearchDialog(ft.AlertDialog):
         self._post(_update)
 
     def _on_finished(self, total_scanned: int, total_matched: int):
-        """搜索完成: 在 UI 线程一次性构建所有结果行 + 更新按钮."""
-        # 快照当前结果 (后台线程不再写入)
         results = list(self._pending_results)
-        matched_count = len(self._matched_files)
+        n_files = len(self._matched_files)
 
         async def _build():
             self._spinner.visible = False
             self._status_label.value = _(
                 "搜索完成：扫描 %d 个文件，找到 %d 个匹配项（涉及 %d 个独立文件）"
-            ) % (total_scanned, total_matched, matched_count)
+            ) % (total_scanned, total_matched, n_files)
 
             self._result_list.controls.clear()
             self._checkboxes.clear()
+            self._selected_files.clear()
+            self._file_count = n_files
 
             for file_path, rel_path, line_number, line_content in results:
-                check = ft.Checkbox(value=False)
+                self._add_result_row(file_path, rel_path,
+                                     line_number, line_content)
 
-                def _make_on_change(fp, cb):
-                    def _handler(e):
-                        if cb.value:
-                            self._selected_files.add(fp)
-                        else:
-                            self._selected_files.discard(fp)
-                        self._sync_labels()
-                    return _handler
-
-                check.on_change = _make_on_change(file_path, check)
-                self._checkboxes[file_path] = check
-
-                row = ft.Container(
-                    content=ft.Row(
-                        [
-                            check,
-                            ft.Column(
-                                [
-                                    ft.Text(
-                                        f"{rel_path} : {line_number}",
-                                        size=12,
-                                        weight=ft.FontWeight.W_600,
-                                        no_wrap=True,
-                                        overflow=ft.TextOverflow.ELLIPSIS,
-                                        expand=True,
-                                    ),
-                                    ft.Text(
-                                        line_content.strip()[:200],
-                                        size=12,
-                                        font_family="monospace",
-                                        no_wrap=True,
-                                        overflow=ft.TextOverflow.ELLIPSIS,
-                                        expand=True,
-                                    ),
-                                ],
-                                spacing=2,
-                                expand=True,
-                                tight=True,
-                            ),
-                        ],
-                        spacing=8,
-                        vertical_alignment=ft.CrossAxisAlignment.CENTER,
-                    ),
-                    padding=ft.Padding(left=8, top=6, right=8, bottom=6),
-                    border_radius=6,
-                )
-                self._result_list.controls.append(row)
-
-            has = matched_count > 0
+            has = n_files > 0
             self._btn_add_selected.disabled = not has
             self._btn_add_all.disabled = not has
             self._btn_toggle_select.disabled = not has
-            self._sync_labels()
+            self._apply_labels()
             self.main_view.page.update()
 
         self._post(_build)
+
+    def _add_result_row(self, file_path, rel_path, line_number, line_content):
+        """在 UI 线程构建单条结果行 (也供全选同步复用)."""
+        check = ft.Checkbox(value=(file_path in self._selected_files))
+
+        def _on_change(e):
+            if check.value:
+                self._selected_files.add(file_path)
+            else:
+                self._selected_files.discard(file_path)
+            # 同步同文件所有 checkbox
+            for cb in self._checkboxes.get(file_path, []):
+                if cb is not check:
+                    cb.value = check.value
+            self._apply_labels()
+            self.main_view.page.update()
+
+        check.on_change = _on_change
+        self._checkboxes[file_path].append(check)
+
+        row = ft.Container(
+            content=ft.Row(
+                [
+                    check,
+                    ft.Column(
+                        [
+                            ft.Text(
+                                f"{rel_path} : {line_number}",
+                                size=12,
+                                weight=ft.FontWeight.W_600,
+                                no_wrap=True,
+                                overflow=ft.TextOverflow.ELLIPSIS,
+                                expand=True,
+                            ),
+                            ft.Text(
+                                line_content.strip()[:200],
+                                size=12,
+                                font_family="monospace",
+                                no_wrap=True,
+                                overflow=ft.TextOverflow.ELLIPSIS,
+                                expand=True,
+                            ),
+                        ],
+                        spacing=2,
+                        expand=True,
+                        tight=True,
+                    ),
+                ],
+                spacing=8,
+                vertical_alignment=ft.CrossAxisAlignment.CENTER,
+            ),
+            padding=ft.Padding(left=8, top=6, right=8, bottom=6),
+            border_radius=6,
+        )
+        self._result_list.controls.append(row)
 
     def _post(self, async_fn) -> None:
         page = getattr(self.main_view, "page", None)
@@ -263,26 +271,29 @@ class GlobalSearchDialog(ft.AlertDialog):
 
     # ── UI 线程交互 ──────────────────────────────────────────
 
-    def _sync_labels(self):
+    def _apply_labels(self):
+        """同步按钮文字 (基于快照 _file_count, 不从 _matched_files 读)."""
         n_sel = len(self._selected_files)
-        n_all = len(self._matched_files)
+        n_all = self._file_count
         all_sel = n_all > 0 and n_sel >= n_all
         self._btn_toggle_select.text = _("全不选") if all_sel else _("全选")
         self._btn_add_selected.text = _("添加选中文件到编排列表 (%d)") % n_sel
         self._btn_add_all.text = _("添加全部 (%d)") % n_all
 
     def _on_toggle_select(self, e):
-        all_sel = (len(self._matched_files) > 0
-                   and len(self._selected_files) >= len(self._matched_files))
+        all_sel = (self._file_count > 0
+                   and len(self._selected_files) >= self._file_count)
         if all_sel:
             self._selected_files.clear()
-            for cb in self._checkboxes.values():
-                cb.value = False
+            for cbs in self._checkboxes.values():
+                for cb in cbs:
+                    cb.value = False
         else:
             self._selected_files = set(self._matched_files)
-            for fp, cb in self._checkboxes.items():
-                cb.value = (fp in self._selected_files)
-        self._sync_labels()
+            for fp, cbs in self._checkboxes.items():
+                for cb in cbs:
+                    cb.value = True
+        self._apply_labels()
         self.main_view.page.update()
 
     def _on_add_selected(self, e):
