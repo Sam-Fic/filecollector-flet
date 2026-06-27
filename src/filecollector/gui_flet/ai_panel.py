@@ -133,8 +133,23 @@ class AIPanel:
                 left=12, top=8, right=12, bottom=8),
             text_size=14,
             on_submit=self._on_send,
+            on_change=self._on_input_changed,
             shift_enter=True,
             expand=True,
+        )
+
+        # 补全列表 (默认隐藏, 出现在输入框上方)
+        self._completion_list = ft.ListView(
+            spacing=0,
+            padding=ft.Padding(left=4, top=4, right=4, bottom=4),
+            height=0,
+        )
+        self._completion_container = ft.Container(
+            content=self._completion_list,
+            border_radius=8,
+            bgcolor=ft.Colors.SURFACE_CONTAINER_HIGH,
+            border=_uniform_border(1, ft.Colors.OUTLINE_VARIANT),
+            visible=False,
         )
 
         # 发送 / 停止按钮容器 (Flet 0.85 中直接修改 ElevatedButton.text 有时
@@ -189,6 +204,7 @@ class AIPanel:
                     ft.Container(
                         content=ft.Column(
                             [
+                                self._completion_container,
                                 self.input_field,
                                 ft.Row(
                                     [self.clear_btn,
@@ -753,6 +769,7 @@ class AIPanel:
         # /t 或 /template 斜杠指令
         if text.startswith(("/template ", "/t ")) or text in ("/template", "/t"):
             self.input_field.value = ""
+            self._hide_completion()
             self.main_view.page.update()
             self._execute_template_command(text)
             return
@@ -770,6 +787,7 @@ class AIPanel:
         self._tool_counter = 0
         self._pending_welcome = True
         self.chat_list.controls.clear()
+        self._hide_completion()
         # 重新渲染欢迎语 (如果仍启用)
         self.configure(self._ai_settings)
         self.main_view.page.update()
@@ -816,6 +834,109 @@ class AIPanel:
         display_msg = f"[应用模板: {tpl['name']}]\n{tpl['ai_prompt']}"
         self._render_user(display_msg)
         self._send_user_message(tpl["ai_prompt"])
+
+    def _execute_template_by_id(self, template_id: str) -> None:
+        """通过 ID 执行模板 (供补全列表调用)."""
+        templates = load_templates()
+        tpl = None
+        for t in templates:
+            if t.get("id") == template_id:
+                tpl = t
+                break
+        if tpl is None:
+            self._render_system(_("未找到模板: %s") % template_id)
+            self.main_view.page.update()
+            return
+        if self.template_triggered:
+            self.template_triggered(
+                tpl.get("header_text", ""),
+                tpl.get("footer_text", ""),
+            )
+        display_msg = f"[应用模板: {tpl['name']}]\n{tpl['ai_prompt']}"
+        self._render_user(display_msg)
+        self._send_user_message(tpl["ai_prompt"])
+
+    # ─── 补全列表 ────────────────────────────────────────────────────
+    def _on_input_changed(self, e):
+        """输入框内容变化: 检测 /t 前缀并显示补全列表."""
+        text = (self.input_field.value or "").strip()
+        if text.startswith(("/t", "/template")):
+            query = ""
+            if text.startswith("/template "):
+                query = text[10:].strip()
+            elif text.startswith("/t "):
+                query = text[3:].strip()
+            elif text in ("/t", "/template"):
+                query = ""
+            else:
+                query = text[9:] if text.startswith("/template") else text[2:]
+            self._show_completion(query)
+        else:
+            self._hide_completion()
+
+    def _show_completion(self, query: str) -> None:
+        """显示补全列表 (根据 query 过滤模板)."""
+        templates = load_templates()
+        self._completion_list.controls.clear()
+        match_count = 0
+
+        for tpl in templates:
+            tid = tpl.get("id", "")
+            tname = tpl.get("name", "")
+            tdesc = tpl.get("description", "")
+            if (not query
+                    or query.lower() in tid.lower()
+                    or query.lower() in tname.lower()):
+                row = ft.Container(
+                    content=ft.Row(
+                        [
+                            ft.Column(
+                                [
+                                    ft.Text(tname, size=13,
+                                            weight=ft.FontWeight.W_600),
+                                    ft.Text(
+                                        f"/{tid}  •  {tdesc}",
+                                        size=11,
+                                        color=ft.Colors.GREY_600,
+                                    ),
+                                ],
+                                spacing=2,
+                                tight=True,
+                                expand=True,
+                            ),
+                        ],
+                        vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                    ),
+                    padding=ft.Padding(left=10, top=8, right=10, bottom=8),
+                    border_radius=6,
+                    on_click=lambda e, t=tid: self._apply_completion(t),
+                    ink=True,
+                )
+                self._completion_list.controls.append(row)
+                match_count += 1
+
+        if match_count > 0:
+            height = min(match_count * 50, 200)
+            self._completion_list.height = height
+            self._completion_container.visible = True
+        else:
+            self._hide_completion()
+        if self.main_view.page:
+            self.main_view.page.update()
+
+    def _hide_completion(self) -> None:
+        self._completion_container.visible = False
+        self._completion_list.controls.clear()
+        if self.main_view.page:
+            self.main_view.page.update()
+
+    def _apply_completion(self, template_id: str) -> None:
+        """点击补全项: 清空输入框, 执行模板."""
+        self._hide_completion()
+        self.input_field.value = ""
+        if self.main_view.page:
+            self.main_view.page.update()
+        self._execute_template_by_id(template_id)
 
     # ------------------------------------------------------------------ 对话循环
     def _send_user_message(self, text: str) -> None:
