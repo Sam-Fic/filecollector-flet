@@ -8,12 +8,7 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from filecollector.utils import safe_read_file
-
-SKIP_DIRS: set[str] = {
-    ".git", ".hg", ".svn", ".idea", ".vscode", ".venv", "venv", "env",
-    "node_modules", "__pycache__", ".mypy_cache", ".pytest_cache",
-    "dist", "build", ".next", ".nuxt", "target", ".gradle",
-}
+from filecollector.gui_flet.constants import SKIP_DIRS
 
 MAX_FILE_SIZE: int = 2 * 1024 * 1024   # 2 MB
 MAX_RESULTS: int = 2000

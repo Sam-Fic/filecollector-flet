@@ -44,12 +44,6 @@ def get_merged_txt_path() -> str:
     return os.path.join(_ensure_dir(), "merged.txt")
 
 
-def get_clipboard_staging_path() -> str:
-    staging_dir = Path(_ensure_dir()) / ".fc-clipboard"
-    staging_dir.mkdir(parents=True, exist_ok=True)
-    return str(staging_dir / "merged.txt")
-
-
 def get_settings_path() -> str:
     return os.path.join(_ensure_dir(), "settings.json")
 
@@ -265,78 +259,64 @@ def parse_allowed_ext_input(raw: str) -> list[str]:
 
 
 # ====================================================================
-# 系统密钥环读写
+# 系统密钥环读写 (统一接口)
 # ====================================================================
-def store_api_key_to_keyring(api_key: str) -> bool:
-    """将侧边栏 API Key 存入系统密钥环. 若为空则清除."""
+def _keyring_store(username: str, password: str, label: str = "") -> bool:
+    """存入系统密钥环. 若 password 为空则清除."""
     if not KEYRING_AVAILABLE:
         return False
-    if not api_key:
-        return clear_api_key_from_keyring()
+    if not password:
+        return _keyring_clear(username, label)
     try:
-        keyring.set_password(KEYRING_SERVICE, KEYRING_API_KEY, api_key)
+        keyring.set_password(KEYRING_SERVICE, username, password)
         return True
     except Exception as e:
-        logging.warning(f"系统密钥环写入失败 (将降级为本地存储): {e}")
+        logging.warning(f"密钥环写入失败 ({label or username}): {e}")
         return False
 
 
-def load_api_key_from_keyring() -> str:
-    """从系统密钥环读取侧边栏 API Key."""
+def _keyring_load(username: str, label: str = "") -> str:
+    """从系统密钥环读取."""
     if not KEYRING_AVAILABLE:
         return ""
     try:
-        return keyring.get_password(KEYRING_SERVICE, KEYRING_API_KEY) or ""
+        return keyring.get_password(KEYRING_SERVICE, username) or ""
     except Exception as e:
-        logging.warning(f"系统密钥环读取失败: {e}")
+        logging.warning(f"密钥环读取失败 ({label or username}): {e}")
         return ""
 
 
-def clear_api_key_from_keyring() -> bool:
-    """从系统密钥环清除侧边栏 API Key."""
+def _keyring_clear(username: str, label: str = "") -> bool:
+    """从系统密钥环清除."""
     if not KEYRING_AVAILABLE:
         return False
     try:
-        keyring.delete_password(KEYRING_SERVICE, KEYRING_API_KEY)
+        keyring.delete_password(KEYRING_SERVICE, username)
         return True
     except Exception:
         return True  # 可能本来就不存在, 视为成功
 
 
-def store_mm_api_key_to_keyring(api_key: str) -> bool:
-    """将 VLM API Key 存入系统密钥环. 若为空则清除."""
-    if not KEYRING_AVAILABLE:
-        return False
-    if not api_key:
-        return clear_mm_api_key_from_keyring()
-    try:
-        keyring.set_password(KEYRING_SERVICE, KEYRING_MM_API_KEY, api_key)
-        return True
-    except Exception as e:
-        logging.warning(f"VLM API Key 写入密钥环失败: {e}")
-        return False
+# ── 侧边栏 AI API Key ──
+def store_api_key_to_keyring(api_key: str) -> bool:
+    return _keyring_store(KEYRING_API_KEY, api_key, "侧边栏 AI")
 
+def load_api_key_from_keyring() -> str:
+    return _keyring_load(KEYRING_API_KEY, "侧边栏 AI")
+
+def clear_api_key_from_keyring() -> bool:
+    return _keyring_clear(KEYRING_API_KEY, "侧边栏 AI")
+
+
+# ── VLM API Key ──
+def store_mm_api_key_to_keyring(api_key: str) -> bool:
+    return _keyring_store(KEYRING_MM_API_KEY, api_key, "VLM")
 
 def load_mm_api_key_from_keyring() -> str:
-    """从系统密钥环读取 VLM API Key."""
-    if not KEYRING_AVAILABLE:
-        return ""
-    try:
-        return keyring.get_password(KEYRING_SERVICE, KEYRING_MM_API_KEY) or ""
-    except Exception as e:
-        logging.warning(f"VLM API Key 读取失败: {e}")
-        return ""
-
+    return _keyring_load(KEYRING_MM_API_KEY, "VLM")
 
 def clear_mm_api_key_from_keyring() -> bool:
-    """从系统密钥环清除 VLM API Key."""
-    if not KEYRING_AVAILABLE:
-        return False
-    try:
-        keyring.delete_password(KEYRING_SERVICE, KEYRING_MM_API_KEY)
-        return True
-    except Exception:
-        return True
+    return _keyring_clear(KEYRING_MM_API_KEY, "VLM")
 
 
 # ====================================================================

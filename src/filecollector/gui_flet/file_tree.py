@@ -27,6 +27,7 @@ from typing import Optional
 
 import flet as ft
 
+from filecollector.gui_flet.constants import SKIP_DIRS
 from filecollector.i18n import _
 
 
@@ -122,14 +123,7 @@ class _FileNode:
 class FileTreePanel:
     """左侧文件树面板"""
 
-    IGNORE_DIRS = {
-        ".git", "node_modules", "__pycache__", ".svn", ".hg",
-        "venv", ".idea", ".vscode", "build", "dist", ".cache",
-        ".mypy_cache", ".pytest_cache", ".next", ".nuxt", "target",
-        ".gradle", ".venv", "env",
-        # VLM 缓存目录 (与 GNOME 版一致, 永远不显示)
-        ".filecollector_cache",
-    }
+    IGNORE_DIRS = SKIP_DIRS  # 来自 constants.py
 
     def __init__(self, main_view):
         self.main_view = main_view
