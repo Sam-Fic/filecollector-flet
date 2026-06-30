@@ -222,7 +222,7 @@ class PhrasesDialog(ft.AlertDialog):
                 ft.Container(
                     content=ft.Text(_("暂无常用语"), color=ft.Colors.GREY_600),
                     padding=12,
-                    alignment=ft.alignment.center,
+                    alignment=ft.alignment.Alignment(0, 0),
                 )
             )
             self._set_actions_enabled(False)
