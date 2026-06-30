@@ -369,3 +369,6 @@ cd src && pyinstaller FileCollector.spec
 - [chardet](https://github.com/chardet/chardet) - 编码检测库
 - [markdown-it-py](https://github.com/executablebooks/mdit-py) - Markdown 解析库，用于 AI 聊天面板的富文本渲染
 - [Pygments](https://pygments.org/) - 语法高亮库，用于 AI 聊天中代码块的着色显示
+
+特别感谢 [Decembered](https://github.com/Decembered) 的贡献与支持。
+
