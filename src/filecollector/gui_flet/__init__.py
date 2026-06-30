@@ -26,10 +26,19 @@ def main(page: ft.Page):
         page.update()
 
     # Material 3 主题
+    # 跨平台系统字体栈：Windows 用微软雅黑 UI / Segoe UI，
+    # macOS 用苹方，Linux 用 Noto Sans CJK SC，最后落到 sans-serif。
+    # 注意：必须用单个 CSS 风格字符串，flet.Theme.font_family 不支持元组，
+    # 否则会被序列化为 "('...', '...')" 查不到任何字体导致渲染挂起。
+    _SYSTEM_FONT_FAMILY = (
+        "MiWithJBMono, Microsoft YaHei UI, Segoe UI, PingFang SC, "
+        "Noto Sans CJK SC, Helvetica Neue, Arial, sans-serif"
+    )
     page.theme_mode = ft.ThemeMode.LIGHT
     page.theme = ft.Theme(
         color_scheme_seed="blue",
         use_material3=True,
+        font_family=_SYSTEM_FONT_FAMILY,
     )
 
     # 创建主视图
