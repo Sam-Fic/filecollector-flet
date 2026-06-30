@@ -46,16 +46,23 @@ class GlobalSearchDialog(ft.AlertDialog):
 
         self._result_list = ft.ListView(expand=True, spacing=2)
 
+        self._btn_toggle_select_text = ft.Text(_("全选"))
+        self._btn_add_selected_text = ft.Text(_("添加选中文件到编排列表 (0)"))
+        self._btn_add_all_text = ft.Text(_("添加全部 (0)"))
+
         self._btn_toggle_select = ft.ElevatedButton(
-            _("全选"), on_click=self._on_toggle_select, disabled=True)
+            content=self._btn_toggle_select_text,
+            on_click=self._on_toggle_select,
+            disabled=True,
+        )
         self._btn_add_selected = ft.ElevatedButton(
-            _("添加选中文件到编排列表 (0)"),
+            content=self._btn_add_selected_text,
             icon=ft.Icons.ADD,
             on_click=self._on_add_selected,
             disabled=True,
         )
         self._btn_add_all = ft.ElevatedButton(
-            _("添加全部 (0)"),
+            content=self._btn_add_all_text,
             icon=ft.Icons.ADD_TASK,
             on_click=self._on_add_all,
             disabled=True,
@@ -285,9 +292,11 @@ class GlobalSearchDialog(ft.AlertDialog):
         n_sel = len(self._selected_files)
         n_all = self._file_count
         all_sel = n_all > 0 and n_sel >= n_all
-        self._btn_toggle_select.text = _("全不选") if all_sel else _("全选")
-        self._btn_add_selected.text = _("添加选中文件到编排列表 (%d)") % n_sel
-        self._btn_add_all.text = _("添加全部 (%d)") % n_all
+        self._btn_toggle_select_text.value = (
+            _("全不选") if all_sel else _("全选"))
+        self._btn_add_selected_text.value = (
+            _("添加选中文件到编排列表 (%d)") % n_sel)
+        self._btn_add_all_text.value = _("添加全部 (%d)") % n_all
 
     def _on_toggle_select(self, e):
         all_sel = (self._file_count > 0
