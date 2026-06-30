@@ -83,9 +83,16 @@ class MainView:
         elif ctrl and key == "O":
             self._on_load_project(None)
         elif ctrl and key == "S" and not shift:
-            self._on_save_project(None)
+            # 工作目录未设置时, 跟菜单项保持一致: 忽略并提示
+            if not self.engine.work_dir:
+                show_snack(self.page, _("尚未设置工作目录"))
+            else:
+                self._on_save_project(None)
         elif ctrl and key == "S" and shift:
-            self._on_save_project_as(None)
+            if not self.engine.work_dir:
+                show_snack(self.page, _("尚未设置工作目录"))
+            else:
+                self._on_save_project_as(None)
         elif ctrl and key == "E":
             self.arrangement_panel._on_add_external(None)
         elif ctrl and key == "I" and not shift:
@@ -193,6 +200,23 @@ class MainView:
         self.work_dir_label = title
 
         # 右侧操作
+        # 先把需要按工作目录启用/禁用的菜单项挂到 self 上,
+        # 后面 _update_subtitle 会同步切换它们的 disabled。
+        self.menu_save_project = ft.PopupMenuItem(
+            content=ft.Text(_("保存项目")),
+            icon=ft.Icons.SAVE,
+            on_click=self._on_save_project,
+        )
+        self.menu_save_project_as = ft.PopupMenuItem(
+            content=ft.Text(_("项目另存为...")),
+            icon=ft.Icons.SAVE_AS,
+            on_click=self._on_save_project_as,
+        )
+        self.menu_clear_cache = ft.PopupMenuItem(
+            content=ft.Text(_("清除工作区缓存")),
+            icon=ft.Icons.CLEANING_SERVICES,
+            on_click=self._on_clear_cache,
+        )
         actions = ft.Row(
             [
                 ft.IconButton(
@@ -205,16 +229,8 @@ class MainView:
                     icon=ft.Icons.MORE_VERT,
                     padding=0,
                     items=[
-                        ft.PopupMenuItem(
-                            content=ft.Text(_("保存项目")),
-                            icon=ft.Icons.SAVE,
-                            on_click=self._on_save_project,
-                        ),
-                        ft.PopupMenuItem(
-                            content=ft.Text(_("项目另存为...")),
-                            icon=ft.Icons.SAVE_AS,
-                            on_click=self._on_save_project_as,
-                        ),
+                        self.menu_save_project,
+                        self.menu_save_project_as,
                         ft.PopupMenuItem(
                             content=ft.Text(_("打开项目")),
                             icon=ft.Icons.FOLDER_OPEN,
@@ -237,11 +253,7 @@ class MainView:
                             on_click=self._on_phrases,
                         ),
                         ft.PopupMenuItem(),  # 分隔符
-                        ft.PopupMenuItem(
-                            content=ft.Text(_("清除工作区缓存")),
-                            icon=ft.Icons.CLEANING_SERVICES,
-                            on_click=self._on_clear_cache,
-                        ),
+                        self.menu_clear_cache,
                         ft.PopupMenuItem(),  # 分隔符
                         ft.PopupMenuItem(
                             content=ft.Text(_("键盘快捷键")),
@@ -614,11 +626,17 @@ class MainView:
         self._update_subtitle()
 
     def _update_subtitle(self):
-        """更新工作目录显示"""
-        if self.engine.work_dir:
+        """更新工作目录显示 + 同步与目录相关的菜单项可用状态"""
+        has_work_dir = bool(self.engine.work_dir)
+        if has_work_dir:
             self.work_dir_label.value = _("当前工作目录: %s") % self.engine.work_dir
         else:
             self.work_dir_label.value = _("当前工作目录: 未设置")
+        # 工作目录未设置时, 把"保存项目/另存为/清除缓存"灰显
+        if hasattr(self, "menu_save_project"):
+            self.menu_save_project.disabled = not has_work_dir
+            self.menu_save_project_as.disabled = not has_work_dir
+            self.menu_clear_cache.disabled = not has_work_dir
         self.page.update()
 
     def show_preview(self, data: ItemData):
