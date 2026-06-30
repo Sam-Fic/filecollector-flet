@@ -77,9 +77,12 @@ class MainView:
         shift = e.shift
 
         if ctrl and key == "Z" and not shift:
-            self._on_undo(None)
+            # 撤销栈空时与按钮保持一致: 忽略 (no-op, 不弹 snack 避免噪音)
+            if self.undo_manager.can_undo:
+                self._on_undo(None)
         elif ctrl and key == "Z" and shift:
-            self._on_redo(None)
+            if self.undo_manager.can_redo:
+                self._on_redo(None)
         elif ctrl and key == "O":
             self._on_load_project(None)
         elif ctrl and key == "S" and not shift:
@@ -167,19 +170,24 @@ class MainView:
 
     def _build_app_bar(self) -> ft.Control:
         """构建顶部应用栏 (使用 Container 替代 AppBar, 避免 Material 3 滚动阴影)"""
+        # 撤销/重做按钮: 由 _update_toolbar_states 维护 disabled
+        self.btn_undo = ft.IconButton(
+            icon=ft.Icons.UNDO,
+            tooltip=_("撤销") + " (Ctrl+Z)",
+            on_click=self._on_undo,
+            disabled=True,
+        )
+        self.btn_redo = ft.IconButton(
+            icon=ft.Icons.REDO,
+            tooltip=_("重做") + " (Ctrl+Shift+Z)",
+            on_click=self._on_redo,
+            disabled=True,
+        )
         # 左侧操作
         leading = ft.Row(
             [
-                ft.IconButton(
-                    icon=ft.Icons.UNDO,
-                    tooltip=_("撤销") + " (Ctrl+Z)",
-                    on_click=self._on_undo,
-                ),
-                ft.IconButton(
-                    icon=ft.Icons.REDO,
-                    tooltip=_("重做") + " (Ctrl+Shift+Z)",
-                    on_click=self._on_redo,
-                ),
+                self.btn_undo,
+                self.btn_redo,
                 ft.VerticalDivider(),
                 ft.ElevatedButton(
                     _("打开文件夹"),
@@ -609,9 +617,16 @@ class MainView:
     # 辅助方法
     # ==================================================================
 
+    def _update_toolbar_states(self):
+        """同步顶部工具栏 (撤销/重做) 的可用状态"""
+        if hasattr(self, "btn_undo"):
+            self.btn_undo.disabled = not self.undo_manager.can_undo
+            self.btn_redo.disabled = not self.undo_manager.can_redo
+
     def _push_undo(self):
         """保存撤销状态"""
         self.undo_manager.push(self.engine.snapshot())
+        self._update_toolbar_states()
 
     def _refresh_all(self):
         """刷新所有面板"""
@@ -624,6 +639,8 @@ class MainView:
         self.arrangement_panel.refresh()
         self.preview_panel.clear()
         self._update_subtitle()
+        # 4. 同步工具栏 (撤销/重做) 状态
+        self._update_toolbar_states()
 
     def _update_subtitle(self):
         """更新工作目录显示 + 同步与目录相关的菜单项可用状态"""

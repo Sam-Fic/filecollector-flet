@@ -115,6 +115,41 @@ class ArrangementListPanel:
             on_click=self._on_delete,
             disabled=True,
         )
+        # 列表为空时不可点, 由 _update_button_states 维护
+        # 注意: 用 style=ft.ButtonStyle(...) 而不是 bgcolor/color 直接属性,
+        # 这样 disabled 状态才能正确套用 Material 3 主题的禁用样式。
+        self.btn_clear = ft.ElevatedButton(
+            _("清空"),
+            icon=ft.Icons.CLEAR_ALL,
+            style=ft.ButtonStyle(
+                color=ft.Colors.WHITE,
+                bgcolor=ft.Colors.RED_600,
+            ),
+            on_click=self._on_clear,
+            disabled=True,
+        )
+        self.btn_generate_txt = ft.ElevatedButton(
+            _("生成合并文本"),
+            icon=ft.Icons.SAVE_ALT,
+            style=ft.ButtonStyle(
+                color=ft.Colors.WHITE,
+                bgcolor=ft.Colors.BLUE_600,
+            ),
+            on_click=self._on_generate_txt,
+            disabled=True,
+            col={"xs": 12, "sm": 6},
+        )
+        self.btn_generate_clipboard = ft.ElevatedButton(
+            _("生成到剪贴板"),
+            icon=ft.Icons.CONTENT_COPY,
+            style=ft.ButtonStyle(
+                color=ft.Colors.WHITE,
+                bgcolor=ft.Colors.BLUE_600,
+            ),
+            on_click=self._on_generate_clipboard,
+            disabled=True,
+            col={"xs": 12, "sm": 6},
+        )
         btn_row2 = ft.ResponsiveRow(
             [
                 ft.Row(
@@ -123,15 +158,7 @@ class ArrangementListPanel:
                     col={"xs": 12, "sm": 6},
                 ),
                 ft.Row(
-                    [
-                        ft.ElevatedButton(
-                            _("清空"),
-                            icon=ft.Icons.CLEAR_ALL,
-                            color=ft.Colors.WHITE,
-                            bgcolor=ft.Colors.RED_600,
-                            on_click=self._on_clear,
-                        ),
-                    ],
+                    [self.btn_clear],
                     alignment=ft.MainAxisAlignment.END,
                     col={"xs": 12, "sm": 6},
                 ),
@@ -174,25 +201,11 @@ class ArrangementListPanel:
             alignment=ft.MainAxisAlignment.CENTER,
         )
 
-        # 按钮行 3 - 生成
+        # 按钮行 3 - 生成 (引用 self.btn_generate_*, 由 _update_button_states 控制 disabled)
         btn_row3 = ft.ResponsiveRow(
             [
-                ft.ElevatedButton(
-                    _("生成合并文本"),
-                    icon=ft.Icons.SAVE_ALT,
-                    color=ft.Colors.WHITE,
-                    bgcolor=ft.Colors.BLUE_600,
-                    on_click=self._on_generate_txt,
-                    col={"xs": 12, "sm": 6},
-                ),
-                ft.ElevatedButton(
-                    _("生成到剪贴板"),
-                    icon=ft.Icons.CONTENT_COPY,
-                    color=ft.Colors.WHITE,
-                    bgcolor=ft.Colors.BLUE_600,
-                    on_click=self._on_generate_clipboard,
-                    col={"xs": 12, "sm": 6},
-                ),
+                self.btn_generate_txt,
+                self.btn_generate_clipboard,
             ],
         )
 
@@ -384,6 +397,12 @@ class ArrangementListPanel:
         self.btn_move_up.disabled = not has_sel or self.selected_index == 0
         self.btn_move_down.disabled = not has_sel or self.selected_index >= len(
             self.main_view.engine.items) - 1
+        # 列表为空时, 清空和生成按钮全部灰显
+        # 同步设置 opacity 让禁用状态在视觉上更明显 (Material 3 默认
+        # 仅替换前景色, 配合 RED_600/BLUE_600 等鲜艳背景色时区分度不够)
+        for btn in (self.btn_clear, self.btn_generate_txt, self.btn_generate_clipboard):
+            btn.disabled = not has_items
+            btn.opacity = 1.0 if has_items else 0.4
 
     def _get_display_text(self, idx: int, data: ItemData) -> str:
         """获取列表项显示文本"""
