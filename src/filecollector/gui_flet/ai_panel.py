@@ -742,9 +742,12 @@ class AIPanel:
 
     def _scroll_to_bottom(self, _) -> None:
         """点击回到底部按钮."""
-        self.chat_list.scroll_to(offset=-1, duration=300)
+        self.main_view.page.run_task(self._scroll_to_bottom_async)
         self.scroll_to_bottom_btn.visible = False
         self.main_view.page.update()
+
+    async def _scroll_to_bottom_async(self) -> None:
+        await self.chat_list.scroll_to(offset=-1, duration=300)
 
     # ------------------------------------------------------------------ 事件
     def _on_send_or_stop(self, e):
