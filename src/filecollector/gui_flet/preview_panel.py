@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from typing import Optional
 
 import flet as ft
@@ -19,6 +20,9 @@ import flet as ft
 from filecollector.models import ItemData, PreprocessStatus
 from filecollector.utils import safe_read_file
 from filecollector.i18n import _
+
+# Markdown 预览内容长度上限，避免超大内容导致 Flutter 渲染/同步卡顿
+_MAX_MD_PREVIEW_CHARS = 100_000
 
 
 class PreviewPanel:
@@ -169,7 +173,14 @@ class PreviewPanel:
             return
         try:
             content, enc = safe_read_file(data.path, max_preview_lines=80)
-            self._show_text(_("--- 文件预览 (编码: %s) ---\n%s") % (enc, content))
+            if Path(data.path).suffix.lower() in {".md", ".markdown"}:
+                self.content_md.value = content
+                self._set_md_visible(True)
+                self._set_text_visible(False)
+            else:
+                self._show_text(
+                    _("--- 文件预览 (编码: %s) ---\n%s") % (enc, content)
+                )
         except Exception as e:
             self._show_text(_("读取错误: %s") % e)
         self._set_retry_visible(False)
@@ -198,14 +209,21 @@ class PreviewPanel:
 
         # 内容: 若已完成, 渲染 markdown; 否则给提示
         if data.preprocessed_content and st == PreprocessStatus.COMPLETED:
+            md = data.preprocessed_content
+            if len(md) > _MAX_MD_PREVIEW_CHARS:
+                md = md[:_MAX_MD_PREVIEW_CHARS] + _(
+                    "\n\n---\n\n*（内容过长，已截断显示前 %d 个字符）*"
+                ) % _MAX_MD_PREVIEW_CHARS
+            # 先赋值再显示, 避免 Markdown 控件在空值与显示状态切换时 Flutter 侧卡顿
+            self.content_md.value = md
             self._set_md_visible(True)
             self._set_text_visible(False)
-            self.content_md.value = data.preprocessed_content
         else:
             self._set_md_visible(False)
             self._set_text_visible(True)
             if st == PreprocessStatus.FAILED:
-                self.content_text.value = _("AI 转换失败。\n\n可点击右上角 '重新进行 AI 转换' 按钮重试。")
+                self.content_text.value = _(
+                    "AI 转换失败。\n\n可点击右上角 '重新进行 AI 转换' 按钮重试。")
             elif st == PreprocessStatus.PROCESSING:
                 self.content_text.value = _("AI 正在转换中, 请稍候…")
             elif st == PreprocessStatus.CHECKING:
@@ -216,9 +234,12 @@ class PreviewPanel:
                 self.content_text.value = _("尚未开始处理。")
 
         try:
-            self.main_view.page.update()
+            self.preview_container.update()
         except Exception:
-            pass
+            try:
+                self.main_view.page.update()
+            except Exception:
+                pass
 
     # ============================================================== 按钮事件
     def _on_retry_preprocess(self, e):
@@ -250,14 +271,18 @@ class PreviewPanel:
             parts.append(f"\n```diff\n{body}\n```")
 
         md_content = "\n".join(parts)
+        # 先赋值再显示, 避免 Markdown 控件空值切换时 Flutter 侧卡顿
+        self.content_md.value = md_content
         self._set_md_visible(True)
         self._set_text_visible(False)
-        self.content_md.value = md_content
 
         try:
-            self.main_view.page.update()
+            self.preview_container.update()
         except Exception:
-            pass
+            try:
+                self.main_view.page.update()
+            except Exception:
+                pass
 
     @staticmethod
     def _split_diff_by_file(diff_text: str) -> list[tuple[str, str]]:
@@ -300,6 +325,9 @@ class PreviewPanel:
         self._set_text_visible(True)
         self._set_retry_visible(False)
         try:
-            self.main_view.page.update()
+            self.preview_container.update()
         except Exception:
-            pass
+            try:
+                self.main_view.page.update()
+            except Exception:
+                pass

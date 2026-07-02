@@ -108,17 +108,37 @@ class VLMQueueManager:
 
     # ------------------------------------------------------------------ 内部
     def _emit_signals(self) -> None:
+        """触发进度/状态回调.
+
+        始终在独立线程中执行回调, 避免在 UI 线程同步代码中调用
+        control.update() / page.run_task 导致阻塞或死锁.
+        """
         completed = self._completed_count
         total = self._total_count
         active = len(self._active_set)
-        if self.on_progress:
-            try:
-                self.on_progress(completed, total, active)
-            except Exception as e:
-                logging.warning(f"VLMQueueManager.on_progress error: {e}")
-        self._fire_state(self.has_tasks())
+        has_tasks = (
+            total > completed
+            or bool(self._pending_queue)
+            or bool(self._active_set)
+        )
+
+        def _fire():
+            if self.on_progress:
+                try:
+                    self.on_progress(completed, total, active)
+                except Exception as e:
+                    logging.warning(f"VLMQueueManager.on_progress error: {e}")
+            if self.on_state_changed:
+                try:
+                    self.on_state_changed(has_tasks)
+                except Exception as e:
+                    logging.warning(f"VLMQueueManager.on_state_changed error: {e}")
+
+        import threading
+        threading.Thread(target=_fire, daemon=True).start()
 
     def _fire_state(self, has_tasks: bool) -> None:
+        """直接触发状态回调 (仅用于 cancel 等场景)."""
         if self.on_state_changed:
             try:
                 self.on_state_changed(has_tasks)

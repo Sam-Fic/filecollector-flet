@@ -238,9 +238,18 @@ class FileTreePanel:
             self._load_children(root_node)
             root_node_col = self._build_dir_node(root_node, indent=0)
             self.tree_content.controls.append(root_node_col)
-            self._populate_dir_children(root_node)
+            # 根目录子项过多时异步分批加载, 避免阻塞 UI
+            total = len(root_node.children)
+            if total > 100:
+                self._populate_dir_children_async(
+                    root_node, self._dir_tiles[str(work_dir)])
+            else:
+                self._populate_dir_children(root_node)
 
-        self.main_view.page.update()
+        try:
+            self.main_view.page.update()
+        except Exception:
+            pass
 
     def refresh(self):
         """外部调用: 刷新所有 checkbox 显示状态."""
@@ -262,13 +271,12 @@ class FileTreePanel:
             return
         node.loaded = True
         try:
-            entries = sorted(
-                node.path.iterdir(),
-                key=lambda p: (not p.is_dir(), p.name.lower())
-            )
+            entries = list(os.scandir(node.path))
         except (PermissionError, FileNotFoundError, OSError):
             entries = []
 
+        dirs: list[_DirNode] = []
+        files: list[_FileNode] = []
         for entry in entries:
             # 隐藏目录跳过
             if entry.name.startswith(".") and entry.is_dir():
@@ -276,11 +284,15 @@ class FileTreePanel:
             if entry.name in self.IGNORE_DIRS:
                 continue
             if entry.is_dir():
-                child = _DirNode(entry)
-                self._dir_nodes[str(entry)] = child
-                node.children.append(child)
+                child = _DirNode(Path(entry.path))
+                self._dir_nodes[str(child.path)] = child
+                dirs.append(child)
             elif entry.is_file():
-                node.children.append(_FileNode(entry))
+                files.append(_FileNode(Path(entry.path)))
+
+        dirs.sort(key=lambda n: n.path.name.lower())
+        files.sort(key=lambda n: n.path.name.lower())
+        node.children = dirs + files
 
     def _ensure_dir_loaded(self, dir_path: Path) -> _DirNode:
         """确保某目录已加载, 返回其节点 (若不存在则创建)."""
@@ -548,15 +560,15 @@ class FileTreePanel:
     def _walk_files(self, dir_path: Path):
         """递归生成 dir_path 下所有文件的绝对路径字符串 (跳过忽略目录)."""
         try:
-            for entry in dir_path.iterdir():
+            for entry in os.scandir(dir_path):
                 if entry.name in self.IGNORE_DIRS:
                     continue
                 if entry.name.startswith(".") and entry.is_dir():
                     continue
                 if entry.is_file():
-                    yield str(entry)
+                    yield entry.path
                 elif entry.is_dir():
-                    yield from self._walk_files(entry)
+                    yield from self._walk_files(Path(entry.path))
         except (PermissionError, FileNotFoundError, OSError):
             return
 
@@ -597,6 +609,25 @@ class FileTreePanel:
                 cb = self._dir_widgets[p]
                 cb.set_state(self._dir_state(Path(p)))
 
+    def _refresh_ancestor_displays(self, file_path: Path) -> None:
+        """仅刷新 file_path 的所有祖先目录三态 (单文件勾选时避免重算整棵树)."""
+        current = file_path.parent
+        work_dir_str = str(self.work_dir)
+        while True:
+            node = self._dir_nodes.get(str(current))
+            if node is not None:
+                self._refresh_dir_display(node)
+            else:
+                cb = self._dir_widgets.get(str(current))
+                if cb is not None:
+                    cb.set_state(self._dir_state(current))
+            if str(current) == work_dir_str:
+                break
+            parent = current.parent
+            if parent == current:
+                break
+            current = parent
+
     # ====================================================== 点击事件
     def _on_dir_checkbox_click(self, path_str: str, old_state: int) -> None:
         """目录三态点击: 级联设置所有后代文件."""
@@ -623,18 +654,15 @@ class FileTreePanel:
 
     def _on_file_checkbox_click(self, path_str: str, old_state: int) -> None:
         """点击文件 checkbox 切换勾选状态."""
-        # path_str 已是规范化路径 (bind_path 时存储)
         new_state = CHECKED if old_state == UNCHECKED else UNCHECKED
         if new_state == CHECKED:
             self.checked_paths.add(path_str)
         else:
             self.checked_paths.discard(path_str)
-        # 刷新对应文件 checkbox 视觉
         cb = self._file_widgets.get(path_str)
         if cb is not None:
             cb.set_state(new_state)
-        # 刷新所有目录三态
-        self._refresh_all_dir_displays()
+        self._refresh_ancestor_displays(Path(path_str))
         self._sync_to_engine()
         try:
             self.main_view.page.update()
