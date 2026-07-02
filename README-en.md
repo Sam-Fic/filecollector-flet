@@ -4,8 +4,6 @@
   <img src="icons/filecollector.svg" alt="FileCollector" width="128" height="128">
 </div>
 
-> This project was developed entirely through **vibe coding**.
-
 [中文版](README.md)
 
 FileCollector is a cross-platform desktop utility for efficiently collecting and organizing files from a working directory into a merged text file.  
