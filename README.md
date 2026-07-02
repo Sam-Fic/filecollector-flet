@@ -4,8 +4,6 @@
   <img src="icons/filecollector.svg" alt="FileCollector" width="128" height="128">
 </div>
 
-> 本项目完全通过 **vibe coding** 方式开发完成。
-
 [English Version](README-en.md)
 
 FileCollector 是一款跨平台的桌面小工具，用于高效收集、编排工作目录中的文件并生成合并文本。  
