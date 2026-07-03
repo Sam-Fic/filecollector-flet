@@ -56,18 +56,19 @@ class PreviewPanel:
             icon=ft.Icons.REFRESH,
             on_click=self._on_retry_preprocess,
             visible=False,
-            width=190,
             tooltip=_("重新进行 AI 转换"),
             style=ft.ButtonStyle(
                 shape=ft.RoundedRectangleBorder(radius=20),
-                padding=ft.Padding(left=12, top=8, right=12, bottom=8),
+                padding=ft.Padding(left=14, top=8, right=14, bottom=8),
                 bgcolor=ft.Colors.with_opacity(0.92, ft.Colors.SURFACE),
                 side=ft.BorderSide(1, ft.Colors.OUTLINE_VARIANT),
                 elevation=2,
             ),
         )
 
-        # 内容区: Stack 让按钮悬浮在内容上
+        # 内容区: Stack 让按钮悬浮在内容右上角.
+        # fit=EXPAND 让 Stack 占满整个预览卡片内容区, 而不是随内部文字宽度收缩,
+        # 这样 right=12 才会相对于卡片右上角对齐, 避免内容窄时按钮被裁切.
         self.content_stack = ft.Stack(
             [
                 ft.Column(
@@ -78,12 +79,12 @@ class PreviewPanel:
                 ),
                 ft.Container(
                     content=self.btn_retry,
-                    alignment=ft.alignment.Alignment(1, -1),
                     right=12,
                     top=8,
                 ),
             ],
             expand=True,
+            fit=ft.StackFit.EXPAND,
         )
 
         # 面板容器
