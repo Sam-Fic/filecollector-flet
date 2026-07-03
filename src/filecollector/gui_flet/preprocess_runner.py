@@ -186,6 +186,25 @@ class PreprocessRunner:
                     it.from_cache = False
                     self._on_status(it)
 
+    # ------------------------------------------------------------------ 取消回调
+    def on_item_cancelled(self, item: ItemData) -> None:
+        """队列取消某 item 时触发: 把状态复位为 NONE, 刷新 UI.
+
+        由 VLMQueueManager 在独立线程中调用, 内部用 _post 切回 UI 线程.
+        只复位 PENDING/CHECKING/PROCESSING — COMPLETED/FAILED/UNKNOWN 不动,
+        避免抹掉已经成功或已失败的结果.
+        """
+        def _reset():
+            if item.preprocess_status in (
+                    PreprocessStatus.PENDING,
+                    PreprocessStatus.CHECKING,
+                    PreprocessStatus.PROCESSING):
+                item.preprocess_status = PreprocessStatus.NONE
+                item.preprocessed_content = None
+                item.from_cache = False
+                self._on_status(item)
+        self._post(_reset)
+
     # ------------------------------------------------------------------ 队列执行器
     def vlm_task_executor(self, item: ItemData, queue_manager) -> None:
         """队列执行器: 在后台线程中完成 缓存检查 + VLM 转换.
