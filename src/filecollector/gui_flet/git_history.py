@@ -43,6 +43,7 @@ class GitHistoryPanel:
             text_size=14,
             height=36,
             on_change=self._on_search_change,
+            on_blur=lambda e: self._ensure_keyboard_focus(),
         )
 
         # 提交列表
@@ -60,41 +61,50 @@ class GitHistoryPanel:
             text_align=ft.TextAlign.CENTER,
         )
 
+        # 面板内容 (Column) 用 KeyboardListener 包装, 用于追踪 Ctrl/Shift 状态.
+        panel_content = ft.Column(
+            [
+                ft.Container(
+                    content=ft.Text(
+                        _("Git 提交历史"),
+                        weight=ft.FontWeight.BOLD,
+                        size=16,
+                        text_align=ft.TextAlign.CENTER,
+                    ),
+                    padding=ft.Padding(top=10, bottom=10, left=0, right=0),
+                    alignment=ft.alignment.Alignment(0, 0),
+                ),
+                ft.Container(
+                    content=self.search_field,
+                    padding=ft.Padding(left=12, right=12, bottom=8, top=0),
+                ),
+                ft.Container(
+                    content=ft.Column(
+                        [self.commit_list],
+                        spacing=0,
+                        expand=True,
+                    ),
+                    expand=True,
+                    padding=ft.Padding(left=8, right=8, top=0, bottom=0),
+                ),
+                ft.Container(
+                    content=self.status_text,
+                    padding=ft.Padding(left=12, right=12, top=4, bottom=8),
+                ),
+            ],
+            spacing=0,
+            expand=True,
+        )
+        self.keyboard_listener = ft.KeyboardListener(
+            content=panel_content,
+            autofocus=True,
+            on_key_down=self._on_key_down,
+            on_key_up=self._on_key_up,
+        )
+
         # 面板容器 (与 FileTreePanel 同级, 用于切换)
         self.container = ft.Container(
-            content=ft.Column(
-                [
-                    ft.Container(
-                        content=ft.Text(
-                            _("Git 提交历史"),
-                            weight=ft.FontWeight.BOLD,
-                            size=16,
-                            text_align=ft.TextAlign.CENTER,
-                        ),
-                        padding=ft.Padding(top=10, bottom=10, left=0, right=0),
-                        alignment=ft.alignment.Alignment(0, 0),
-                    ),
-                    ft.Container(
-                        content=self.search_field,
-                        padding=ft.Padding(left=12, right=12, bottom=8, top=0),
-                    ),
-                    ft.Container(
-                        content=ft.Column(
-                            [self.commit_list],
-                            spacing=0,
-                            expand=True,
-                        ),
-                        expand=True,
-                        padding=ft.Padding(left=8, right=8, top=0, bottom=0),
-                    ),
-                    ft.Container(
-                        content=self.status_text,
-                        padding=ft.Padding(left=12, right=12, top=4, bottom=8),
-                    ),
-                ],
-                spacing=0,
-                expand=True,
-            ),
+            content=self.keyboard_listener,
             expand=True,
             bgcolor=ft.Colors.SURFACE_CONTAINER_LOWEST,
             border_radius=12,
@@ -215,7 +225,7 @@ class GitHistoryPanel:
             padding=ft.Padding(left=8, top=6, right=8, bottom=6),
             border_radius=6,
             bgcolor=ft.Colors.PRIMARY_CONTAINER if is_selected else None,
-            on_click=lambda e, c=commit: self._on_commit_click(e, c),
+            on_click=lambda e, c=commit: self._on_commit_row_click(c),
             ink=True,
             tooltip=f"{commit.short_hash} - {commit.message}\n{commit.author} | {commit.date}",
         )
@@ -301,15 +311,23 @@ class GitHistoryPanel:
             ink=True,
         )
 
-    def _on_commit_click(self, e, commit: GitCommit):
+    def _on_commit_row_click(self, commit: GitCommit):
+        """Commit 行点击包装: 确保键盘焦点后再走多选逻辑."""
+        self._ensure_keyboard_focus()
+        self._on_commit_click(commit)
+
+    def _on_commit_click(self, commit: GitCommit):
         """点击 commit: 支持 Ctrl/Shift 多选.
 
         - 普通点击: 单选 (清空其他)
         - Ctrl+点击: 切换该 commit 选中状态
         - Shift+点击: 从锚点到该 commit 范围全选
+
+        注意: Flet 的 ControlEvent 不暴露 ctrl/shift 修饰键,
+        必须通过 main_view 全局跟踪的 _ctrl_held / _shift_held 读取.
         """
-        ctrl = bool(getattr(e, "ctrl", False)) if e else False
-        shift = bool(getattr(e, "shift", False)) if e else False
+        ctrl = bool(getattr(self.main_view, "_ctrl_held", False))
+        shift = bool(getattr(self.main_view, "_shift_held", False))
 
         if shift and self._anchor_hash is not None:
             # 范围选: 在 _filtered_commits 中找到锚点和当前, 全选中间
@@ -340,6 +358,29 @@ class GitHistoryPanel:
         first = self.first_selected_commit
         if first and hasattr(self.main_view, "on_git_commit_selected"):
             self.main_view.on_git_commit_selected(first)
+
+    def _on_key_down(self, e: ft.KeyDownEvent):
+        """键盘按下: 跟踪 Ctrl / Shift 修饰键."""
+        key = e.key.upper()
+        if "CONTROL" in key or "CTRL" in key:
+            self.main_view._ctrl_held = True
+        elif "SHIFT" in key:
+            self.main_view._shift_held = True
+
+    def _on_key_up(self, e: ft.KeyUpEvent):
+        """键盘释放: 跟踪 Ctrl / Shift 修饰键."""
+        key = e.key.upper()
+        if "CONTROL" in key or "CTRL" in key:
+            self.main_view._ctrl_held = False
+        elif "SHIFT" in key:
+            self.main_view._shift_held = False
+
+    def _ensure_keyboard_focus(self):
+        """确保 KeyboardListener 持有焦点, 以便持续接收按键事件."""
+        try:
+            self.main_view.page.run_task(self.keyboard_listener.focus())
+        except Exception:
+            pass
 
     # ============================================================== 外部 API
     @property
