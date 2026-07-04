@@ -396,6 +396,9 @@ FileCollector 内置了 Git 只读探查功能，方便开发者快速收集与�
 - [chardet](https://github.com/chardet/chardet) - 编码检测库
 - [markdown-it-py](https://github.com/executablebooks/mdit-py) - Markdown 解析库，用于 AI 聊天面板的富文本渲染
 - [Pygments](https://pygments.org/) - 语法高亮库，用于 AI 聊天中代码块的着色显示
+- [tokenx](https://github.com/johannschopplich/tokenx) - Token 估算功能参考
 
 特别感谢 [Decembered](https://github.com/Decembered) 的贡献与支持。
+
+> 欢迎贡献想法或参与开发！
 
