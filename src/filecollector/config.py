@@ -81,6 +81,27 @@ def save_settings(data: dict) -> None:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 
+# ─── 上下文窗口大小 (用于 token 进度条预警) ──────────────────────────
+
+DEFAULT_CONTEXT_WINDOW_SIZE = 128000
+
+
+def get_context_window_size() -> int:
+    """读取目标 LLM 的上下文窗口大小 (tokens). 默认 128000."""
+    settings = load_settings()
+    val = settings.get("context_window_size")
+    if isinstance(val, (int, float)) and val > 0:
+        return int(val)
+    return DEFAULT_CONTEXT_WINDOW_SIZE
+
+
+def save_context_window_size(size: int) -> None:
+    """保存上下文窗口大小到 settings.json."""
+    settings = load_settings()
+    settings["context_window_size"] = int(size)
+    save_settings(settings)
+
+
 def load_common_phrases() -> list[str]:
     path = get_common_phrases_path()
     if not os.path.exists(path):

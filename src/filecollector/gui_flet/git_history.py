@@ -25,7 +25,9 @@ class GitHistoryPanel:
         self.main_view = main_view
         self._commits: list[GitCommit] = []
         self._filtered_commits: list[GitCommit] = []
-        self._selected_commit: Optional[GitCommit] = None
+        # 多选: 用 set 存 commit.hash; 单选时此 set 仅含一个元素
+        self._selected_hashes: set[str] = set()
+        self._anchor_hash: Optional[str] = None  # shift+click 范围选的锚点
         self._search_text: str = ""
 
         self._build_ui()
@@ -107,12 +109,14 @@ class GitHistoryPanel:
             self.status_text.value = _("尚未设置工作目录")
             self.status_text.color = ft.Colors.GREY_600
             self.commit_list.controls.clear()
-            self._selected_commit = None
+            self._selected_hashes.clear()
+            self._anchor_hash = None
             return
 
         self.search_field.visible = True
         self.commit_list.controls.clear()
-        self._selected_commit = None
+        self._selected_hashes.clear()
+        self._anchor_hash = None
         self.main_view.page.update()
 
         def _load():
@@ -176,8 +180,7 @@ class GitHistoryPanel:
     # ============================================================== 列表项构建
     def _build_commit_row(self, commit: GitCommit) -> ft.Control:
         """构建单条 commit 行."""
-        is_selected = (self._selected_commit is not None
-                       and self._selected_commit.hash == commit.hash)
+        is_selected = commit.hash in self._selected_hashes
 
         hash_text = ft.Text(
             commit.short_hash,
@@ -211,8 +214,8 @@ class GitHistoryPanel:
             content=row,
             padding=ft.Padding(left=8, top=6, right=8, bottom=6),
             border_radius=6,
-            bgcolor=ft.Colors.SURFACE_CONTAINER_LOW if is_selected else None,
-            on_click=lambda e, c=commit: self._on_commit_click(c),
+            bgcolor=ft.Colors.PRIMARY_CONTAINER if is_selected else None,
+            on_click=lambda e, c=commit: self._on_commit_click(e, c),
             ink=True,
             tooltip=f"{commit.short_hash} - {commit.message}\n{commit.author} | {commit.date}",
         )
@@ -298,22 +301,67 @@ class GitHistoryPanel:
             ink=True,
         )
 
-    def _on_commit_click(self, commit: GitCommit):
-        """点击 commit: 选中并触发预览."""
-        self._selected_commit = commit
+    def _on_commit_click(self, e, commit: GitCommit):
+        """点击 commit: 支持 Ctrl/Shift 多选.
+
+        - 普通点击: 单选 (清空其他)
+        - Ctrl+点击: 切换该 commit 选中状态
+        - Shift+点击: 从锚点到该 commit 范围全选
+        """
+        ctrl = bool(getattr(e, "ctrl", False)) if e else False
+        shift = bool(getattr(e, "shift", False)) if e else False
+
+        if shift and self._anchor_hash is not None:
+            # 范围选: 在 _filtered_commits 中找到锚点和当前, 全选中间
+            idx_anchor = next((i for i, c in enumerate(self._filtered_commits)
+                               if c.hash == self._anchor_hash), None)
+            idx_cur = next((i for i, c in enumerate(self._filtered_commits)
+                            if c.hash == commit.hash), None)
+            if idx_anchor is not None and idx_cur is not None:
+                lo, hi = min(idx_anchor, idx_cur), max(idx_anchor, idx_cur)
+                self._selected_hashes = {
+                    c.hash for c in self._filtered_commits[lo:hi + 1]
+                }
+        elif ctrl:
+            if commit.hash in self._selected_hashes:
+                self._selected_hashes.discard(commit.hash)
+            else:
+                self._selected_hashes.add(commit.hash)
+            self._anchor_hash = commit.hash
+        else:
+            # 普通点击: 单选
+            self._selected_hashes = {commit.hash}
+            self._anchor_hash = commit.hash
+
         self._rebuild_list()
         self.main_view.page.update()
 
-        # 通知 main_view 预览 diff
-        if hasattr(self.main_view, "on_git_commit_selected"):
-            self.main_view.on_git_commit_selected(commit)
+        # 通知 main_view 预览首个选中 commit 的 diff
+        first = self.first_selected_commit
+        if first and hasattr(self.main_view, "on_git_commit_selected"):
+            self.main_view.on_git_commit_selected(first)
 
     # ============================================================== 外部 API
     @property
     def selected_commit(self) -> Optional[GitCommit]:
-        return self._selected_commit
+        """向后兼容: 返回首个选中 commit (无选中返回 None)."""
+        return self.first_selected_commit
+
+    @property
+    def first_selected_commit(self) -> Optional[GitCommit]:
+        """返回 _filtered_commits 中第一个被选中的 commit."""
+        for c in self._filtered_commits:
+            if c.hash in self._selected_hashes:
+                return c
+        return None
+
+    @property
+    def selected_commits(self) -> list[GitCommit]:
+        """返回所有选中 commit, 按 _filtered_commits 显示顺序 (最新在前)."""
+        return [c for c in self._filtered_commits if c.hash in self._selected_hashes]
 
     def clear_selection(self):
         """清除选中状态."""
-        self._selected_commit = None
+        self._selected_hashes.clear()
+        self._anchor_hash = None
         self._rebuild_list()

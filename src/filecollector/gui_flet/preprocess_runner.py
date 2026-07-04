@@ -236,6 +236,7 @@ class PreprocessRunner:
                 item.preprocessed_content = md
                 item.preprocess_status = PreprocessStatus.COMPLETED
                 item.from_cache = True
+                item.update_token_stats()
                 self._on_status(item)
                 self._on_preview(item)
                 queue_manager.notify_finished(item)
@@ -342,6 +343,7 @@ class PreprocessRunner:
             item.preprocessed_content = md
             item.preprocess_status = PreprocessStatus.COMPLETED
             item.from_cache = False
+            item.update_token_stats()
             self._on_status(item)
             self._on_preview(item)
             queue_manager.notify_finished(item)
@@ -385,6 +387,7 @@ class PreprocessRunner:
                 item.preprocessed_content = md
                 item.preprocess_status = PreprocessStatus.COMPLETED
                 item.from_cache = True
+                item.update_token_stats()
                 self._on_status(item)
                 self._on_preview(item)
 
@@ -481,6 +484,7 @@ class PreprocessRunner:
             item.preprocessed_content = md
             item.preprocess_status = PreprocessStatus.COMPLETED
             item.from_cache = False
+            item.update_token_stats()
             self._on_status(item)
             self._on_preview(item)
         self._post(_done)

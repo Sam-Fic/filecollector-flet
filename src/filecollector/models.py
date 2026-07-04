@@ -52,6 +52,27 @@ class ItemData:
         self.preprocess_status: PreprocessStatus = PreprocessStatus.NONE
         self.preprocessed_content: Optional[str] = None
         self.from_cache: bool = False
+        # Token 估算缓存 (preprocessed_content 优先, 否则用 content)
+        self.cached_tokens: int = 0
+        self.update_token_stats()
+
+    # ---------------------------------------------------------------- Token 估算
+    def get_effective_content(self) -> str:
+        """返回用于 token 估算 / 导出的有效内容.
+
+        preprocessed_content (VLM 转写) 优先; 否则用 content (text 条目 / 文件读取结果).
+        """
+        if self.preprocessed_content:
+            return self.preprocessed_content
+        return self.content or ""
+
+    def update_token_stats(self) -> None:
+        """基于 get_effective_content() 刷新 cached_tokens.
+
+        在 __init__ / preprocessed_content 赋值 / 文本编辑后调用.
+        """
+        from filecollector.token_estimator import estimate_tokens_fast
+        self.cached_tokens = estimate_tokens_fast(self.get_effective_content())
 
     # ---------------------------------------------------------------- 文件类型判断
     def is_document_target(self) -> bool:

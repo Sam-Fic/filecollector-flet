@@ -551,6 +551,7 @@ class TextEditDialog(ft.AlertDialog):
             if data.type == "text":
                 self.main_view._push_undo()
                 data.content = text
+                data.update_token_stats()
                 show_snack(self.main_view.page, _("文字已更新"))
         elif self.insert_index is not None:
             # 插入模式
