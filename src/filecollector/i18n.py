@@ -428,6 +428,16 @@ _lock = threading.RLock()
     "无效的行号: %s": "Invalid line number: %s",
     "未输入有效的行范围": "No valid line range entered",
     "已添加 %d 个行范围": "Added %d line range(s)",
+    # ---- 偏好设置 (上下文 / 外观) ----
+    "外观与上下文": "Appearance & Context",
+    "设置模型上下文窗口用于进度条预警；外观主题立即生效。":
+        "Set the model context window for progress warnings; the appearance theme applies instantly.",
+    "上下文窗口大小 (Tokens)": "Context Window Size (Tokens)",
+    "外观主题": "Appearance Theme",
+    "跟随系统": "Follow System",
+    "浅色": "Light",
+    "深色": "Dark",
+    "偏好设置": "Preferences",
     # ---- 空状态引导 ----
     "未选择工作目录": "No working directory selected",
     "打开一个文件夹作为工作目录，左侧即可加载目录树并开始编排。":

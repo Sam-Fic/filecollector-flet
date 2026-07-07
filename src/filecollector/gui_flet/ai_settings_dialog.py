@@ -22,6 +22,8 @@ from filecollector.config import (
     load_multimodal_ai_settings, save_multimodal_ai_settings,
     get_allowed_binary_extensions, save_allowed_binary_extensions,
     parse_allowed_ext_input,
+    get_context_window_size, save_context_window_size,
+    get_color_scheme, save_color_scheme,
 )
 from filecollector.models import DEFAULT_ALLOWED_BINARY_EXTS
 from filecollector.ai_client import AIClient, AIClientError
@@ -226,6 +228,27 @@ class AISettingsDialog(ft.AlertDialog):
             size=12, color=ft.Colors.RED_600,
         )
 
+        # 上下文窗口大小 (用于 token 进度条预警)
+        self.cw_field = ft.TextField(
+            label=_("上下文窗口大小 (Tokens)"),
+            value=str(get_context_window_size()),
+            hint_text="128000",
+            keyboard_type=ft.KeyboardType.NUMBER,
+            width=200,
+        )
+        # 外观主题
+        _scheme = get_color_scheme()
+        self.scheme_dropdown = ft.Dropdown(
+            label=_("外观主题"),
+            value=_scheme,
+            options=[
+                ft.dropdown.Option("system", _("跟随系统")),
+                ft.dropdown.Option("light", _("浅色")),
+                ft.dropdown.Option("dark", _("深色")),
+            ],
+            width=200,
+        )
+
         # 拼装内容
         sidebar_card = _GroupCard(
             _("AI 助手 (侧边栏)"),
@@ -265,11 +288,23 @@ class AISettingsDialog(ft.AlertDialog):
             _("安全警告"), "", [self.security_label],
         )
 
+        appearance_card = _GroupCard(
+            _("外观与上下文"),
+            _("设置模型上下文窗口用于进度条预警；外观主题立即生效。"),
+            [
+                ft.Row(
+                    [self.cw_field, self.scheme_dropdown],
+                    spacing=16, alignment=ft.MainAxisAlignment.START,
+                ),
+            ],
+        )
+
         super().__init__(
-            title=ft.Text(_("AI 设置")),
+            title=ft.Text(_("偏好设置")),
             content=ft.Container(
                 content=ft.Column(
-                    [sidebar_card, mm_card, ignored_card, security_card],
+                    [sidebar_card, mm_card, ignored_card,
+                     appearance_card, security_card],
                     spacing=12, tight=True, scroll=ft.ScrollMode.AUTO,
                 ),
                 width=520,
@@ -458,6 +493,29 @@ class AISettingsDialog(ft.AlertDialog):
         # 忽略目录
         try:
             self._save_ignored_dirs(self.ignored_field.value or "")
+        except Exception:
+            pass
+
+        # 上下文窗口大小
+        try:
+            cw = int((self.cw_field.value or "").strip() or 0)
+            if cw > 0:
+                save_context_window_size(cw)
+        except ValueError:
+            pass
+
+        # 外观主题: 立即应用到当前页面
+        new_scheme = self.scheme_dropdown.value or "system"
+        save_color_scheme(new_scheme)
+        page = self.main_view.page
+        if new_scheme == "dark":
+            page.theme_mode = ft.ThemeMode.DARK
+        elif new_scheme == "light":
+            page.theme_mode = ft.ThemeMode.LIGHT
+        else:
+            page.theme_mode = ft.ThemeMode.SYSTEM
+        try:
+            page.update()
         except Exception:
             pass
 

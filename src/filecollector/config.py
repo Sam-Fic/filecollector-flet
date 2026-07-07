@@ -102,6 +102,30 @@ def save_context_window_size(size: int) -> None:
     save_settings(settings)
 
 
+# ─── 外观 / 颜色主题 ────────────────────────────────────────────────
+
+DEFAULT_COLOR_SCHEME = "system"   # system / light / dark
+_VALID_COLOR_SCHEMES = ("system", "light", "dark")
+
+
+def get_color_scheme() -> str:
+    """读取外观主题偏好. 默认跟随系统 (system)."""
+    settings = load_settings()
+    val = settings.get("color_scheme")
+    if val in _VALID_COLOR_SCHEMES:
+        return val
+    return DEFAULT_COLOR_SCHEME
+
+
+def save_color_scheme(scheme: str) -> None:
+    """保存外观主题偏好到 settings.json."""
+    if scheme not in _VALID_COLOR_SCHEMES:
+        scheme = DEFAULT_COLOR_SCHEME
+    settings = load_settings()
+    settings["color_scheme"] = scheme
+    save_settings(settings)
+
+
 def load_common_phrases() -> list[str]:
     path = get_common_phrases_path()
     if not os.path.exists(path):

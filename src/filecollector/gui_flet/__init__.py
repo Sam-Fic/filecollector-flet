@@ -8,6 +8,7 @@ import flet as ft
 from filecollector.i18n import _, initialize as i18n_initialize
 from filecollector.gui_flet.main_view import MainView
 from filecollector.gui_flet.snack import show_snack
+from filecollector.config import get_color_scheme
 
 
 def main(page: ft.Page):
@@ -34,7 +35,14 @@ def main(page: ft.Page):
         "MiWithJBMono, Microsoft YaHei UI, Segoe UI, PingFang SC, "
         "Noto Sans CJK SC, Helvetica Neue, Arial, sans-serif"
     )
-    page.theme_mode = ft.ThemeMode.LIGHT
+    # 外观主题: 跟随配置 (system / light / dark), 默认 LIGHT 保底
+    _scheme = get_color_scheme()
+    if _scheme == "dark":
+        page.theme_mode = ft.ThemeMode.DARK
+    elif _scheme == "light":
+        page.theme_mode = ft.ThemeMode.LIGHT
+    else:  # system
+        page.theme_mode = ft.ThemeMode.SYSTEM
     page.theme = ft.Theme(
         color_scheme_seed="blue",
         use_material3=True,
