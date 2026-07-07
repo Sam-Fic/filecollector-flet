@@ -29,6 +29,9 @@ class GitHistoryPanel:
         self._selected_hashes: set[str] = set()
         self._anchor_hash: Optional[str] = None  # shift+click 范围选的锚点
         self._search_text: str = ""
+        # 提交历史是否已加载完成 (无论成功/失败). 加载中视为"数据可能可用",
+        # 用于主界面空状态判定 (参考 GNOME 版 git_all_loaded).
+        self._all_loaded: bool = False
 
         self._build_ui()
 
@@ -121,12 +124,14 @@ class GitHistoryPanel:
             self.commit_list.controls.clear()
             self._selected_hashes.clear()
             self._anchor_hash = None
+            self._all_loaded = False
             return
 
         self.search_field.visible = True
         self.commit_list.controls.clear()
         self._selected_hashes.clear()
         self._anchor_hash = None
+        self._all_loaded = False
         self.main_view.page.update()
 
         def _load():
@@ -150,12 +155,16 @@ class GitHistoryPanel:
     async def _on_load_finished(
         self, commits: list[GitCommit], error_msg: Optional[str],
     ):
+        self._all_loaded = True
         if error_msg:
             from filecollector.git_service import sanitize_git_error
             display_msg = sanitize_git_error(error_msg)
             self.status_text.value = _("Git 日志加载失败: %s") % display_msg
             self.status_text.color = ft.Colors.RED_600
             self.main_view.page.update()
+            # 加载完成 (即便失败), 通知主界面重新评估空状态
+            if hasattr(self.main_view, "_refresh_empty_state"):
+                self.main_view._refresh_empty_state()
             return
 
         self._commits = commits
@@ -167,6 +176,9 @@ class GitHistoryPanel:
             self.status_text.value = _("暂无提交记录")
             self.status_text.color = ft.Colors.GREY_600
         self.main_view.page.update()
+        # 加载完成, 通知主界面重新评估空状态 (git 模式 + 无提交时显示空状态)
+        if hasattr(self.main_view, "_refresh_empty_state"):
+            self.main_view._refresh_empty_state()
 
     # ============================================================== 搜索过滤
     def _on_search_change(self, e):

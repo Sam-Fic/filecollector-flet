@@ -449,6 +449,13 @@ _lock = threading.RLock()
     "打开一个文件夹作为工作目录，即可开始收集与编排文件。":
         "Open a folder as the working directory to start collecting and arranging files.",
     "打开工作目录": "Open Working Directory",
+    # ---- Git 空状态引导 ----
+    "未检测到 Git 仓库": "No Git Repository Detected",
+    "当前工作目录不是一个 Git 仓库，无法读取提交历史。请在该目录下执行 git init 进行初始化，或在包含版本库的工作目录中打开本应用。":
+        "The current working directory is not a Git repository, so commit history cannot be read. Run git init here, or open the app in a directory that contains a repository.",
+    "暂无提交记录": "No Commits Yet",
+    "当前 Git 仓库中还没有任何提交。完成首次 git commit 后，提交历史将显示在此处。":
+        "This Git repository does not have any commits yet. After your first git commit, the history will appear here.",
 }
 
 _LISTENERS: list[Callable[[str], None]] = []
