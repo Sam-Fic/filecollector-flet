@@ -31,6 +31,28 @@ class GitError(Exception):
     """Git 操作异常."""
 
 
+def sanitize_git_error(msg: str, max_len: int = 60) -> str:
+    """清洗 Git 命令行错误输出, 去除冗余前缀并安全截断.
+
+    对齐 GNOME 版 window.vala 的 Git 错误提示逻辑:
+    - 去除 "Git error: " 前缀
+    - 去除 "fatal: " / "fatal:" 文案
+    - 去除首尾空白
+    - 超过 max_len 字符时截断 (Python 按字符截断, 天然 UTF-8 安全)
+    """
+    if not msg:
+        return msg
+    display = msg
+    if display.startswith("Git error: "):
+        display = display[len("Git error: "):]
+    display = display.replace("fatal: ", "").replace("fatal:", "")
+    display = display.strip()
+    if len(display) > max_len:
+        display = display[: max_len - 3] + "..."
+    return display
+
+
+
 def _run_git(args: list[str], cwd: str, timeout: float = 30.0) -> str:
     """执行 git 命令并返回 stdout, 失败时抛出 GitError."""
     cmd = ["git"] + args

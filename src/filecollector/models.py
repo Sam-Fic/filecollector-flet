@@ -50,13 +50,24 @@ class ItemData:
         self.content = content
         # VLM 预处理相关字段
         self.preprocess_status: PreprocessStatus = PreprocessStatus.NONE
-        self.preprocessed_content: Optional[str] = None
+        self._preprocessed_content: Optional[str] = None
         self.from_cache: bool = False
         # Token 估算缓存 (preprocessed_content 优先, 否则用 content)
         self.cached_tokens: int = 0
         self.update_token_stats()
 
     # ---------------------------------------------------------------- Token 估算
+    @property
+    def preprocessed_content(self) -> Optional[str]:
+        return self._preprocessed_content
+
+    @preprocessed_content.setter
+    def preprocessed_content(self, value: Optional[str]) -> None:
+        self._preprocessed_content = value
+        # 赋值时自动刷新 cached_tokens, 避免遗漏调用点导致估算为 0
+        # (对齐 GNOME 版 notify["preprocessed-content"].connect)
+        self.update_token_stats()
+
     def get_effective_content(self) -> str:
         """返回用于 token 估算 / 导出的有效内容.
 

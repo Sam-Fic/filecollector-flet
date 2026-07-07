@@ -151,7 +151,9 @@ class GitHistoryPanel:
         self, commits: list[GitCommit], error_msg: Optional[str],
     ):
         if error_msg:
-            self.status_text.value = _("Git 日志加载失败: %s") % error_msg
+            from filecollector.git_service import sanitize_git_error
+            display_msg = sanitize_git_error(error_msg)
+            self.status_text.value = _("Git 日志加载失败: %s") % display_msg
             self.status_text.color = ft.Colors.RED_600
             self.main_view.page.update()
             return
