@@ -373,7 +373,7 @@ class GlobalSearchDialog(ft.AlertDialog):
                 spans.append(ft.TextSpan(
                     text[i:i + m],
                     style=ft.TextStyle(
-                        color=ft.Colors("#3584e4"),
+                        color="#3584e4",
                         weight=ft.FontWeight.BOLD,
                     ),
                 ))
