@@ -24,7 +24,9 @@ from filecollector.config import (
     parse_allowed_ext_input,
     get_context_window_size, save_context_window_size,
     get_color_scheme, save_color_scheme,
+    get_language_setting, save_language_setting,
 )
+from filecollector.i18n import set_language
 from filecollector.models import DEFAULT_ALLOWED_BINARY_EXTS
 from filecollector.ai_client import AIClient, AIClientError
 from filecollector.multimodal_ai_client import (
@@ -249,6 +251,23 @@ class AISettingsDialog(ft.AlertDialog):
             width=200,
         )
 
+        # 界面语言 (切换后需重启生效)
+        _lang = get_language_setting()
+        self.lang_dropdown = ft.Dropdown(
+            label=_("语言"),
+            value=_lang,
+            options=[
+                ft.dropdown.Option("", _("跟随系统")),
+                ft.dropdown.Option("zh_CN", _("中文")),
+                ft.dropdown.Option("en", _("English")),
+            ],
+            width=200,
+        )
+        self.lang_apply_btn = ft.ElevatedButton(
+            _("应用"), icon=ft.Icons.CHECK,
+            on_click=self._on_apply_language,
+        )
+
         # 拼装内容
         sidebar_card = _GroupCard(
             _("AI 助手 (侧边栏)"),
@@ -299,12 +318,26 @@ class AISettingsDialog(ft.AlertDialog):
             ],
         )
 
+        language_card = _GroupCard(
+            _("界面语言"),
+            _("切换语言后需要重启应用才能生效。"),
+            [
+                ft.Row(
+                    [
+                        self.lang_dropdown,
+                        self.lang_apply_btn,
+                    ],
+                    spacing=16, alignment=ft.MainAxisAlignment.START,
+                ),
+            ],
+        )
+
         super().__init__(
             title=ft.Text(_("偏好设置")),
             content=ft.Container(
                 content=ft.Column(
-                    [sidebar_card, mm_card, ignored_card,
-                     appearance_card, security_card],
+                [sidebar_card, mm_card, ignored_card,
+                 appearance_card, language_card, security_card],
                     spacing=12, tight=True, scroll=ft.ScrollMode.AUTO,
                 ),
                 width=520,
@@ -559,6 +592,40 @@ class AISettingsDialog(ft.AlertDialog):
             self.main_view.page.pop_dialog()
         except Exception:
             pass
+
+    # ============================================================== 语言
+    def _on_apply_language(self, e):
+        """保存语言设置并提示重启 (参考 preferences_dialog.vala 语言页)."""
+        new_lang = self.lang_dropdown.value or ""
+        save_language_setting(new_lang)
+
+        dlg = ft.AlertDialog(
+            title=ft.Text(_("提示")),
+            content=ft.Text(
+                _("语言设置已保存，重启应用后生效。是否现在重启？")),
+            actions=[
+                ft.TextButton(
+                    _("稍后"), on_click=lambda ev: self.main_view.page.pop_dialog()),
+                ft.TextButton(
+                    _("立即重启"),
+                    on_click=lambda ev: self._restart_app()),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+        self.main_view.page.show_dialog(dlg)
+
+    def _restart_app(self):
+        """立即重启应用 (重新执行当前进程)."""
+        try:
+            self.main_view.page.pop_dialog()
+        except Exception:
+            pass
+        import os
+        import sys
+        try:
+            os.execv(sys.executable, [sys.executable] + sys.argv)
+        except Exception as ex:  # noqa: BLE001
+            print(f"[AISettingsDialog] restart failed: {ex}")
 
 
 # ====================================================================

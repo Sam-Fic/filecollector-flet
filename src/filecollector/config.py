@@ -126,6 +126,30 @@ def save_color_scheme(scheme: str) -> None:
     save_settings(settings)
 
 
+# ── 界面语言偏好 ──────────────────────────────────────────────
+# language 取值: "" (跟随系统) / "zh_CN" / "en"
+DEFAULT_LANGUAGE = ""
+_VALID_LANGUAGES = ("", "zh_CN", "en")
+
+
+def get_language_setting() -> str:
+    """读取界面语言偏好. 默认跟随系统 (空串)."""
+    settings = load_settings()
+    val = settings.get("language")
+    if val in _VALID_LANGUAGES:
+        return val
+    return DEFAULT_LANGUAGE
+
+
+def save_language_setting(lang: str) -> None:
+    """保存界面语言偏好到 settings.json."""
+    if lang not in _VALID_LANGUAGES:
+        lang = DEFAULT_LANGUAGE
+    settings = load_settings()
+    settings["language"] = lang
+    save_settings(settings)
+
+
 def load_common_phrases() -> list[str]:
     path = get_common_phrases_path()
     if not os.path.exists(path):
