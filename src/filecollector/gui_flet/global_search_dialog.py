@@ -14,13 +14,21 @@ from filecollector.gui_flet.search_service import SearchService
 
 
 class GlobalSearchDialog(ft.AlertDialog):
-    """全局内容搜索对话框."""
+    """全局内容搜索对话框.
+
+    结果按文件分组: 每个文件一个可展开/折叠的 Revealer,
+    内含该文件的所有匹配行; 文件行前的复选框控制整文件的选择.
+    匹配的关键词按 UTF-8 安全方式高亮.
+    """
 
     def __init__(self, main_view):
         self.main_view = main_view
         self._search_service: Optional[SearchService] = None
         self._cancel_event: Optional[threading.Event] = None
-        self._checkboxes: dict[str, list[ft.Checkbox]] = defaultdict(list)
+        self._checkboxes: dict[str, ft.Checkbox] = {}
+        self._file_revealers: dict[str, ft.Revealer] = {}
+        self._file_match_boxes: dict[str, ft.Column] = {}
+        self._file_arrow_buttons: dict[str, ft.IconButton] = {}
         self._matched_files: set[str] = set()
         self._selected_files: set[str] = set()
         self._pending_results: list[tuple[str, str, int, str]] = []
@@ -139,6 +147,9 @@ class GlobalSearchDialog(ft.AlertDialog):
         self._cancel_event = threading.Event()
         self._result_list.controls.clear()
         self._checkboxes.clear()
+        self._file_revealers.clear()
+        self._file_match_boxes.clear()
+        self._file_arrow_buttons.clear()
         self._matched_files.clear()
         self._selected_files.clear()
         self._pending_results.clear()
@@ -177,8 +188,16 @@ class GlobalSearchDialog(ft.AlertDialog):
             _("已扫描 %d 个文件，找到 %d 个匹配项...") % (scanned, matched))
 
     def _on_finished(self, total_scanned: int, total_matched: int):
-        results = list(self._pending_results)
-        n_files = len(self._matched_files)
+        # 按文件路径分组, 保持首次出现顺序
+        ordered_files: list[str] = []
+        file_results: dict[str, list[tuple[str, str, int, str]]] = defaultdict(list)
+        for r in self._pending_results:
+            fp = r[0]
+            if fp not in file_results:
+                ordered_files.append(fp)
+            file_results[fp].append(r)
+
+        n_files = len(ordered_files)
         self._file_count = n_files
 
         def _build():
@@ -189,11 +208,17 @@ class GlobalSearchDialog(ft.AlertDialog):
 
             self._result_list.controls.clear()
             self._checkboxes.clear()
+            self._file_revealers.clear()
+            self._file_match_boxes.clear()
+            self._file_arrow_buttons.clear()
             self._selected_files.clear()
 
-            for file_path, rel_path, line_number, line_content in results:
-                self._add_result_row(file_path, rel_path,
-                                     line_number, line_content)
+            for fp in ordered_files:
+                results = file_results[fp]
+                rel = results[0][1]
+                self._ensure_file_row(fp, rel)
+                for r in results:
+                    self._add_match_row(r)
 
             has = n_files > 0
             self._btn_add_selected.disabled = not has
@@ -231,9 +256,15 @@ class GlobalSearchDialog(ft.AlertDialog):
             self.main_view.page.update()
         self._run_on_ui(_do)
 
-    # ── 结果行构建 (UI 线程) ──────────────────────────────────
+    # ── 结果行构建 (UI 线程, 按文件分组) ──────────────────────
 
-    def _add_result_row(self, file_path, rel_path, line_number, line_content):
+    def _ensure_file_row(self, file_path: str, rel_path: str) -> None:
+        """为某文件创建分组行 (箭头 + 复选框 + 文件名 + 可折叠匹配区)."""
+        if file_path in self._file_revealers:
+            return
+
+        keyword = (self._search_field.value or "").strip()
+
         check = ft.Checkbox(value=(file_path in self._selected_files))
 
         def _on_change(e):
@@ -241,50 +272,119 @@ class GlobalSearchDialog(ft.AlertDialog):
                 self._selected_files.add(file_path)
             else:
                 self._selected_files.discard(file_path)
-            for cb in self._checkboxes.get(file_path, []):
-                if cb is not check:
-                    cb.value = check.value
             self._apply_labels()
             self.main_view.page.update()
 
         check.on_change = _on_change
-        self._checkboxes[file_path].append(check)
+        self._checkboxes[file_path] = check
 
+        arrow_btn = ft.IconButton(
+            icon=ft.Icons.KEYBOARD_ARROW_RIGHT,
+            tooltip=_("展开"),
+            on_click=lambda e: self._toggle_file(file_path),
+        )
+
+        filename_lbl = ft.Text(
+            rel_path, size=13, weight=ft.FontWeight.W_600,
+            no_wrap=True, overflow=ft.TextOverflow.ELLIPSIS, expand=True,
+        )
+
+        file_hbox = ft.Row(
+            [arrow_btn, check, filename_lbl],
+            spacing=6, vertical_alignment=ft.CrossAxisAlignment.CENTER,
+        )
+
+        matches_box = ft.Column(spacing=0, tight=True)
+        matches_box.margin = ft.Margin(left=44, top=0, right=8, bottom=8)
+
+        revealer = ft.Revealer(content=matches_box, visible=False)
+
+        vbox = ft.Column([file_hbox, revealer], spacing=0, tight=True)
         row = ft.Container(
-            content=ft.Row(
-                [
-                    check,
-                    ft.Column(
-                        [
-                            ft.Text(
-                                f"{rel_path} : {line_number}",
-                                size=12,
-                                weight=ft.FontWeight.W_600,
-                                no_wrap=True,
-                                overflow=ft.TextOverflow.ELLIPSIS,
-                                expand=True,
-                            ),
-                            ft.Text(
-                                line_content.strip()[:200],
-                                size=12,
-                                font_family="monospace",
-                                no_wrap=True,
-                                overflow=ft.TextOverflow.ELLIPSIS,
-                                expand=True,
-                            ),
-                        ],
-                        spacing=2,
-                        expand=True,
-                        tight=True,
-                    ),
-                ],
-                spacing=8,
-                vertical_alignment=ft.CrossAxisAlignment.CENTER,
-            ),
-            padding=ft.Padding(left=8, top=6, right=8, bottom=6),
+            content=vbox, padding=ft.Padding(left=8, top=4, right=8, bottom=4),
             border_radius=6,
         )
         self._result_list.controls.append(row)
+
+        self._file_revealers[file_path] = revealer
+        self._file_match_boxes[file_path] = matches_box
+        self._file_arrow_buttons[file_path] = arrow_btn
+
+    def _toggle_file(self, file_path: str) -> None:
+        revealer = self._file_revealers.get(file_path)
+        arrow = self._file_arrow_buttons.get(file_path)
+        if revealer is None:
+            return
+        expanded = not revealer.visible
+        revealer.visible = expanded
+        if arrow is not None:
+            arrow.icon = (
+                ft.Icons.KEYBOARD_ARROW_DOWN if expanded
+                else ft.Icons.KEYBOARD_ARROW_RIGHT)
+            arrow.tooltip = _("收起") if expanded else _("展开")
+        self.main_view.page.update()
+
+    def _add_match_row(self, r: tuple[str, str, int, str]) -> None:
+        file_path, rel_path, line_number, line_content = r
+        matches_box = self._file_match_boxes.get(file_path)
+        if matches_box is None:
+            return
+
+        keyword = (self._search_field.value or "").strip()
+
+        line_lbl = ft.Text(
+            str(line_number), size=11, color=ft.Colors.GREY_600,
+            width=48, no_wrap=True,
+        )
+        content_lbl = ft.Text(
+            spans=self._highlight_keyword(line_content.strip(), keyword,
+                                          self._case_toggle.selected),
+            size=12, no_wrap=True,
+            overflow=ft.TextOverflow.ELLIPSIS, expand=True,
+            selectable=True,
+        )
+        hbox = ft.Row(
+            [line_lbl, content_lbl],
+            spacing=8, vertical_alignment=ft.CrossAxisAlignment.START,
+            tighten=True,
+        )
+        hbox.margin = ft.Margin(top=2, bottom=2, left=0, right=0)
+        matches_box.controls.append(hbox)
+
+    def _highlight_keyword(self, text: str, keyword: str,
+                           case_sensitive: bool) -> list[ft.TextSpan]:
+        """UTF-8 安全的关键词高亮: 返回带高亮的 TextSpan 列表."""
+        spans: list[ft.TextSpan] = []
+        if not keyword:
+            spans.append(ft.TextSpan(text))
+            return spans
+
+        k = keyword if case_sensitive else keyword.lower()
+        lower = text.lower() if not case_sensitive else text
+
+        i = 0
+        n = len(text)
+        m = len(keyword)
+        while i < n:
+            seg = lower[i:i + m]
+            if seg == k:
+                if i > 0:
+                    spans.append(ft.TextSpan(text[:i]))
+                spans.append(ft.TextSpan(
+                    text[i:i + m],
+                    style=ft.TextStyle(
+                        color=ft.Colors.BLUE_700,
+                        weight=ft.FontWeight.BOLD,
+                    ),
+                ))
+                text = text[i + m:]
+                lower = lower[i + m:]
+                n = len(text)
+                i = 0
+            else:
+                i += 1
+        spans.append(ft.TextSpan(text))
+        return spans
 
     # ── 按钮交互 (UI 线程) ──────────────────────────────────
 
@@ -303,14 +403,12 @@ class GlobalSearchDialog(ft.AlertDialog):
                    and len(self._selected_files) >= self._file_count)
         if all_sel:
             self._selected_files.clear()
-            for cbs in self._checkboxes.values():
-                for cb in cbs:
-                    cb.value = False
+            for cb in self._checkboxes.values():
+                cb.value = False
         else:
             self._selected_files = set(self._matched_files)
-            for fp, cbs in self._checkboxes.items():
-                for cb in cbs:
-                    cb.value = True
+            for cb in self._checkboxes.values():
+                cb.value = True
         self._apply_labels()
         self.main_view.page.update()
 
