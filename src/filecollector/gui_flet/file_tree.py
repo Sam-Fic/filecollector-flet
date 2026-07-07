@@ -720,6 +720,12 @@ class FileTreePanel:
                 text=_("复制文件内容"),
                 on_click=close_then(lambda p=path_str: self._ctx_copy_content(p)),
             ))
+            # 选择行: 输入行范围, 将片段加入编排列表
+            items.append(self._ctx_item(
+                icon=ft.Icons.STRAIGHTEN,
+                text=_("选择行..."),
+                on_click=close_then(lambda p=path_str: self._ctx_select_lines(p)),
+            ))
 
         # 在文件管理器中显示
         items.append(self._ctx_item(
@@ -820,6 +826,44 @@ class FileTreePanel:
             self.main_view.open_file_location(path_str)
         except Exception as ex:
             show_snack(self.main_view.page, _("无法打开文件管理器: %s") % ex)
+
+    def _ctx_select_lines(self, path_str: str) -> None:
+        """选择行: 弹出对话框输入行范围, 将片段加入编排列表."""
+        from filecollector.gui_flet.snack import show_snack
+
+        entry = ft.TextField(
+            label=_("行范围"),
+            hint_text=_("1-10,15,20-25"),
+            autofocus=True,
+            on_submit=lambda e: _do_add(),
+        )
+        dlg = ft.AlertDialog(
+            title=ft.Text(_("选择行")),
+            content=ft.Column(
+                [
+                    ft.Text(_("输入行范围，用逗号分隔，用连字符表示区间。\n例如：1-10,15,20-25")),
+                    entry,
+                ],
+                spacing=12, tight=True,
+            ),
+            actions=[
+                ft.TextButton(_("取消"), on_click=lambda e: self.main_view.page.pop_dialog()),
+                ft.TextButton(_("添加"), on_click=lambda e: _do_add()),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+
+        def _do_add():
+            text = (entry.value or "").strip()
+            if not text:
+                return
+            try:
+                self.main_view.add_line_ranges_to_queue(path_str, text)
+            except Exception as ex:
+                show_snack(self.main_view.page, _("操作失败: %s") % ex)
+            self.main_view.page.pop_dialog()
+
+        self.main_view.page.show_dialog(dlg)
 
     def _ctx_refresh_subtree(self, path_str: str) -> None:
         """强制重新加载某个目录的子树."""

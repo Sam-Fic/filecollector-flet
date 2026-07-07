@@ -417,6 +417,17 @@ _lock = threading.RLock()
     "已添加片段: %s [L%d-L%d]": "Added snippet: %s [L%d-L%d]",
     "--- 片段预览 %s [L%d-L%d] (编码: %s) ---\n%s":
         "--- Snippet Preview %s [L%d-L%d] (Encoding: %s) ---\n%s",
+    # ---- 文件树 "选择行" ----
+    "选择行...": "Select Lines…",
+    "选择行": "Select Lines",
+    "行范围": "Line Range",
+    "输入行范围，用逗号分隔，用连字符表示区间。\n例如：1-10,15,20-25":
+        "Enter line ranges, comma-separated, hyphen for intervals.\n"
+        "e.g. 1-10,15,20-25",
+    "无效的行范围: %s": "Invalid line range: %s",
+    "无效的行号: %s": "Invalid line number: %s",
+    "未输入有效的行范围": "No valid line range entered",
+    "已添加 %d 个行范围": "Added %d line range(s)",
 }
 
 _LISTENERS: list[Callable[[str], None]] = []
