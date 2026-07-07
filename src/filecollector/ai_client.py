@@ -449,6 +449,35 @@ TOOL_SCHEMA: list[dict] = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "add_file_snippet",
+            "description": (
+                "Add a specific line range (snippet) of a file to the orchestration list. "
+                "Use this after `read_file` to extract only the relevant function, class, or code block, "
+                "saving massive amounts of tokens compared to adding the whole file."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "Absolute path to the file.",
+                    },
+                    "start_line": {
+                        "type": "integer",
+                        "description": "1-based starting line number.",
+                    },
+                    "end_line": {
+                        "type": "integer",
+                        "description": "1-based ending line number (inclusive).",
+                    },
+                },
+                "required": ["path", "start_line", "end_line"],
+            },
+        },
+    },
 ]
 
 

@@ -176,7 +176,21 @@ class PreviewPanel:
             self._set_retry_visible(False)
             return
         try:
-            content, enc = safe_read_file(data.path, max_preview_lines=80)
+            # 片段条目需要读取完整内容以提取指定行范围
+            full = data.is_snippet()
+            content, enc = safe_read_file(
+                data.path, max_preview_lines=None if full else 80)
+            # 片段条目: 仅提取指定行范围 (1-based) 预览
+            if data.is_snippet():
+                lines = content.split("\n")
+                s = max(0, data.start_line - 1)
+                e = min(len(lines), data.end_line)
+                snippet = "\n".join(lines[s:e])
+                self._show_text(
+                    _("--- 片段预览 %s [L%d-L%d] (编码: %s) ---\n%s")
+                    % (Path(data.path).name, data.start_line, data.end_line, enc, snippet)
+                )
+                return
             if Path(data.path).suffix.lower() in {".md", ".markdown"}:
                 self.content_md.value = content
                 self._set_md_visible(True)

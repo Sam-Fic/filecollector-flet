@@ -413,6 +413,10 @@ _lock = threading.RLock()
         "Configure an OpenAI-compatible API to drive the AI sidebar.",
     "配置视觉语言大模型（VLM）API, 用于将 PDF、Word、PPT、图片等转为 Markdown。":
         "Configure a Vision-Language Model (VLM) API to convert PDF, Word, PPT, images, etc. into Markdown.",
+    # ---- 文件片段 (snippet) ----
+    "已添加片段: %s [L%d-L%d]": "Added snippet: %s [L%d-L%d]",
+    "--- 片段预览 %s [L%d-L%d] (编码: %s) ---\n%s":
+        "--- Snippet Preview %s [L%d-L%d] (Encoding: %s) ---\n%s",
 }
 
 _LISTENERS: list[Callable[[str], None]] = []

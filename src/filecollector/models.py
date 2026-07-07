@@ -43,11 +43,15 @@ class PreprocessStatus(enum.IntEnum):
 
 
 class ItemData:
-    def __init__(self, type_, path=None, content=None, force_absolute=False):
+    def __init__(self, type_, path=None, content=None, force_absolute=False,
+                 start_line: int = 0, end_line: int = 0):
         self.type = type_
         self.path = path
         self.force_absolute = force_absolute
         self.content = content
+        # 文件片段: 1-based 行号范围 (start_line<=end_line>0 表示这是一个片段条目)
+        self.start_line: int = start_line
+        self.end_line: int = end_line
         # VLM 预处理相关字段
         self.preprocess_status: PreprocessStatus = PreprocessStatus.NONE
         self._preprocessed_content: Optional[str] = None
@@ -137,6 +141,10 @@ class ItemData:
             return "image/tiff"
         return "image/png"
 
+    def is_snippet(self) -> bool:
+        """是否为文件片段 (指定了 1-based 行范围)."""
+        return self.type == "file" and self.start_line > 0 and self.end_line > 0
+
     def make_snapshot_dict(self) -> dict:
         """生成可被 json.dumps 序列化的快照 (供 undo / project save)."""
         return {
@@ -144,6 +152,9 @@ class ItemData:
             "path": self.path,
             "content": self.content,
             "force_absolute": self.force_absolute,
+            # 片段行范围一并保存
+            **({"start_line": self.start_line, "end_line": self.end_line}
+               if self.is_snippet() else {}),
             # 预处理状态/内容不持久化: 项目保存只关心编排结构, 缓存会重建
         }
 
@@ -154,4 +165,6 @@ class ItemData:
             path=d.get("path"),
             content=d.get("content"),
             force_absolute=bool(d.get("force_absolute", False)),
+            start_line=d.get("start_line", 0),
+            end_line=d.get("end_line", 0),
         )

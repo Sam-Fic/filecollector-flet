@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 from pathlib import Path
 
@@ -27,6 +28,21 @@ class FileCollectorEngine:
         self.items.append(ItemData(type_="file", path=abs_path_str, force_absolute=force_absolute))
         if not force_absolute:
             self.checked_paths.add(abs_path_str)
+
+    def add_file_snippet(self, abs_path_str: str, start_line: int, end_line: int,
+                          force_absolute: bool = False) -> int:
+        """添加文件片段 (指定 1-based 行范围). 返回插入的索引.
+
+        片段与完整文件是不同的条目, 不做路径去重, 允许同一文件多个片段共存.
+        """
+        item = ItemData(
+            type_="file", path=abs_path_str, force_absolute=force_absolute,
+            start_line=start_line, end_line=end_line,
+        )
+        self.items.append(item)
+        if not force_absolute:
+            self.checked_paths.add(abs_path_str)
+        return len(self.items) - 1
 
     def add_text(self, content: str, index: int | None = None) -> None:
         item_data = ItemData(type_="text", content=content)
@@ -65,15 +81,16 @@ class FileCollectorEngine:
 
     # ------------------------------------------------------------------ Undo helpers
     def snapshot(self) -> dict:
+        # 深拷贝 items, 完整保留 start_line / end_line / preprocessed_content 等所有属性
         return {
-            "items": [ItemData(type_=it.type, path=it.path, content=it.content, force_absolute=it.force_absolute) for it in self.items],  # deep copy
+            "items": copy.deepcopy(self.items),
             "checked_paths": set(self.checked_paths),
             "use_absolute": self.use_absolute,
             "show_header": self.show_header,
         }
 
     def restore(self, state: dict) -> None:
-        self.items = list(state["items"])
+        self.items = copy.deepcopy(state["items"])
         self.checked_paths = set(state["checked_paths"])
         self.use_absolute = bool(state["use_absolute"])
         self.show_header = bool(state["show_header"])
@@ -119,6 +136,17 @@ class FileCollectorEngine:
                     except ValueError:
                         display = str(file_p.resolve())
                 f.write(f"{display}:\n")
+                # 文件片段: 仅导出指定行范围 (1-based)
+                if data.is_snippet():
+                    try:
+                        content, _ = safe_read_file(data.path)
+                        lines = content.split("\n")
+                        s = max(0, data.start_line - 1)
+                        e = min(len(lines), data.end_line)
+                        f.write("\n".join(lines[s:e]))
+                    except Exception as e:
+                        f.write(f"[读取片段失败: {e}]")
+                    continue
                 pre_md = getattr(data, "preprocessed_content", None)
                 if pre_md:
                     f.write(pre_md)
@@ -147,7 +175,12 @@ class FileCollectorEngine:
             "show_header": self.show_header,
             "checked_entries": sorted(self.checked_paths),  # GNOME 联调用名
             "items": [
-                {"type": "file", "path": it.path, "force_absolute": it.force_absolute}
+                (
+                    {"type": "file", "path": it.path,
+                     "force_absolute": it.force_absolute,
+                     **({"start_line": it.start_line, "end_line": it.end_line}
+                        if it.start_line > 0 and it.end_line > 0 else {})}
+                )
                 if it.type == "file"
                 else {"type": "text", "content": it.content}
                 for it in self.items
@@ -184,7 +217,12 @@ class FileCollectorEngine:
             if item_dict["type"] == "file":
                 p = item_dict["path"]
                 # 保留文件条目 (含路径), 即使文件暂时缺失; 导出时会标注
-                self.items.append(ItemData("file", path=p, force_absolute=item_dict.get("force_absolute", False)))
+                self.items.append(ItemData(
+                    "file", path=p,
+                    force_absolute=item_dict.get("force_absolute", False),
+                    start_line=item_dict.get("start_line", 0),
+                    end_line=item_dict.get("end_line", 0),
+                ))
             else:
                 self.items.append(ItemData("text", content=item_dict["content"]))
         phrases = data.get("common_phrases")
