@@ -476,7 +476,6 @@ class AISettingsDialog(ft.AlertDialog):
             self.main_view.page.pop_dialog()
         except Exception:
             pass
-        show_snack(self.main_view.page, _("AI 设置已保存"))
 
     def _on_cancel(self, e):
         try:

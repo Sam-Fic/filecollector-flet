@@ -441,9 +441,6 @@ class GlobalSearchDialog(ft.AlertDialog):
             except Exception:
                 pass
         self._on_close(None)
-        from filecollector.gui_flet.snack import show_snack
-        show_snack(self.main_view.page,
-                   _("已从搜索结果添加 %d 个文件") % added)
 
     def _on_close(self, e):
         if self._cancel_event:
