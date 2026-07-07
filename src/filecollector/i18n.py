@@ -428,6 +428,11 @@ _lock = threading.RLock()
     "无效的行号: %s": "Invalid line number: %s",
     "未输入有效的行范围": "No valid line range entered",
     "已添加 %d 个行范围": "Added %d line range(s)",
+    # ---- 空状态引导 ----
+    "未选择工作目录": "No working directory selected",
+    "打开一个文件夹作为工作目录，左侧即可加载目录树并开始编排。":
+        "Open a folder as the working directory; the tree loads on the left and you can start arranging.",
+    "打开工作目录": "Open Working Directory",
 }
 
 _LISTENERS: list[Callable[[str], None]] = []
