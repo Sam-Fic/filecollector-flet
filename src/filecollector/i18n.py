@@ -440,8 +440,8 @@ _lock = threading.RLock()
     "偏好设置": "Preferences",
     # ---- 空状态引导 ----
     "未选择工作目录": "No working directory selected",
-    "打开一个文件夹作为工作目录，左侧即可加载目录树并开始编排。":
-        "Open a folder as the working directory; the tree loads on the left and you can start arranging.",
+    "打开一个文件夹作为工作目录，即可开始收集与编排文件。":
+        "Open a folder as the working directory to start collecting and arranging files.",
     "打开工作目录": "Open Working Directory",
 }
 
