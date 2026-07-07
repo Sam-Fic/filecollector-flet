@@ -317,6 +317,17 @@ class AISettingsDialog(ft.AlertDialog):
 
         self._test_thread: threading.Thread | None = None
 
+        # 自动保存: 控件变更即时持久化 (无需点击保存)
+        for _ctrl in (self.sb_url, self.sb_key, self.sb_model,
+                      self.sb_timeout, self.sb_prompt, self.mm_url,
+                      self.mm_key, self.mm_model, self.mm_timeout,
+                      self.mm_prompt, self.mm_exts, self.ignored_field,
+                      self.cw_field):
+            _ctrl.on_blur = self._autosave
+        for _chk in (self.sb_enabled, self.mm_enabled):
+            _chk.on_change = self._autosave
+        self.scheme_dropdown.on_change = self._autosave
+
     # ============================================================== 辅助
     def _try_update(self, ctrl: ft.Control) -> None:
         try:
@@ -456,6 +467,13 @@ class AISettingsDialog(ft.AlertDialog):
 
     # ============================================================== 接受 / 取消
     def _on_accept(self, e):
+        self._save_all(close=True)
+
+    def _autosave(self, e=None):
+        """控件变更时自动保存 (不关闭对话框)."""
+        self._save_all(close=False)
+
+    def _save_all(self, close: bool) -> None:
         # 侧边栏
         try:
             sb_timeout = float(self.sb_timeout.value or 60.0)
@@ -530,10 +548,11 @@ class AISettingsDialog(ft.AlertDialog):
             except Exception as ex:  # noqa: BLE001
                 print(f"[AISettingsDialog] _on_ai_settings_changed failed: {ex}")
 
-        try:
-            self.main_view.page.pop_dialog()
-        except Exception:
-            pass
+        if close:
+            try:
+                self.main_view.page.pop_dialog()
+            except Exception:
+                pass
 
     def _on_cancel(self, e):
         try:
