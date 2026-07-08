@@ -120,7 +120,7 @@ docs/                          # 使用说明文档 + 插图
         ├── __main__.py            # python -m filecollector 入口，分发 CLI/GUI
         ├── models.py              # 数据模型（ItemData：文件/文字条目）
         ├── utils.py               # 工具函数（编码检测、安全读取）
-        ├── engine.py              # 业务引擎（所有核心逻辑，不依赖 Qt）
+        ├── engine.py              # 业务引擎（所有核心逻辑，不依赖 GUI 框架）
         ├── cli.py                 # CLI 模式（按序参数解析与执行）
         ├── config.py              # 配置管理（settings.json 读写）
         ├── ipc.py                 # 进程间通信（CLI-GUI 单实例协调）

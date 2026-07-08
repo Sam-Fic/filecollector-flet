@@ -120,7 +120,7 @@ docs/                          # Usage guide + illustrations
         ├── __main__.py            # python -m filecollector entry, CLI/GUI dispatch
         ├── models.py              # Data model (ItemData: file/text items)
         ├── utils.py               # Utility functions (encoding detection, safe read)
-        ├── engine.py              # Business engine (all core logic, Qt-free)
+        ├── engine.py              # Business engine (all core logic, GUI-framework-free)
         ├── cli.py                 # CLI mode (sequential argument parsing and execution)
         ├── config.py              # Configuration management (settings.json read/write)
         ├── ipc.py                 # Inter-process communication (CLI-GUI single-instance coordination)
