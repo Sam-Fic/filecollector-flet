@@ -6,7 +6,7 @@ Flet 版本 - 懒加载 + 三态复选框:
 ------
 - 每个目录节点初始无 children, 首次展开时通过 ``on_change`` 回调加载.
 - 已加载过的目录会被缓存, 折叠后再展开不会重新扫描.
-- 通过 ``IGNORE_DIRS`` 跳过常见构建 / VCS / 缓存目录, 避免不必要扫描.
+- 通过内置 ``SKIP_DIRS`` 与偏好设置里的"扫描忽略目录"合并跳过常见构建 / VCS / 缓存目录, 避免不必要扫描.
 
 三态复选框
 ----------
@@ -27,7 +27,6 @@ from typing import Optional
 
 import flet as ft
 
-from filecollector.gui_flet.constants import SKIP_DIRS
 from filecollector.i18n import _
 
 
@@ -123,7 +122,10 @@ class _FileNode:
 class FileTreePanel:
     """左侧文件树面板"""
 
-    IGNORE_DIRS = SKIP_DIRS  # 来自 constants.py
+    def _skip_dirs(self) -> set[str]:
+        """当前生效的忽略目录 (内置 SKIP_DIRS + 用户偏好)."""
+        from filecollector.gui_flet.constants import get_effective_skip_dirs
+        return get_effective_skip_dirs()
 
     def __init__(self, main_view):
         self.main_view = main_view
@@ -281,7 +283,7 @@ class FileTreePanel:
             # 隐藏目录跳过
             if entry.name.startswith(".") and entry.is_dir():
                 continue
-            if entry.name in self.IGNORE_DIRS:
+            if entry.name in self._skip_dirs():
                 continue
             if entry.is_dir():
                 child = _DirNode(Path(entry.path))
@@ -561,7 +563,7 @@ class FileTreePanel:
         """递归生成 dir_path 下所有文件的绝对路径字符串 (跳过忽略目录)."""
         try:
             for entry in os.scandir(dir_path):
-                if entry.name in self.IGNORE_DIRS:
+                if entry.name in self._skip_dirs():
                     continue
                 if entry.name.startswith(".") and entry.is_dir():
                     continue

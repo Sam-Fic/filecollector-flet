@@ -150,6 +150,32 @@ def save_language_setting(lang: str) -> None:
     save_settings(settings)
 
 
+# ── 扫描忽略目录偏好 ──────────────────────────────────────────
+# ignored_dirs: 用户额外指定跳过的目录名 (逗号分隔, 存储为 list[str])
+# 这些目录会与内置 SKIP_DIRS (VCS/缓存/构建目录) 合并生效.
+
+def get_ignored_dirs() -> list[str]:
+    """读取用户配置的额外忽略目录列表 (不含内置 SKIP_DIRS)."""
+    settings = load_settings()
+    val = settings.get("ignored_dirs")
+    if isinstance(val, list):
+        return [str(x).strip() for x in val if str(x).strip()]
+    return []
+
+
+def save_ignored_dirs(raw) -> None:
+    """保存忽略目录. 接受逗号分隔字符串或 list, 统一清洗为 list[str]."""
+    if isinstance(raw, str):
+        parts = [p.strip() for p in raw.split(",") if p.strip()]
+    elif isinstance(raw, (list, tuple)):
+        parts = [str(p).strip() for p in raw if str(p).strip()]
+    else:
+        parts = []
+    settings = load_settings()
+    settings["ignored_dirs"] = parts
+    save_settings(settings)
+
+
 def load_common_phrases() -> list[str]:
     path = get_common_phrases_path()
     if not os.path.exists(path):

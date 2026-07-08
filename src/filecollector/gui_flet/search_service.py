@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from filecollector.utils import safe_read_file
-from filecollector.gui_flet.constants import SKIP_DIRS
+from filecollector.gui_flet.constants import get_effective_skip_dirs
 
 MAX_FILE_SIZE: int = 2 * 1024 * 1024   # 2 MB
 MAX_RESULTS: int = 2000
@@ -75,6 +75,8 @@ class SearchService:
         scanned = 0
         matched = 0
         query = self._query if self._case_sensitive else self._query.lower()
+        # 生效的忽略目录 (内置 SKIP_DIRS + 用户偏好设置), 使"扫描忽略目录"生效
+        skip_dirs = get_effective_skip_dirs()
 
         for dirpath, dirnames, filenames in os.walk(self._root):
             if self._cancel.is_set():
@@ -83,7 +85,7 @@ class SearchService:
             # 原地修改 dirnames 以跳过忽略目录和隐藏目录
             dirnames[:] = [
                 d for d in dirnames
-                if d not in SKIP_DIRS and not d.startswith(".")
+                if d not in skip_dirs and not d.startswith(".")
             ]
 
             for filename in filenames:

@@ -379,21 +379,15 @@ class AISettingsDialog(ft.AlertDialog):
 
     def _load_ignored_dirs_text(self) -> str:
         try:
-            from filecollector.config import load_settings
-            cfg = load_settings()
-            arr = cfg.get("ignored_dirs", [])
-            if isinstance(arr, list):
-                return ", ".join(str(x) for x in arr)
+            from filecollector.config import get_ignored_dirs
+            return ", ".join(get_ignored_dirs())
         except Exception:
             pass
         return ""
 
     def _save_ignored_dirs(self, raw: str) -> None:
-        from filecollector.config import load_settings, save_settings
-        parts = [p.strip() for p in (raw or "").split(",") if p.strip()]
-        cfg = load_settings()
-        cfg["ignored_dirs"] = parts
-        save_settings(cfg)
+        from filecollector.config import save_ignored_dirs
+        save_ignored_dirs(raw)
 
     # ============================================================== 测试连接
     def _on_test_sidebar(self, e):
