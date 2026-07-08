@@ -415,6 +415,7 @@ This project uses the **MIT License**, see the [LICENSE](LICENSE) file for detai
 - [chardet](https://github.com/chardet/chardet) - Encoding detection library
 - [markdown-it-py](https://github.com/executablebooks/mdit-py) - Markdown parser for rich text rendering in the AI chat panel
 - [Pygments](https://pygments.org/) - Syntax highlighting library for code block coloring in AI chat
+- [keyring](https://github.com/jaraco/keyring) - System keyring storage for secure API key saving
 - [tokenx](https://github.com/johannschopplich/tokenx) - Reference for token estimation feature
 
 Special thanks to [Decembered](https://github.com/Decembered) for contributions and support.
