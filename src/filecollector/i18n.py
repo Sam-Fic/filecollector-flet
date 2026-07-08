@@ -545,7 +545,12 @@ _lock = threading.RLock()
     "复制短哈希 (%s)": "Copy Short Hash (%s)",
     # ---- 全局内容搜索 ----
     "全局内容搜索": "Global Content Search",
-    "输入要搜索的代码内容… (按 Enter 搜索)": "Enter code to search… (Press Enter to search)",
+    "输入要搜索的代码内容…": "Enter code to search…",
+    "未找到匹配项": "No Matches Found",
+    "没有文件包含该关键词。请尝试其他关键词或调整搜索选项。":
+        "No files contain that keyword. Try a different keyword or adjust the search options.",
+    "输入关键词并按下 Enter 或点击搜索按钮，即可在整个工作目录中查找匹配的代码与文本。":
+        "Enter a keyword and press Enter or click the search button to find matching code and text across the entire working directory.",
     "区分大小写": "Case Sensitive",
     "正在扫描文件树...": "Scanning file tree...",
     "已扫描 %d 个文件，找到 %d 个匹配项...": "Scanned %d files, found %d match(es)...",

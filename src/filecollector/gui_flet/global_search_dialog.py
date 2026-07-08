@@ -36,7 +36,7 @@ class GlobalSearchDialog(ft.AlertDialog):
 
         # 搜索框
         self._search_field = ft.TextField(
-            hint_text=_("输入要搜索的代码内容… (按 Enter 搜索)"),
+            hint_text=_("输入要搜索的代码内容…"),
             expand=True,
             on_submit=lambda e: self._trigger_search(),
         )
@@ -53,6 +53,63 @@ class GlobalSearchDialog(ft.AlertDialog):
             width=16, height=16, stroke_width=2, visible=False)
 
         self._result_list = ft.ListView(expand=True, spacing=2)
+        # 初始显示引导页 (GNOME 版 result_stack 默认 visible_child = guide)
+        self._result_list.visible = False
+
+        # 三态切换: 引导页 / 结果列表 / 空状态页 (对齐 GNOME 版 0f28e74)
+        # 引导页: 首次打开未搜索时显示使用说明
+        self._guide_page = ft.Container(
+            content=ft.Column(
+                [
+                    ft.Icon(ft.Icons.SEARCH, size=72, color=ft.Colors.GREY_400),
+                    ft.Container(
+                        content=ft.Text(
+                            _("全局内容搜索"),
+                            size=20, weight=ft.FontWeight.BOLD,
+                            color=ft.Colors.GREY_700,
+                        ),
+                        margin=ft.Margin(top=8, bottom=4, left=0, right=0),
+                    ),
+                    ft.Text(
+                        _("输入关键词并按下 Enter 或点击搜索按钮，即可在整个工作目录中查找匹配的代码与文本。"),
+                        size=13, color=ft.Colors.GREY_600,
+                        text_align=ft.TextAlign.CENTER,
+                    ),
+                ],
+                alignment=ft.MainAxisAlignment.CENTER,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                spacing=0,
+            ),
+            alignment=ft.alignment.Alignment(0, 0),
+            expand=True,
+        )
+        # 空状态页: 搜索完成但无匹配项
+        self._empty_page = ft.Container(
+            content=ft.Column(
+                [
+                    ft.Icon(ft.Icons.SEARCH, size=72, color=ft.Colors.GREY_400),
+                    ft.Container(
+                        content=ft.Text(
+                            _("未找到匹配项"),
+                            size=20, weight=ft.FontWeight.BOLD,
+                            color=ft.Colors.GREY_700,
+                        ),
+                        margin=ft.Margin(top=8, bottom=4, left=0, right=0),
+                    ),
+                    ft.Text(
+                        _("没有文件包含该关键词。请尝试其他关键词或调整搜索选项。"),
+                        size=13, color=ft.Colors.GREY_600,
+                        text_align=ft.TextAlign.CENTER,
+                    ),
+                ],
+                alignment=ft.MainAxisAlignment.CENTER,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                spacing=0,
+            ),
+            alignment=ft.alignment.Alignment(0, 0),
+            expand=True,
+            visible=False,
+        )
 
         self._btn_toggle_select_text = ft.Text(_("全选"))
         self._btn_add_selected_text = ft.Text(_("添加选中文件到编排列表 (0)"))
@@ -98,7 +155,14 @@ class GlobalSearchDialog(ft.AlertDialog):
                             spacing=8,
                         ),
                         ft.Container(
-                            content=self._result_list,
+                            content=ft.Stack(
+                                [
+                                    self._guide_page,
+                                    self._empty_page,
+                                    self._result_list,
+                                ],
+                                expand=True,
+                            ),
                             expand=True,
                             height=350,
                         ),
@@ -132,6 +196,17 @@ class GlobalSearchDialog(ft.AlertDialog):
         )
         self.main_view.page.update()
 
+    def _show_state(self, state: str) -> None:
+        """切换结果区三态 (对齐 GNOME 版 result_stack): guide / results / empty.
+
+        guide  : 首次进入未搜索时的引导说明
+        results: 搜索中 / 有匹配结果
+        empty  : 搜索完成但无匹配项
+        """
+        self._guide_page.visible = (state == "guide")
+        self._empty_page.visible = (state == "empty")
+        self._result_list.visible = (state == "results")
+
     def _trigger_search(self):
         keyword = (self._search_field.value or "").strip()
         if not keyword:
@@ -161,6 +236,8 @@ class GlobalSearchDialog(ft.AlertDialog):
         self._btn_add_selected.disabled = True
         self._btn_add_all.disabled = True
         self._btn_toggle_select.disabled = True
+        # 搜索开始: 切到结果列表 (覆盖引导页/空状态页)
+        self._show_state("results")
         self.main_view.page.update()
 
         self._search_service = SearchService(
@@ -224,6 +301,8 @@ class GlobalSearchDialog(ft.AlertDialog):
             self._btn_add_selected.disabled = not has
             self._btn_add_all.disabled = not has
             self._btn_toggle_select.disabled = not has
+            # 搜索完成: 有结果显示列表, 无结果显示空状态页
+            self._show_state("results" if has else "empty")
             self._apply_labels()
             self.main_view.page.update()
 
