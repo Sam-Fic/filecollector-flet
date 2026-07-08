@@ -419,6 +419,9 @@ _lock = threading.RLock()
         "Configure an OpenAI-compatible API to drive the AI sidebar.",
     "配置视觉语言大模型（VLM）API, 用于将 PDF、Word、PPT、图片等转为 Markdown。":
         "Configure a Vision-Language Model (VLM) API to convert PDF, Word, PPT, images, etc. into Markdown.",
+    # ---- 文件树加载进度 ----
+    "正在加载 %d 个项目...": "Loading %d item(s)...",
+    "已加载 %d / %d": "Loaded %d / %d",
     # ---- 文件片段 (snippet) ----
     "已添加片段: %s [L%d-L%d]": "Added snippet: %s [L%d-L%d]",
     "--- 片段预览 %s [L%d-L%d] (编码: %s) ---\n%s":
@@ -456,6 +459,105 @@ _lock = threading.RLock()
     "暂无提交记录": "No Commits Yet",
     "当前 Git 仓库中还没有任何提交。完成首次 git commit 后，提交历史将显示在此处。":
         "This Git repository does not have any commits yet. After your first git commit, the history will appear here.",
+    # ---- 通用操作 / 弹窗 ----
+    "暂停": "Pause",
+    "继续": "Resume",
+    "取消全部": "Cancel All",
+    "展开": "Expand",
+    "收起": "Collapse",
+    "全选": "Select All",
+    "全不选": "Select None",
+    "搜索": "Search",
+    "恢复": "Restore",
+    "丢弃": "Discard",
+    "确认清空": "Confirm Clear",
+    "删除 (%d 项)": "Delete (%d item(s))",
+    "请先设置工作目录": "Please set a working directory first",
+    "编排列表为空，请先添加文件": "The arrangement list is empty; add files first",
+    "请先在 AI 设置中配置 API": "Please configure the API in AI Settings first",
+    # ---- AI 阅读指南 / 模板 ----
+    "AI 生成阅读指南": "AI Reading Guide",
+    "AI 生成阅读指南失败": "Failed to generate AI reading guide",
+    "正在让 AI 生成阅读指南...": "Asking AI to generate a reading guide...",
+    "AI 阅读指南已插入编排列表顶部": "AI reading guide inserted at the top of the arrangement list",
+    "场景模板管理": "Scenario Template Manager",
+    "提示词模板管理": "Prompt Template Manager",
+    "暂无模板": "No templates yet",
+    "新增模板": "Add Template",
+    "编辑模板": "Edit Template",
+    "删除选中模板？": "Delete the selected template?",
+    "可用模板:": "Available templates:",
+    "请输入模板 ID，例如: /t bug": "Enter a template ID, e.g. /t bug",
+    "未找到模板: %s": "Template not found: %s",
+    "撤回此消息及后续所有 AI 回复与操作": "Undo this message and all following AI replies and actions",
+    "确认撤回": "Confirm Undo",
+    "这将撤销此消息之后 AI 的所有回复以及对文件列表的修改。是否继续？":
+        "This will undo all of the AI's replies after this message and the changes it made to the file list. Continue?",
+    "撤回": "Undo",
+    "已撤销 AI 的操作": "AI actions undone",
+    # ---- AI 文件操作结果 ----
+    "AI 添加了 %d 个文件": "AI added %d file(s)",
+    "，跳过 %d 个": ", skipped %d",
+    "AI 插入了自定义文本": "AI inserted custom text",
+    "AI 清空了编排列表": "AI cleared the arrangement list",
+    # ---- Git Diff 注入结果 ----
+    "当前工作区没有未提交的改动。": "There are no uncommitted changes in the working tree.",
+    "当前没有已暂存的改动。": "There are no staged changes.",
+    "已成功将 Git Diff 注入编排列表 (%d 行)": "Git diff injected into the arrangement list (%d lines)",
+    "已成功将 Git Diff 注入编排列表 (%d 行)。": "Git diff injected into the arrangement list (%d lines).",
+    "未找到该 Commit 的 Diff 或 Commit 不存在。":
+        "No diff found for that commit, or the commit does not exist.",
+    "已成功将 Commit %s 的 Diff 注入编排列表 (%d 行)":
+        "Commit %s diff injected into the arrangement list (%d lines)",
+    "已成功将 Commit %s 的 Diff 注入编排列表 (%d 行)。":
+        "Commit %s diff injected into the arrangement list (%d lines).",
+    "从 %s 到 %s 没有代码差异。": "No code difference between %s and %s.",
+    "已成功将 %s..%s 的 Diff 注入编排列表 (%d commits, %d 行)":
+        "Diff of %s..%s injected into the arrangement list (%d commits, %d lines)",
+    "已成功将 %s..%s 的 Diff 注入编排列表 (%d commits, %d 行)。":
+        "Diff of %s..%s injected into the arrangement list (%d commits, %d lines).",
+    "当前工作目录不是一个 Git 仓库，无法读取提交历史。":
+        "The current working directory is not a Git repository, so commit history cannot be read.",
+    # ---- 未保存会话恢复 ----
+    "发现未保存的会话": "Unsaved session found",
+    "已恢复未保存的会话": "Unsaved session restored",
+    "上次运行存在未保存的更改 (%d 个项目)。是否恢复？":
+        "The last run left %d unsaved item(s). Restore them?",
+    "恢复失败: %s": "Restore failed: %s",
+    # ---- 预处理进度 ----
+    "正在预处理 0/0 个文件...": "Preprocessing 0/0 files...",
+    "正在预处理 %d/%d 个文件...": "Preprocessing %d/%d files...",
+    # ---- 编排列表批量操作 ----
+    "已选择 %d 个项目": "%d item(s) selected",
+    "已重新触发 %d 个文件的 AI 转换": "Re-triggered AI conversion for %d file(s)",
+    "已切换 %d 个文件的路径模式": "Switched path mode for %d file(s)",
+    "已删除 %d 个条目": "Deleted %d item(s)",
+    "重新进行 AI 转换 (%d 项)": "Re-run AI conversion (%d item(s))",
+    "切换绝对/相对路径 (%d 项)": "Toggle absolute/relative path (%d item(s))",
+    "确定要清空编排列表中的所有 %d 个项目吗？":
+        "Clear all %d item(s) from the arrangement list?",
+    # ---- Git 历史复制 ----
+    "已复制提交信息": "Commit message copied",
+    "复制完整哈希": "Copy Full Hash",
+    "复制提交信息": "Copy Commit Message",
+    "已复制短哈希: %s": "Short hash copied: %s",
+    "已复制完整哈希: %s": "Full hash copied: %s",
+    "复制短哈希 (%s)": "Copy Short Hash (%s)",
+    # ---- 全局内容搜索 ----
+    "全局内容搜索": "Global Content Search",
+    "输入要搜索的代码内容… (按 Enter 搜索)": "Enter code to search… (Press Enter to search)",
+    "区分大小写": "Case Sensitive",
+    "正在扫描文件树...": "Scanning file tree...",
+    "已扫描 %d 个文件，找到 %d 个匹配项...": "Scanned %d files, found %d match(es)...",
+    "搜索完成：扫描 %d 个文件，找到 %d 个匹配项（涉及 %d 个独立文件）":
+        "Search complete: scanned %d files, found %d match(es) across %d distinct file(s)",
+    "添加选中文件到编排列表 (0)": "Add selected files to arrangement list (0)",
+    "添加全部 (0)": "Add All (0)",
+    "添加选中文件到编排列表 (%d)": "Add selected files to arrangement list (%d)",
+    "添加全部 (%d)": "Add All (%d)",
+    # ---- 预览截断提示 ----
+    "\n\n---\n\n*（内容过长，已截断显示前 %d 个字符）*":
+        "\n\n---\n\n*(Content too long; truncated to the first %d characters)*",
 }
 
 _LISTENERS: list[Callable[[str], None]] = []
