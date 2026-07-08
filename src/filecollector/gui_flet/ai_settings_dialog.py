@@ -307,14 +307,19 @@ class AISettingsDialog(ft.AlertDialog):
             _("安全警告"), "", [self.security_label],
         )
 
-        appearance_card = _GroupCard(
-            _("外观与上下文"),
-            _("设置模型上下文窗口用于进度条预警；外观主题立即生效。"),
+        theme_card = _GroupCard(
+            _("外观主题"),
+            _("选择应用的外观主题，设置后立即生效。"),
             [
-                ft.Row(
-                    [self.cw_field, self.scheme_dropdown],
-                    spacing=16, alignment=ft.MainAxisAlignment.START,
-                ),
+                self.scheme_dropdown,
+            ],
+        )
+
+        context_card = _GroupCard(
+            _("上下文窗口大小"),
+            _("设置模型上下文窗口大小，用于 token 进度条预警。"),
+            [
+                self.cw_field,
             ],
         )
 
@@ -337,7 +342,7 @@ class AISettingsDialog(ft.AlertDialog):
             content=ft.Container(
                 content=ft.Column(
                 [sidebar_card, mm_card, ignored_card,
-                 appearance_card, language_card, security_card],
+                 theme_card, context_card, language_card, security_card],
                     spacing=12, tight=True, scroll=ft.ScrollMode.AUTO,
                 ),
                 width=520,
