@@ -428,7 +428,6 @@ class ShortcutsDialog(ft.AlertDialog):
                 (_("语言设置"), "Ctrl+,"),
                 (_("键盘快捷键"), "Ctrl+/"),
                 (_("关于"), "F1"),
-                (_("退出"), "Ctrl+Q"),
             ]),
         ]
 
