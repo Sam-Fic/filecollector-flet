@@ -67,13 +67,14 @@ class _GroupCard(ft.Container):
                 [header_row, *((controls or []))],
                 spacing=10, tight=True,
             ),
+            expand=True,
             border_radius=8,
             # Flet 0.85.x 没有 ft.border.all, 用 Border 四边同值代替
             border=ft.border.Border(
-                top=ft.border.BorderSide(1, ft.Colors.OUTLINE_VARIANT),
-                right=ft.border.BorderSide(1, ft.Colors.OUTLINE_VARIANT),
-                bottom=ft.border.BorderSide(1, ft.Colors.OUTLINE_VARIANT),
-                left=ft.border.BorderSide(1, ft.Colors.OUTLINE_VARIANT),
+                top=ft.border.BorderSide(1.5, ft.Colors.OUTLINE_VARIANT),
+                right=ft.border.BorderSide(1.5, ft.Colors.OUTLINE_VARIANT),
+                bottom=ft.border.BorderSide(1.5, ft.Colors.OUTLINE_VARIANT),
+                left=ft.border.BorderSide(1.5, ft.Colors.OUTLINE_VARIANT),
             ),
             padding=ft.Padding(left=12, top=10, right=12, bottom=12),
         )
@@ -236,7 +237,7 @@ class AISettingsDialog(ft.AlertDialog):
             value=str(get_context_window_size()),
             hint_text="128000",
             keyboard_type=ft.KeyboardType.NUMBER,
-            width=200,
+            expand=True,
         )
         # 外观主题
         _scheme = get_color_scheme()
@@ -248,7 +249,7 @@ class AISettingsDialog(ft.AlertDialog):
                 ft.dropdown.Option("light", _("浅色")),
                 ft.dropdown.Option("dark", _("深色")),
             ],
-            width=200,
+            expand=True,
         )
 
         # 界面语言 (切换后需重启生效)
