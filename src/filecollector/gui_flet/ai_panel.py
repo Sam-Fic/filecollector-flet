@@ -1,6 +1,6 @@
 """AI 助手面板.
 
-Flet 版本 - 复刻 PySide6 实现的对话循环和工具调用流程:
+Flet 版本 - 对话循环和工具调用流程:
 - 通过 ``AIClient`` (urllib 同步) 调用 OpenAI 兼容 API
 - 在后台线程跑 chat 请求, 通过 ``page.run_task`` 把结果安全地送回 UI
 - 工具调用走 ``main_view._execute_ai_tool`` (与 CLI / IPC 共用一套 mutation)
@@ -528,7 +528,7 @@ class AIPanel:
         self.main_view.page.show_dialog(dlg)
 
     def _append_tool_bubble(self, name: str, args: dict, result: str) -> None:
-        """添加工具调用卡片 (居中, 可展开/折叠, 对齐 Qt 版 _add_tool_bubble).
+        """添加工具调用卡片 (居中, 可展开/折叠).
 
         - 折叠态: 标题行显示 工具名 + 参数摘要 + 结果预览
         - 展开态: 显示完整结果

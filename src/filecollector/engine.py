@@ -159,7 +159,7 @@ class FileCollectorEngine:
             else:
                 f.write(data.content)
 
-    # ------------------------------------------------------------------ Project I/O (Qt default: .project.json / GNOME: .fcol)
+    # ------------------------------------------------------------------ Project I/O (.project.json / GNOME: .fcol)
     def _normalize_project_path(self, file_path: str) -> str:
         if file_path.endswith(".project.json"):
             return file_path

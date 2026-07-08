@@ -383,7 +383,7 @@ class PhrasesDialog(ft.AlertDialog):
     def _on_close(self, e):
         """关闭 (管理模式): 同步常用语到主视图和引擎."""
         self.main_view.common_phrases = list(self.phrases)
-        # 同步到引擎 (对齐 Qt 版 _open_phrases_manager 行为)
+        # 同步到引擎
         if hasattr(self.main_view.engine, "common_phrases"):
             self.main_view.engine.common_phrases = list(self.phrases)
         if hasattr(self.main_view.engine, "save_common_phrases_to_disk"):
@@ -467,7 +467,7 @@ class ShortcutsDialog(ft.AlertDialog):
 class TextEditDialog(ft.AlertDialog):
     """文字编辑对话框.
 
-    对齐 Qt 版 TextEditDialog:
+    对齐 TextEditDialog:
     - 支持多行输入
     - 提供"常用语"按钮, 弹出选择器后可一键填入选中常用语
     """

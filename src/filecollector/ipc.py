@@ -133,8 +133,8 @@ def start_ipc_server(callback):
     """Start a background IPC server for receiving CLI commands.
 
     *callback* is invoked from a **background thread** with the parsed list
-    of argument strings.  Use a :class:`queue.Queue` + :class:`QTimer` to
-    dispatch onto the Qt main thread.
+    of argument strings.  The server thread dispatches onto the Flet main
+    thread via ``page.run_task``.
 
     Returns a no-argument ``stop()`` function.
     """

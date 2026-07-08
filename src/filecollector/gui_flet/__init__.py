@@ -58,7 +58,7 @@ def main(page: ft.Page):
 
     # 单实例 IPC: 让运行中的 Flet 实例接收来自 CLI 的命令.
     # 服务器线程只负责把消息通过 page.run_task 投递到 Flet 主线程,
-    # 实际 engine 变更 + UI 刷新在主线程协程里完成, 跟 PySide6 端一致.
+    # 实际 engine 变更 + UI 刷新在主线程协程里完成.
     # 进程退出时 daemon 线程自动回收, 无需显式 stop.
     def _on_ipc_message(args):
         # 跑在 IPC server 的后台线程, 唯一线程安全的 UI 调用是 run_task.
