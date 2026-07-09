@@ -47,6 +47,15 @@ _lock = threading.RLock()
     "生成合并文本": "Generate Merged Text",
     "生成合并文本到剪贴板": "Generate to Clipboard",
     "生成到剪贴板": "Copy to Clipboard",
+    "ZIP 压缩包": "ZIP Archive",
+    "导出为 ZIP": "Export as ZIP",
+    "更多操作": "More Actions",
+    "生成合并文本到剪贴板": "Generate Merged Text to Clipboard",
+    "常用语管理": "Phrase Manager",
+    "场景模板管理": "Scenario Template Manager",
+    "已导出 ZIP，%d 个文件在导出时不存在已被跳过": (
+        "ZIP exported; %d file(s) were missing at export time and skipped"
+    ),
     "保存项目": "Save Project",
     "项目另存为...": "Save Project As…",
     "加载项目": "Load Project",
