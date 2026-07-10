@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Optional
 
 from filecollector.models import ItemData
-from filecollector.utils import safe_read_file
+from filecollector.utils import safe_read_file, display_path
 
 MAX_FILE_CONTENT_SIZE = 10 * 1024 * 1024  # 10 MB
 
@@ -210,8 +210,11 @@ def resolve_items(
             continue
 
         # file 项
-        ri.display_path = _compute_display_path(
-            data.path or "", data.force_absolute, use_absolute, work_dir,
+        ri.display_path = display_path(
+            data.path or "",
+            force_absolute=data.force_absolute,
+            use_absolute=use_absolute,
+            work_dir=work_dir,
         )
         ri.language = _extract_language(data.path or "")
 
@@ -327,19 +330,6 @@ def _is_code_language(lang: str) -> bool:
         "ps1",
     }
 
-
-def _compute_display_path(
-    file_path: str,
-    force_absolute: bool,
-    use_absolute: bool,
-    work_dir,
-) -> str:
-    if force_absolute or use_absolute or work_dir is None:
-        return file_path
-    wd_path = str(work_dir).rstrip(os.sep) + os.sep
-    if file_path.startswith(wd_path):
-        return file_path[len(wd_path):]
-    return file_path
 
 
 def _extract_language(path: str) -> str:

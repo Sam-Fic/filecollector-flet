@@ -18,6 +18,7 @@ import shutil
 import tempfile
 import zipfile
 from datetime import datetime
+from pathlib import Path
 
 # 单文件大小上限 (100 MB): 超过仍会复制, 但 README 中标注, 避免超大文件拖慢压缩
 MAX_FILE_SIZE = 100 * 1024 * 1024
@@ -25,18 +26,15 @@ MAX_FILE_SIZE = 100 * 1024 * 1024
 
 def compute_relative_path(abs_path: str, work_dir: str | None) -> str:
     """计算文件在 ZIP 中的相对归档路径 (对齐 gnome compute_relative_path)."""
+    file_p = Path(abs_path)
     if not work_dir:
         # 没有工作目录: 去掉前导 /, 避免同名冲突
-        p = abs_path
-        while p.startswith("/"):
-            p = p[1:]
-        return p
-    wd = work_dir.rstrip("/")
-    if abs_path.startswith(wd + "/"):
-        return abs_path[len(wd) + 1:]
-    # 文件在工作目录外: 用 _external/<basename> 隔离
-    basename = os.path.basename(abs_path)
-    return os.path.join("_external", basename)
+        return file_p.as_posix().lstrip("/")
+    try:
+        return str(file_p.resolve().relative_to(Path(work_dir).resolve()))
+    except ValueError:
+        # 文件在工作目录外: 用 _external/<basename> 隔离
+        return os.path.join("_external", file_p.name)
 
 
 def detect_kind(path: str) -> str:

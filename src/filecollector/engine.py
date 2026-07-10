@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 
 from filecollector.models import ItemData
-from filecollector.utils import safe_read_file
+from filecollector.utils import safe_read_file, display_path
 from filecollector.config import get_settings_path, load_settings, save_settings, get_common_phrases_path, load_common_phrases, save_common_phrases, get_merged_txt_path
 
 
@@ -128,13 +128,16 @@ class FileCollectorEngine:
                 if not file_p.exists():
                     f.write(f"[文件不存在: {data.path}]\n")
                     continue
-                if data.force_absolute or self.use_absolute or not self.work_dir:
-                    display = str(file_p.resolve())
+                if self.work_dir:
+                    work_dir = Path(self.work_dir)
                 else:
-                    try:
-                        display = str(file_p.resolve().relative_to(self.work_dir))
-                    except ValueError:
-                        display = str(file_p.resolve())
+                    work_dir = None
+                display = display_path(
+                    data.path,
+                    force_absolute=data.force_absolute,
+                    use_absolute=self.use_absolute,
+                    work_dir=work_dir,
+                )
                 f.write(f"{display}:\n")
                 # 文件片段: 仅导出指定行范围 (1-based)
                 if data.is_snippet():
