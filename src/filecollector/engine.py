@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import json
+import os
 from pathlib import Path
 
 from filecollector.models import ItemData
@@ -210,9 +211,40 @@ class FileCollectorEngine:
     def _apply_project_dict(self, data: dict) -> None:
         wd = data.get("work_dir") or data.get("work_directory")  # GNOME v3 兼容字段
         self.work_dir = Path(wd).resolve() if wd and Path(wd).exists() else None
-        # 保留所有勾选路径, 即使文件暂时不可用 (如网络挂载未就绪),
-        # 避免状态丢失; 导出时再按需处理缺失文件.
-        self.checked_paths = set(data.get("checked_entries", data.get("checked_files", [])))  # GNOME 兼容字段名
+        # 勾选路径: 保留"实际存在"或"相对当前 work_dir 有效"的路径,
+        # 丢弃既不存在又不属于 work_dir 的死路径 (如 work_dir 已变更导致的
+        # 陈旧绝对路径), 避免脏数据被原样持久化回项目文件.
+        # 仍保留"存在但临时不可达"的容错 (见 _sanitize_checked_paths).
+        raw = data.get("checked_entries", data.get("checked_files", []))  # GNOME 兼容字段名
+        self.checked_paths = self._sanitize_checked_paths(raw, self.work_dir)
+
+    @staticmethod
+    def _sanitize_checked_paths(raw_paths, work_dir: Path | None) -> set[str]:
+        """清洗加载得到的勾选路径, 丢弃无效死路径.
+
+        规则:
+        - 路径实际存在 (Path.exists) -> 保留 (含临时不可达的挂载点等);
+        - 不存在但位于 work_dir 之下 (前缀一致) -> 保留 (可能临时不可达);
+        - 不存在且不属于 work_dir -> 丢弃 (陈旧/无效路径).
+
+        work_dir 为 None 时只能依据存在性判断, 不存在的路径一律丢弃.
+        对齐 GNOME project_manager 对 checked_dirs 缺少存在性/前缀校验的隐患.
+        """
+        kept: set[str] = set()
+        wd_norm = os.path.normpath(str(work_dir)) if work_dir else None
+        for p in raw_paths:
+            p = str(p)
+            if not p:
+                continue
+            if os.path.exists(p):
+                kept.add(p)
+                continue
+            if wd_norm is not None:
+                # 规范化后比较前缀, 避免路径分隔符/多余斜杠导致的误判
+                p_norm = os.path.normpath(p)
+                if p_norm == wd_norm or p_norm.startswith(wd_norm + os.sep):
+                    kept.add(p)
+        return kept
         self.use_absolute = bool(data.get("use_absolute", False))
         self.show_header = bool(data.get("show_header", False))
         self.items = []
