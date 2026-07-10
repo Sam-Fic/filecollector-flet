@@ -682,8 +682,13 @@ class FileTreePanel:
         self._show_row_context_menu(path_str, is_dir=is_dir)
 
     def _show_row_context_menu(self, path_str: str, is_dir: bool) -> None:
-        """构造并显示右键菜单 (使用 AlertDialog, 沿用最早期的简洁样式)."""
+        """构造并显示右键菜单."""
         from filecollector.gui_flet.snack import show_snack
+        from filecollector.gui_flet.context_menu import (
+            build_menu_dialog,
+            menu_item,
+            close_menu,
+        )
         # 关闭已存在的
         if getattr(self, "_open_ctx_menu", None) is not None:
             try:
@@ -702,7 +707,7 @@ class FileTreePanel:
 
         def close_then(fn):
             def _wrap(_e):
-                self._close_ctx_menu()
+                close_menu(self.main_view.page)
                 try:
                     fn()
                 except Exception as ex:
@@ -710,7 +715,7 @@ class FileTreePanel:
             return _wrap
 
         # 复制路径
-        items.append(self._ctx_item(
+        items.append(menu_item(
             icon=ft.Icons.CONTENT_COPY,
             text=_("复制路径"),
             on_click=close_then(lambda p=path_str: self._ctx_copy_path(p)),
@@ -718,20 +723,20 @@ class FileTreePanel:
 
         # 复制文件内容 (仅文件且 < 1MB)
         if not is_dir:
-            items.append(self._ctx_item(
+            items.append(menu_item(
                 icon=ft.Icons.COPY_ALL,
                 text=_("复制文件内容"),
                 on_click=close_then(lambda p=path_str: self._ctx_copy_content(p)),
             ))
             # 选择行: 输入行范围, 将片段加入编排列表
-            items.append(self._ctx_item(
+            items.append(menu_item(
                 icon=ft.Icons.STRAIGHTEN,
                 text=_("选择行..."),
                 on_click=close_then(lambda p=path_str: self._ctx_select_lines(p)),
             ))
 
         # 在文件管理器中显示
-        items.append(self._ctx_item(
+        items.append(menu_item(
             icon=ft.Icons.FOLDER_OPEN,
             text=_("在文件管理器中显示"),
             on_click=close_then(lambda p=path_str: self._ctx_show_in_folder(p)),
@@ -740,57 +745,26 @@ class FileTreePanel:
         # 目录额外: 在终端中打开 (可选, 不强制支持)
         if is_dir:
             items.append(ft.Divider(height=8, thickness=1))
-            items.append(self._ctx_item(
+            items.append(menu_item(
                 icon=ft.Icons.REFRESH,
                 text=_("刷新子树"),
                 on_click=close_then(lambda p=path_str: self._ctx_refresh_subtree(p)),
             ))
 
-        # 回到最早期样式: 直接用 AlertDialog, 不加任何额外 padding/modal 控制
-        # 四周统一 24px 内边距, 让菜单与对话框边缘留出合理的视觉空隙
-        dlg = ft.AlertDialog(
-            content=ft.Container(
-                content=ft.Column(items, spacing=2, tight=True),
-                width=280,
-                padding=ft.Padding(left=24, right=24, top=24, bottom=24),
-            ),
-            content_padding=ft.Padding(0, 0, 0, 0),
-            actions_padding=ft.Padding(0, 0, 0, 0),
-            actions=[],
-        )
+        dlg = build_menu_dialog(items)
         self._open_ctx_menu = dlg
         try:
             self.main_view.page.show_dialog(dlg)
         except Exception:
             self._open_ctx_menu = None
 
-    def _ctx_item(self, icon: str, text: str, on_click=None) -> ft.Control:
-        return ft.Container(
-            content=ft.Row(
-                [
-                    ft.Icon(icon, size=18, color=ft.Colors.GREY_700),
-                    ft.Text(text, size=13, expand=True),
-                ],
-                spacing=10,
-                vertical_alignment=ft.CrossAxisAlignment.CENTER,
-            ),
-            padding=ft.Padding(left=8, top=6, right=8, bottom=6),
-            border_radius=6,
-            on_click=on_click,
-            ink=True,
-        )
-
-    def _close_ctx_menu(self):
-        """关闭右键菜单 (AlertDialog 用 pop_dialog)."""
-        if getattr(self, "_open_ctx_menu", None) is not None:
-            try:
-                self.main_view.page.pop_dialog()
-            except Exception:
-                pass
-            self._open_ctx_menu = None
-
     def _ctx_copy_path(self, path_str: str) -> None:
         from filecollector.gui_flet.snack import show_snack
+        from filecollector.gui_flet.context_menu import (
+            build_menu_dialog,
+            menu_item,
+            close_menu,
+        )
         try:
             self.main_view.page.set_clipboard(path_str)
             show_snack(self.main_view.page, _("路径已复制到剪贴板"))
@@ -800,6 +774,11 @@ class FileTreePanel:
     def _ctx_copy_content(self, path_str: str) -> None:
         """复制文件文本内容 (限制大小, 二进制拒绝)."""
         from filecollector.gui_flet.snack import show_snack
+        from filecollector.gui_flet.context_menu import (
+            build_menu_dialog,
+            menu_item,
+            close_menu,
+        )
         from filecollector.utils import safe_read_file
         try:
             size = os.path.getsize(path_str)
@@ -823,6 +802,11 @@ class FileTreePanel:
 
     def _ctx_show_in_folder(self, path_str: str) -> None:
         from filecollector.gui_flet.snack import show_snack
+        from filecollector.gui_flet.context_menu import (
+            build_menu_dialog,
+            menu_item,
+            close_menu,
+        )
         try:
             self.main_view.open_file_location(path_str)
         except Exception as ex:
@@ -831,6 +815,11 @@ class FileTreePanel:
     def _ctx_select_lines(self, path_str: str) -> None:
         """选择行: 弹出对话框输入行范围, 将片段加入编排列表."""
         from filecollector.gui_flet.snack import show_snack
+        from filecollector.gui_flet.context_menu import (
+            build_menu_dialog,
+            menu_item,
+            close_menu,
+        )
 
         entry = ft.TextField(
             label=_("行范围"),

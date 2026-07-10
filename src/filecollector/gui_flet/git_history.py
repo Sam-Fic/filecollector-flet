@@ -16,6 +16,7 @@ import flet as ft
 
 from filecollector.i18n import _
 from filecollector.git_service import GitCommit, get_log, GitError
+from filecollector.gui_flet.context_menu import build_menu_dialog, menu_item
 
 
 class GitHistoryPanel:
@@ -285,45 +286,19 @@ class GitHistoryPanel:
                 padding=ft.Padding(left=8, top=4, right=8, bottom=4),
             ),
             ft.Divider(height=8, thickness=1),
-            self._ctx_menu_item(
+            menu_item(
                 ft.Icons.CONTENT_COPY, _("复制短哈希 (%s)") % commit.short_hash,
                 _copy_short_hash),
-            self._ctx_menu_item(
+            menu_item(
                 ft.Icons.TAG, _("复制完整哈希"),
                 _copy_full_hash),
-            self._ctx_menu_item(
+            menu_item(
                 ft.Icons.MESSAGE, _("复制提交信息"),
                 _copy_message),
         ]
 
-        dlg = ft.AlertDialog(
-            content=ft.Container(
-                content=ft.Column(items, spacing=2, tight=True),
-                width=280,
-                padding=ft.Padding(left=24, right=24, top=20, bottom=20),
-            ),
-            content_padding=ft.Padding(0, 0, 0, 0),
-            actions_padding=ft.Padding(0, 0, 0, 0),
-            actions=[],
-        )
+        dlg = build_menu_dialog(items)
         self.main_view.page.show_dialog(dlg)
-
-    @staticmethod
-    def _ctx_menu_item(icon: str, text: str, on_click) -> ft.Container:
-        return ft.Container(
-            content=ft.Row(
-                [
-                    ft.Icon(icon, size=18, color=ft.Colors.GREY_700),
-                    ft.Text(text, size=13, expand=True),
-                ],
-                spacing=10,
-                vertical_alignment=ft.CrossAxisAlignment.CENTER,
-            ),
-            padding=ft.Padding(left=8, top=6, right=8, bottom=6),
-            border_radius=6,
-            on_click=on_click,
-            ink=True,
-        )
 
     def _on_commit_row_click(self, commit: GitCommit):
         """Commit 行点击包装: 确保键盘焦点后再走多选逻辑."""
