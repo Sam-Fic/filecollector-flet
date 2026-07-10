@@ -51,18 +51,17 @@ class PreviewPanel:
         )
 
         # 悬浮按钮: 重新进行 AI 转换 (仅 binary 条目可见)
-        self.btn_retry = ft.ElevatedButton(
-            _("重新进行 AI 转换"),
+        # 仅图标, 鼠标悬停时由 tooltip 展示具体名称.
+        self.btn_retry = ft.IconButton(
             icon=ft.Icons.REFRESH,
             on_click=self._on_retry_preprocess,
             visible=False,
             tooltip=_("重新进行 AI 转换"),
             style=ft.ButtonStyle(
-                shape=ft.RoundedRectangleBorder(radius=20),
-                padding=ft.Padding(left=14, top=8, right=14, bottom=8),
                 bgcolor=ft.Colors.with_opacity(0.92, ft.Colors.SURFACE),
                 side=ft.BorderSide(1, ft.Colors.OUTLINE_VARIANT),
                 elevation=2,
+                shape=ft.RoundedRectangleBorder(radius=20),
             ),
         )
 
