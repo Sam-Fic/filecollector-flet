@@ -1,8 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# 解析真实路径（支持通过 symlink 调用，例如软链到 ~/.local/bin/filecollector）
+SOURCE="${BASH_SOURCE[0]}"
+while [ -h "$SOURCE" ]; do
+  DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+ROOT_DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
 SRC_DIR="$ROOT_DIR/src"
 export PYTHONPATH="$SRC_DIR${PYTHONPATH:+:$PYTHONPATH}"
 cd "$SRC_DIR"
-exec python3 -m filecollector --flet "$@"
+exec python3 -m filecollector "$@"
