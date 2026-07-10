@@ -12,6 +12,9 @@ from filecollector.config import (
     save_templates,
     get_default_templates,
 )
+from filecollector.gui_flet.buttons import (
+    primary_btn, secondary_btn, danger_btn, danger_text_btn,
+)
 
 
 class TemplatesManagerDialog(ft.AlertDialog):
@@ -39,24 +42,22 @@ class TemplatesManagerDialog(ft.AlertDialog):
 
         self.list_view = ft.ListView(expand=True, spacing=2)
 
-        self.btn_edit = ft.ElevatedButton(
+        self.btn_edit = primary_btn(
             _("编辑"),
             icon=ft.Icons.EDIT,
             on_click=self._on_edit,
             disabled=True,
         )
-        self.btn_delete = ft.ElevatedButton(
+        self.btn_delete = danger_btn(
             _("删除"),
             icon=ft.Icons.DELETE,
-            color=ft.Colors.WHITE,
-            bgcolor=ft.Colors.RED_600,
             on_click=self._on_delete,
             disabled=True,
         )
 
         actions_row = ft.Row(
             [
-                ft.ElevatedButton(
+                primary_btn(
                     _("添加"),
                     icon=ft.Icons.ADD,
                     on_click=self._on_add,
@@ -81,7 +82,7 @@ class TemplatesManagerDialog(ft.AlertDialog):
                 tight=True,
             ),
             actions=[
-                ft.TextButton(_("关闭"), on_click=self._on_close),
+                secondary_btn(_("关闭"), on_click=self._on_close),
             ],
         )
 
@@ -207,11 +208,11 @@ class TemplatesManagerDialog(ft.AlertDialog):
                 height=380,
             ),
             actions=[
-                ft.TextButton(
+                secondary_btn(
                     _("取消"),
                     on_click=lambda _: self.main_view.page.pop_dialog(),
                 ),
-                ft.TextButton(_("确定"), on_click=on_submit),
+                primary_btn(_("确定"), on_click=on_submit),
             ],
         )
         self.main_view.page.show_dialog(dlg)
@@ -237,8 +238,8 @@ class TemplatesManagerDialog(ft.AlertDialog):
             title=ft.Text(_("确认")),
             content=ft.Text(_("删除选中模板？")),
             actions=[
-                ft.TextButton(_("取消"), on_click=on_cancel),
-                ft.TextButton(_("确定"), on_click=on_confirm),
+                secondary_btn(_("取消"), on_click=on_cancel),
+                secondary_btn(_("确定"), on_click=on_confirm),
             ],
         )
         self.main_view.page.show_dialog(confirm_dlg)

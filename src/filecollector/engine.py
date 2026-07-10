@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 
 from filecollector.models import ItemData
-from filecollector.utils import safe_read_file, display_path
+from filecollector.utils import safe_read_file, display_path, read_file_snippet
 from filecollector.config import get_settings_path, load_settings, save_settings, get_common_phrases_path, load_common_phrases, save_common_phrases, get_merged_txt_path
 
 
@@ -139,14 +139,12 @@ class FileCollectorEngine:
                     work_dir=work_dir,
                 )
                 f.write(f"{display}:\n")
-                # 文件片段: 仅导出指定行范围 (1-based)
+                # 文件片段: 仅导出指定行范围 (1-based), 流式读取避免大文件 OOM
                 if data.is_snippet():
                     try:
-                        content, _ = safe_read_file(data.path)
-                        lines = content.split("\n")
-                        s = max(0, data.start_line - 1)
-                        e = min(len(lines), data.end_line)
-                        f.write("\n".join(lines[s:e]))
+                        content, _ = read_file_snippet(
+                            data.path, data.start_line, data.end_line)
+                        f.write(content)
                     except Exception as e:
                         f.write(f"[读取片段失败: {e}]")
                     continue

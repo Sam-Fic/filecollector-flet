@@ -33,6 +33,7 @@ from filecollector.multimodal_ai_client import (
     MultimodalAIClient, MultimodalAIClientError,
 )
 from filecollector.gui_flet.snack import show_snack
+from filecollector.gui_flet.buttons import primary_btn, secondary_btn
 
 
 def _format_ext_default() -> str:
@@ -152,7 +153,7 @@ class AISettingsDialog(ft.AlertDialog):
             expand=True,
         )
         self.sb_warn = ft.Container(visible=False)
-        self.sb_test_btn = ft.ElevatedButton(
+        self.sb_test_btn = primary_btn(
             _("测试连接"), icon=ft.Icons.NETWORK_CHECK,
             on_click=self._on_test_sidebar,
         )
@@ -204,13 +205,13 @@ class AISettingsDialog(ft.AlertDialog):
             hint_text=_("留空则不允许任何文件被自动转换"),
             expand=True,
         )
-        self.mm_exts_reset_btn = ft.TextButton(
+        self.mm_exts_reset_btn = secondary_btn(
             _("默认"), icon=ft.Icons.RESTART_ALT,
             tooltip=_("恢复为默认扩展名列表"),
             on_click=self._on_reset_exts,
         )
         self.mm_warn = ft.Container(visible=False)
-        self.mm_test_btn = ft.ElevatedButton(
+        self.mm_test_btn = primary_btn(
             _("测试连接"), icon=ft.Icons.NETWORK_CHECK,
             on_click=self._on_test_mm,
         )
@@ -264,7 +265,7 @@ class AISettingsDialog(ft.AlertDialog):
             ],
             width=200,
         )
-        self.lang_apply_btn = ft.ElevatedButton(
+        self.lang_apply_btn = primary_btn(
             _("应用"), icon=ft.Icons.CHECK,
             on_click=self._on_apply_language,
         )
@@ -349,8 +350,8 @@ class AISettingsDialog(ft.AlertDialog):
                 width=520,
             ),
             actions=[
-                ft.TextButton(_("取消"), on_click=self._on_cancel),
-                ft.TextButton(_("保存"), on_click=self._on_accept),
+                secondary_btn(_("取消"), on_click=self._on_cancel),
+                primary_btn(_("保存"), on_click=self._on_accept),
             ],
         )
 
@@ -604,9 +605,9 @@ class AISettingsDialog(ft.AlertDialog):
             content=ft.Text(
                 _("语言设置已保存，重启应用后生效。是否现在重启？")),
             actions=[
-                ft.TextButton(
+                secondary_btn(
                     _("稍后"), on_click=lambda ev: self.main_view.page.pop_dialog()),
-                ft.TextButton(
+                primary_btn(
                     _("立即重启"),
                     on_click=lambda ev: self._restart_app()),
             ],

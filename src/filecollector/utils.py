@@ -136,3 +136,40 @@ def safe_read_file(file_path, max_preview_lines=None):
         except Exception:
             continue
     raise RuntimeError(f"无法解码文件: {file_path}")
+
+
+def read_file_snippet(file_path, start_line: int, end_line: int):
+    """流式读取文件片段 (1-based 行号范围), 避免大文件 OOM.
+
+    仅按行迭代, 跳过 start_line 之前的行, 收集 [start_line, end_line] 区间,
+    读到 end_line 即停止 (不再遍历/加载文件剩余内容). 内存中只保留片段本身,
+    适合从超大文件中截取少量行的场景 (如编排列表中的文件片段条目).
+
+    返回 (片段文本, 使用的编码). 行号非法或越界时返回可用范围内的内容.
+    """
+    if end_line < 1:
+        return "", None
+    # 归一化: 1-based -> 0-based 索引区间
+    start_idx = max(0, start_line - 1)
+    end_idx = max(start_idx, end_line - 1)
+
+    encodings_to_try = ['utf-8', 'gbk', 'latin-1']
+    detected = detect_encoding(file_path)
+    if detected and detected.lower() not in [e.lower() for e in encodings_to_try]:
+        encodings_to_try.insert(0, detected)
+
+    for enc in encodings_to_try:
+        try:
+            collected: list[str] = []
+            with open(file_path, 'r', encoding=enc) as f:
+                for idx, line in enumerate(f):
+                    if idx > end_idx:
+                        break  # 已抵达片段末尾, 立即停止, 不读剩余文件
+                    if idx >= start_idx:
+                        collected.append(line)
+            return ''.join(collected), enc
+        except (UnicodeDecodeError, UnicodeError):
+            continue
+        except Exception:
+            continue
+    raise RuntimeError(f"无法解码文件: {file_path}")

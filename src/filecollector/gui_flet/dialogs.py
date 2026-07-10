@@ -11,6 +11,9 @@ from filecollector.i18n import _
 from filecollector.config import load_settings, save_settings, get_common_phrases_path
 from filecollector.gui_flet.ai_settings_dialog import AISettingsDialog
 from filecollector.gui_flet.snack import show_snack
+from filecollector.gui_flet.buttons import (
+    primary_btn, secondary_btn, danger_btn, danger_text_btn,
+)
 
 
 class SettingsDialog(ft.AlertDialog):
@@ -40,8 +43,8 @@ class SettingsDialog(ft.AlertDialog):
                 tight=True,
             ),
             actions=[
-                ft.TextButton(_("取消"), on_click=self._on_cancel),
-                ft.TextButton(_("确定"), on_click=self._on_accept),
+                secondary_btn(_("取消"), on_click=self._on_cancel),
+                primary_btn(_("确定"), on_click=self._on_accept),
             ],
         )
 
@@ -75,8 +78,8 @@ class SettingsDialog(ft.AlertDialog):
             title=ft.Text(_("提示")),
             content=ft.Text(_("语言设置已保存，重启应用后生效。是否现在重启？")),
             actions=[
-                ft.TextButton(_("稍后"), on_click=on_confirm_restart, data="no"),
-                ft.TextButton(_("立即重启"), on_click=on_confirm_restart, data="yes"),
+                secondary_btn(_("稍后"), on_click=on_confirm_restart, data="no"),
+                primary_btn(_("立即重启"), on_click=on_confirm_restart, data="yes"),
             ],
         )
         self.main_view.page.show_dialog(confirm_dlg)
@@ -146,17 +149,15 @@ class PhrasesDialog(ft.AlertDialog):
         )
 
         # 管理模式按钮
-        self.btn_edit = ft.ElevatedButton(
+        self.btn_edit = primary_btn(
             _("编辑"),
             icon=ft.Icons.EDIT,
             on_click=self._on_edit,
             disabled=True,
         )
-        self.btn_delete = ft.ElevatedButton(
+        self.btn_delete = danger_btn(
             _("删除"),
             icon=ft.Icons.DELETE,
-            color=ft.Colors.WHITE,
-            bgcolor=ft.Colors.RED_600,
             on_click=self._on_delete,
             disabled=True,
         )
@@ -165,14 +166,14 @@ class PhrasesDialog(ft.AlertDialog):
         if self._select_mode:
             actions_row = ft.Row(
                 [
-                    ft.ElevatedButton(
+                    primary_btn(
                         _("添加"),
                         icon=ft.Icons.ADD,
                         on_click=self._on_add,
                     ),
                     ft.Container(expand=True),
-                    ft.TextButton(_("取消"), on_click=self._on_cancel),
-                    ft.ElevatedButton(
+                    secondary_btn(_("取消"), on_click=self._on_cancel),
+                    primary_btn(
                         _("确定"),
                         icon=ft.Icons.CHECK,
                         on_click=self._on_accept,
@@ -184,7 +185,7 @@ class PhrasesDialog(ft.AlertDialog):
         else:
             actions_row = ft.Row(
                 [
-                    ft.ElevatedButton(
+                    primary_btn(
                         _("添加"),
                         icon=ft.Icons.ADD,
                         on_click=self._on_add,
@@ -194,7 +195,7 @@ class PhrasesDialog(ft.AlertDialog):
                 ],
                 alignment=ft.MainAxisAlignment.START,
             )
-            close_action = ft.TextButton(_("关闭"), on_click=self._on_close)
+            close_action = secondary_btn(_("关闭"), on_click=self._on_close)
 
         super().__init__(
             title=ft.Text(
@@ -327,10 +328,10 @@ class PhrasesDialog(ft.AlertDialog):
             title=ft.Text(title),
             content=text_field,
             actions=[
-                ft.TextButton(
+                secondary_btn(
                     _("取消"),
                     on_click=lambda _: self.main_view.page.pop_dialog()),
-                ft.TextButton(_("确定"), on_click=on_submit),
+                primary_btn(_("确定"), on_click=on_submit),
             ],
         )
         self.main_view.page.show_dialog(dlg)
@@ -359,8 +360,8 @@ class PhrasesDialog(ft.AlertDialog):
             title=ft.Text(_("确认")),
             content=ft.Text(_("删除选中常用语？")),
             actions=[
-                ft.TextButton(_("取消"), on_click=on_cancel),
-                ft.TextButton(_("确定"), on_click=on_confirm),
+                secondary_btn(_("取消"), on_click=on_cancel),
+                secondary_btn(_("确定"), on_click=on_confirm),
             ],
         )
         self.main_view.page.show_dialog(confirm_dlg)
@@ -391,13 +392,9 @@ class PhrasesDialog(ft.AlertDialog):
         self.main_view.page.pop_dialog()
 
     def _persist(self):
-        import json
-        from pathlib import Path
         try:
-            Path(get_common_phrases_path()).write_text(
-                json.dumps(self.phrases, ensure_ascii=False, indent=2),
-                encoding="utf-8",
-            )
+            from filecollector.config import atomic_write_json
+            atomic_write_json(get_common_phrases_path(), self.phrases)
         except Exception:
             pass
 
@@ -495,7 +492,7 @@ class TextEditDialog(ft.AlertDialog):
         # 内容区: 文本框 + (可选) 常用语按钮
         content_controls = [self.text_field]
         if show_phrases_button:
-            self.btn_phrases = ft.ElevatedButton(
+            self.btn_phrases = primary_btn(
                 _("常用语"),
                 icon=ft.Icons.CHAT,
                 on_click=self._on_open_phrases,
@@ -515,8 +512,8 @@ class TextEditDialog(ft.AlertDialog):
                 tight=True,
             ),
             actions=[
-                ft.TextButton(_("取消"), on_click=self._on_cancel),
-                ft.TextButton(_("确定"), on_click=self._on_accept),
+                secondary_btn(_("取消"), on_click=self._on_cancel),
+                primary_btn(_("确定"), on_click=self._on_accept),
             ],
         )
 

@@ -29,6 +29,7 @@ import flet as ft
 
 from filecollector.i18n import _
 from filecollector.utils import is_binary_file
+from filecollector.gui_flet.buttons import primary_btn, secondary_btn
 
 
 # 三态枚举
@@ -837,8 +838,8 @@ class FileTreePanel:
                 spacing=12, tight=True,
             ),
             actions=[
-                ft.TextButton(_("取消"), on_click=lambda e: self.main_view.page.pop_dialog()),
-                ft.TextButton(_("添加"), on_click=lambda e: _do_add()),
+                secondary_btn(_("取消"), on_click=lambda e: self.main_view.page.pop_dialog()),
+                primary_btn(_("添加"), on_click=lambda e: _do_add()),
             ],
             actions_alignment=ft.MainAxisAlignment.END,
         )

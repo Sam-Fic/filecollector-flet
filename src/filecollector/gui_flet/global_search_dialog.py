@@ -11,6 +11,7 @@ import flet as ft
 
 from filecollector.i18n import _
 from filecollector.gui_flet.search_service import SearchService
+from filecollector.gui_flet.buttons import primary_btn, secondary_btn, icon_btn
 
 
 class GlobalSearchDialog(ft.AlertDialog):
@@ -40,7 +41,7 @@ class GlobalSearchDialog(ft.AlertDialog):
             expand=True,
             on_submit=lambda e: self._trigger_search(),
         )
-        self._case_toggle = ft.IconButton(
+        self._case_toggle = icon_btn(
             icon=ft.Icons.TEXT_FIELDS,
             tooltip=_("区分大小写"),
             selected=False,
@@ -115,18 +116,21 @@ class GlobalSearchDialog(ft.AlertDialog):
         self._btn_add_selected_text = ft.Text(_("添加选中文件到编排列表 (0)"))
         self._btn_add_all_text = ft.Text(_("添加全部 (0)"))
 
-        self._btn_toggle_select = ft.ElevatedButton(
+        self._btn_toggle_select = primary_btn(
+            text="",
             content=self._btn_toggle_select_text,
             on_click=self._on_toggle_select,
             disabled=True,
         )
-        self._btn_add_selected = ft.ElevatedButton(
+        self._btn_add_selected = primary_btn(
+            text="",
             content=self._btn_add_selected_text,
             icon=ft.Icons.ADD,
             on_click=self._on_add_selected,
             disabled=True,
         )
-        self._btn_add_all = ft.ElevatedButton(
+        self._btn_add_all = primary_btn(
+            text="",
             content=self._btn_add_all_text,
             icon=ft.Icons.ADD_TASK,
             on_click=self._on_add_all,
@@ -142,7 +146,7 @@ class GlobalSearchDialog(ft.AlertDialog):
                             [
                                 self._search_field,
                                 self._case_toggle,
-                                ft.IconButton(
+                                icon_btn(
                                     icon=ft.Icons.SEARCH,
                                     tooltip=_("搜索"),
                                     on_click=lambda e: self._trigger_search(),
@@ -184,7 +188,7 @@ class GlobalSearchDialog(ft.AlertDialog):
                 height=500,
             ),
             actions=[
-                ft.TextButton(_("关闭"), on_click=self._on_close),
+                secondary_btn(_("关闭"), on_click=self._on_close),
             ],
         )
 
@@ -345,7 +349,7 @@ class GlobalSearchDialog(ft.AlertDialog):
         check.on_change = _on_change
         self._checkboxes[file_path] = check
 
-        arrow_btn = ft.IconButton(
+        arrow_btn = icon_btn(
             icon=ft.Icons.KEYBOARD_ARROW_RIGHT,
             tooltip=_("展开"),
             on_click=lambda e: self._toggle_file(file_path),

@@ -21,6 +21,9 @@ from filecollector.ai_client import (
 )
 from filecollector.config import load_templates
 from filecollector.gui_flet.ai_settings_dialog import load_ai_settings
+from filecollector.gui_flet.buttons import (
+    primary_btn, secondary_btn, danger_btn, danger_text_btn, icon_btn,
+)
 
 
 def _uniform_border(width: float = 1, color: str = None) -> ft.border.Border:
@@ -110,16 +113,13 @@ class AIPanel:
             on_scroll=self._on_chat_scroll,
         )
 
-        # 回到底部按钮
-        self.scroll_to_bottom_btn = ft.ElevatedButton(
-            content=ft.Icon(ft.Icons.ARROW_DOWNWARD),
-            tooltip=_("回到底部"),
+        # 回到底部按钮 (配色/图标与下方发送按钮同款: 蓝底白图标)
+        self.scroll_to_bottom_btn = primary_btn(
+            text="",
+            content=ft.Icon(ft.Icons.ARROW_DOWNWARD, color=ft.Colors.WHITE),
             on_click=self._scroll_to_bottom,
-            style=ft.ButtonStyle(
-                shape=ft.CircleBorder(),
-                padding=ft.Padding(8, 8, 8, 8),
-            ),
             visible=False,
+            tooltip=_("回到底部"),
         )
 
         # 输入框
@@ -158,7 +158,7 @@ class AIPanel:
             [self._make_send_btn(busy=False)],
             alignment=ft.MainAxisAlignment.END,
         )
-        self.clear_btn = ft.TextButton(
+        self.clear_btn = secondary_btn(
             _("清空对话"),
             icon=ft.Icons.DELETE_SWEEP,
             on_click=self._on_clear_chat,
@@ -193,7 +193,7 @@ class AIPanel:
                                 self.chat_list,
                                 ft.Container(
                                     content=self.scroll_to_bottom_btn,
-                                    right=16,
+                                    alignment=ft.alignment.Alignment(0, 1),
                                     bottom=16,
                                 ),
                             ],
@@ -438,22 +438,25 @@ class AIPanel:
         # 撤回按钮 (仅当 undo_token 有效时显示)
         revert_controls = []
         if undo_token >= 0:
-            revert_btn = ft.IconButton(
+            revert_btn = icon_btn(
                 icon=ft.Icons.UNDO,
                 tooltip=_("撤回此消息及后续所有 AI 回复与操作"),
-                icon_size=16,
                 icon_color=ft.Colors.WHITE70,
-                style=ft.ButtonStyle(
-                    shape=ft.CircleBorder(),
-                    padding=ft.Padding(4, 4, 4, 4),
-                ),
                 on_click=lambda e, t=undo_token, txt=text: self._on_revert_requested(
                     t, txt),
             )
             revert_controls.append(revert_btn)
 
         bubble = ft.Container(
-            content=bubble_content,
+            content=(
+                ft.Row(
+                    [bubble_content, *revert_controls],
+                    alignment=ft.MainAxisAlignment.END,
+                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                )
+                if revert_controls
+                else bubble_content
+            ),
             padding=12,
             border_radius=12,
             bgcolor=ft.Colors.BLUE_600,
@@ -462,7 +465,7 @@ class AIPanel:
         )
 
         row = ft.Row(
-            [ft.Container(expand=True), bubble, *revert_controls],
+            [ft.Container(expand=True), bubble],
             alignment=ft.MainAxisAlignment.START,
             key=msg_key,
         )
@@ -516,12 +519,11 @@ class AIPanel:
             content=ft.Text(
                 _("这将撤销此消息之后 AI 的所有回复以及对文件列表的修改。是否继续？")),
             actions=[
-                ft.TextButton(_("取消"), on_click=on_confirm, data="cancel"),
-                ft.TextButton(
+                secondary_btn(_("取消"), on_click=on_confirm, data="cancel"),
+                danger_text_btn(
                     _("撤回"),
                     on_click=on_confirm,
                     data="revert",
-                    style=ft.ButtonStyle(color=ft.Colors.RED_600),
                 ),
             ],
         )
@@ -706,14 +708,12 @@ class AIPanel:
     def _make_send_btn(self, busy: bool):
         """创建发送/停止按钮."""
         if busy:
-            return ft.ElevatedButton(
+            return danger_btn(
                 _("停止"),
                 icon=ft.Icons.STOP,
                 on_click=self._on_send_or_stop,
-                bgcolor=ft.Colors.RED_600,
-                color=ft.Colors.WHITE,
             )
-        return ft.ElevatedButton(
+        return primary_btn(
             _("发送"),
             icon=ft.Icons.SEND,
             on_click=self._on_send_or_stop,

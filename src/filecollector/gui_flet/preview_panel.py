@@ -18,6 +18,7 @@ from typing import Optional
 import flet as ft
 
 from filecollector.models import ItemData, PreprocessStatus
+from filecollector.gui_flet.buttons import icon_btn
 from filecollector.utils import safe_read_file
 from filecollector.i18n import _
 
@@ -52,7 +53,7 @@ class PreviewPanel:
 
         # 悬浮按钮: 重新进行 AI 转换 (仅 binary 条目可见)
         # 仅图标, 鼠标悬停时由 tooltip 展示具体名称.
-        self.btn_retry = ft.IconButton(
+        self.btn_retry = icon_btn(
             icon=ft.Icons.REFRESH,
             on_click=self._on_retry_preprocess,
             visible=False,
@@ -61,7 +62,6 @@ class PreviewPanel:
                 bgcolor=ft.Colors.with_opacity(0.92, ft.Colors.SURFACE),
                 side=ft.BorderSide(1, ft.Colors.OUTLINE_VARIANT),
                 elevation=2,
-                shape=ft.RoundedRectangleBorder(radius=20),
             ),
         )
 
