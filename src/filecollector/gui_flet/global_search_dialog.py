@@ -311,22 +311,10 @@ class GlobalSearchDialog(ft.AlertDialog):
     # ── 线程安全 UI 调度 ──────────────────────────────────────
 
     def _run_on_ui(self, fn) -> None:
-        """把回调安全地送到 UI 线程 (asyncio 线程安全调度)."""
+        """把回调安全地送到 UI 线程 (统一走 Flet run_task 通道)."""
+        from filecollector.utils import run_on_ui
         page = self.main_view.page
-        if page is None:
-            return
-        try:
-            loop = page.loop
-            if loop and loop.is_running():
-                loop.call_soon_threadsafe(fn)
-                return
-        except Exception:
-            pass
-        # fallback: 直接调用
-        try:
-            fn()
-        except Exception:
-            pass
+        run_on_ui(page, fn)
 
     def _safe_update_ui(self, control, value) -> None:
         """后台线程安全更新单个控件属性."""

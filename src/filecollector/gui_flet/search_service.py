@@ -7,22 +7,11 @@ import threading
 from pathlib import Path
 from typing import Callable, Optional
 
-from filecollector.utils import safe_read_file
+from filecollector.utils import safe_read_file, is_binary_file as _is_binary
 from filecollector.gui_flet.constants import get_effective_skip_dirs
 
 MAX_FILE_SIZE: int = 2 * 1024 * 1024   # 2 MB
 MAX_RESULTS: int = 2000
-_BINARY_SNIFF_BYTES: int = 2048
-
-
-def _is_binary(file_path: str) -> bool:
-    """检查文件前 2048 字节是否包含 null 字节。"""
-    try:
-        with open(file_path, "rb") as f:
-            chunk = f.read(_BINARY_SNIFF_BYTES)
-        return b"\x00" in chunk
-    except OSError:
-        return True
 
 
 class SearchService:

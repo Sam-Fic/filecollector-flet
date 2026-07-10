@@ -32,6 +32,7 @@ from filecollector.multimodal_ai_client import (
     MultimodalAIClientError,
 )
 from filecollector.preprocess_cache import PreprocessCache, compute_file_hash
+from filecollector.utils import run_on_ui
 
 
 def _get_prompt_for_item(item: ItemData, override: str = "") -> str:
@@ -491,21 +492,6 @@ class PreprocessRunner:
 
     # ------------------------------------------------------------------ UI 线程桥接
     def _post(self, fn) -> None:
-        """把回调安全地送到 Flet UI 线程."""
+        """把回调安全地送到 Flet UI 线程 (统一走 run_on_ui 通道)."""
         page = getattr(self._main_view, "page", None)
-        if page is None:
-            try:
-                fn()
-            except Exception as e:
-                logging.warning(f"PreprocessRunner 直接回调失败: {e}")
-            return
-        try:
-            page.run_task(self._invoke, fn)
-        except Exception as e:
-            logging.warning(f"PreprocessRunner.post 失败: {e}")
-
-    async def _invoke(self, fn) -> None:
-        try:
-            fn()
-        except Exception as e:
-            logging.warning(f"PreprocessRunner UI 回调异常: {e}")
+        run_on_ui(page, fn)

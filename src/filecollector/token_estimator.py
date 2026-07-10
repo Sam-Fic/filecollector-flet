@@ -77,4 +77,5 @@ def estimate_tokens_fast(text: str | None) -> int:
         else:
             tokens += 0.25
 
-    return int(math.ceil(tokens * 1.05))
+    # 估算仅用于导出前的体量预警, 不需要保守高估, 故直接取整返回。
+    return int(math.ceil(tokens))

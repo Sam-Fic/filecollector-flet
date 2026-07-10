@@ -28,6 +28,7 @@ from typing import Optional
 import flet as ft
 
 from filecollector.i18n import _
+from filecollector.utils import is_binary_file
 
 
 # 三态枚举
@@ -811,9 +812,7 @@ class FileTreePanel:
             return
         try:
             # 简单嗅探: 含 NUL 字节视为二进制
-            with open(path_str, "rb") as f:
-                sniff = f.read(8192)
-            if b"\x00" in sniff:
+            if is_binary_file(path_str):
                 show_snack(self.main_view.page, _("文件为二进制格式, 不支持复制内容"))
                 return
             content, _enc = safe_read_file(path_str)

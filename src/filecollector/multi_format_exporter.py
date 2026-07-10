@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Optional
 
 from filecollector.models import ItemData
-from filecollector.utils import safe_read_file, display_path
+from filecollector.utils import safe_read_file, display_path, is_binary_file
 
 MAX_FILE_CONTENT_SIZE = 10 * 1024 * 1024  # 10 MB
 
@@ -247,9 +247,7 @@ def resolve_items(
             continue
 
         try:
-            with open(data.path, "rb") as bf:
-                raw = bf.read()
-            if b"\x00" in raw[:8192]:
+            if is_binary_file(data.path):
                 ri.kind = ItemKind.BINARY
                 ri.error_message = "[检测到二进制文件: 已跳过文本内容读取]"
                 result.append(ri)
