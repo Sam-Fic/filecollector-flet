@@ -48,6 +48,35 @@ def get_settings_path() -> str:
     return os.path.join(_ensure_dir(), "settings.json")
 
 
+def atomic_write_json(path: str, obj) -> None:
+    """原子地写入 JSON 文件: 先写临时文件再 os.replace 覆盖.
+
+    避免写入中途崩溃 (断电 / 杀进程) 导致目标文件变成半截 JSON 而损坏.
+    对齐 GNOME 版 config_manager 的 File.replace 行为 (临时文件 + 原子 rename).
+    `os.replace` 在 POSIX/Windows 上均为原子操作.
+    """
+    import tempfile
+
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(
+        dir=str(target.parent), suffix=".tmp", prefix="." + target.name + "."
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(obj, f, ensure_ascii=False, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_name, str(target))
+    except Exception:
+        try:
+            os.unlink(tmp_name)
+        except OSError:
+            pass
+        raise
+
+
+
 def get_common_phrases_path() -> str:
     return os.path.join(_ensure_dir(), "common_phrases.json")
 
@@ -76,9 +105,7 @@ def load_settings() -> dict:
 
 
 def save_settings(data: dict) -> None:
-    path = get_settings_path()
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+    atomic_write_json(get_settings_path(), data)
 
 
 # ─── 上下文窗口大小 (用于 token 进度条预警) ──────────────────────────
@@ -191,9 +218,7 @@ def load_common_phrases() -> list[str]:
 
 
 def save_common_phrases(items: list[str]) -> None:
-    path = get_common_phrases_path()
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(items, f, ensure_ascii=False, indent=2)
+    atomic_write_json(get_common_phrases_path(), items)
 
 
 # ====================================================================
@@ -465,6 +490,4 @@ def load_templates() -> list[dict]:
 
 
 def save_templates(templates: list) -> None:
-    path = get_templates_path()
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(templates, f, ensure_ascii=False, indent=2)
+    atomic_write_json(get_templates_path(), templates)

@@ -455,7 +455,7 @@ class ShortcutsDialog(ft.AlertDialog):
                 height=400,
             ),
             actions=[
-                ft.TextButton(
+                secondary_btn(
                     _("关闭"), on_click=lambda _: main_view.page.pop_dialog()),
             ],
         )
