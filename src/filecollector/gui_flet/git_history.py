@@ -348,6 +348,12 @@ class GitHistoryPanel:
         if first and hasattr(self.main_view, "on_git_commit_selected"):
             self.main_view.on_git_commit_selected(first)
 
+        # 同步编排列表的 "导出选中 Commit Diff" 按钮可用状态
+        # (有选中则启用, 无选中则禁用, 对齐 GNOME 版 window.vala:2056)
+        arr = getattr(self.main_view, "arrangement_panel", None)
+        if arr is not None and hasattr(arr, "set_git_export_enabled"):
+            arr.set_git_export_enabled(bool(self._selected_hashes))
+
     def _on_key_down(self, e: ft.KeyDownEvent):
         """键盘按下: 跟踪 Ctrl / Shift 修饰键."""
         key = e.key.upper()
