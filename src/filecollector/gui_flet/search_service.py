@@ -65,16 +65,20 @@ class SearchService:
         matched = 0
         query = self._query if self._case_sensitive else self._query.lower()
         # 生效的忽略目录 (内置 SKIP_DIRS + 用户偏好设置), 使"扫描忽略目录"生效
+        # 已对空串/纯空白做纵深过滤, 避免 "" in skip_dirs 永真导致全盘跳过.
         skip_dirs = get_effective_skip_dirs()
 
         for dirpath, dirnames, filenames in os.walk(self._root):
             if self._cancel.is_set():
                 break
 
-            # 原地修改 dirnames 以跳过忽略目录和隐藏目录
+            # 原地修改 dirnames 以跳过忽略目录和隐藏目录.
+            # 注意: 此处按"目录名" (而非完整路径) 匹配, 是有意行为 ——
+            # 用户配置的忽略目录语义即为"所有同名目录均跳过".
+            # 跳过以 "." 开头的隐藏目录 (如 .git/.cache), 避免扫描 VCS/缓存内容.
             dirnames[:] = [
                 d for d in dirnames
-                if d not in skip_dirs and not d.startswith(".")
+                if d and d not in skip_dirs and not d.startswith(".")
             ]
 
             for filename in filenames:

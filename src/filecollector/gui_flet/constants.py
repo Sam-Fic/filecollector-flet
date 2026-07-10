@@ -26,4 +26,7 @@ def get_effective_skip_dirs() -> set[str]:
     "扫描忽略目录" 真正生效 (用户目录在 SKIP_DIRS 基础上追加跳过).
     """
     from filecollector.config import get_ignored_dirs
-    return SKIP_DIRS | set(get_ignored_dirs())
+    # 纵深防御: 过滤空串/纯空白项. 若集合中含 "", 则搜索/扫描时
+    # ``name in skip_dirs`` 对任意目录名均为真, 会导致全盘目录被跳过
+    # (仅在根目录找文件), 与 GNOME 版 search_service 报告的注入风险同源.
+    return {d for d in (SKIP_DIRS | set(get_ignored_dirs())) if d and d.strip()}
