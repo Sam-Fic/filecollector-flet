@@ -142,8 +142,10 @@ class FileCollectorEngine:
                 # 文件片段: 仅导出指定行范围 (1-based), 流式读取避免大文件 OOM
                 if data.is_snippet():
                     try:
-                        content, _ = read_file_snippet(
+                        content, _, warning = read_file_snippet(
                             data.path, data.start_line, data.end_line)
+                        if warning:
+                            f.write(warning + "\n")
                         f.write(content)
                     except Exception as e:
                         f.write(f"[读取片段失败: {e}]")

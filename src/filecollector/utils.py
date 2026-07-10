@@ -145,10 +145,24 @@ def read_file_snippet(file_path, start_line: int, end_line: int):
     读到 end_line 即停止 (不再遍历/加载文件剩余内容). 内存中只保留片段本身,
     适合从超大文件中截取少量行的场景 (如编排列表中的文件片段条目).
 
-    返回 (片段文本, 使用的编码). 行号非法或越界时返回可用范围内的内容.
+    返回 (片段文本, 使用的编码, 警告文本). 行号非法或越界时返回可用范围内的内容,
+    警告文本为 "" (无警告) 或提示信息 (如起止行填反时的自动交换提示).
+
+    行号归一化:
+    - start_line / end_line 小于 1 时按 1 处理 (clamp);
+    - 若 start_line > end_line (用户填反或编辑后行数变化), 自动交换为
+      [end_line, start_line] 并给出提示, 不再静默丢失内容
+      (对齐 GNOME file_generator 报告的该隐患).
     """
+    # 行号归一化: 非法 (小于 1) clamp 到 1; 起止填反则交换并提示
+    warning = ""
+    if start_line < 1:
+        start_line = 1
     if end_line < 1:
-        return "", None
+        end_line = 1
+    if start_line > end_line:
+        start_line, end_line = end_line, start_line
+        warning = f"[提示: 起始行({end_line})大于结束行({start_line}), 已自动交换] "
     # 归一化: 1-based -> 0-based 索引区间
     start_idx = max(0, start_line - 1)
     end_idx = max(start_idx, end_line - 1)
@@ -167,7 +181,7 @@ def read_file_snippet(file_path, start_line: int, end_line: int):
                         break  # 已抵达片段末尾, 立即停止, 不读剩余文件
                     if idx >= start_idx:
                         collected.append(line)
-            return ''.join(collected), enc
+            return ''.join(collected), enc, warning
         except (UnicodeDecodeError, UnicodeError):
             continue
         except Exception:
