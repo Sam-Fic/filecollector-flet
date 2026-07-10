@@ -56,6 +56,15 @@ def main(page: ft.Page):
     # 初始化
     main_view.initialize()
 
+    # --gui 模式: 应用启动时透传的 CLI 初始化参数 (对齐 gnome 的 CLI 参数注入 GUI)
+    from filecollector.__main__ import _PENDING_CLI_ARGS
+    if _PENDING_CLI_ARGS:
+        from filecollector.cli import apply_cli_args
+        if apply_cli_args(main_view.engine, _PENDING_CLI_ARGS, print_feedback=False):
+            main_view.initialize()
+            # 清空, 避免后续 IPC 等路径重复应用
+            _PENDING_CLI_ARGS.clear()
+
     # 单实例 IPC: 让运行中的 Flet 实例接收来自 CLI 的命令.
     # 服务器线程只负责把消息通过 page.run_task 投递到 Flet 主线程,
     # 实际 engine 变更 + UI 刷新在主线程协程里完成.

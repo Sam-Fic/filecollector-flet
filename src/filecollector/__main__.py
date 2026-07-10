@@ -9,6 +9,10 @@ try:
 except ImportError:
     FLET_AVAILABLE = False
 
+# 当通过 --gui 启动时, 把 CLI 初始化参数暂存于此, 供 flet_main 启动时应用
+# (对齐 gnome: 先用 CLI 参数构建状态, 再注入 GUI 实例).
+_PENDING_CLI_ARGS: list[str] = []
+
 
 def main():
     # Check for --gui flag: forces GUI mode even with other CLI args
@@ -37,6 +41,11 @@ def main():
     if not force_gui and is_cli_mode(sys.argv):
         # Pure CLI mode: no --gui, has CLI args, no running GUI
         sys.exit(run_cli())
+
+    # --gui 模式: 把 CLI 初始化参数暂存, 待 GUI 启动后应用 (而非开空白界面)
+    if force_gui and has_cli_args:
+        global _PENDING_CLI_ARGS
+        _PENDING_CLI_ARGS = filtered_args[1:]
 
     # 默认使用 Flet 模式
     if FLET_AVAILABLE:

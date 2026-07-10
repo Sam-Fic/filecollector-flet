@@ -37,6 +37,9 @@ def apply_cli_args(engine, args, print_feedback=True):
             abs_path = str(Path(args[i]).resolve())
             engine.add_file(abs_path)
             engine.checked_paths.add(abs_path)
+            # 二进制文件: 同步触发 VLM 预处理 (对齐 gnome cli.vala add_file)
+            # 命中缓存则复用, 未命中则阻塞调用 VLM 写入缓存并挂到 item 上.
+            _cli_preprocess_binary_sync(engine, abs_path, print_feedback)
             if print_feedback:
                 print(f"已添加文件: {abs_path}")
         elif arg == "--add-text":
@@ -202,6 +205,42 @@ def print_help():
     print("  --help, -h                 显示帮助信息")
 
 
+def _cli_export(engine, export_path: str) -> None:
+    """按扩展名分发 CLI 导出到对应格式 (对齐 gnome FileGenerator).
+
+    支持 .md / .json / .jsonl / .ipynb / .zip；其余后缀按纯文本导出。
+    """
+    import os
+
+    from filecollector.multi_format_exporter import (
+        export_markdown, export_json, export_jsonl, export_ipynb,
+    )
+
+    work_dir = str(engine.work_dir) if engine.work_dir else None
+    lower = export_path.lower()
+
+    if lower.endswith(".md"):
+        export_markdown(export_path, engine.items, engine.use_absolute,
+                        engine.show_header, work_dir)
+    elif lower.endswith(".json"):
+        export_json(export_path, engine.items, engine.use_absolute,
+                    engine.show_header, work_dir)
+    elif lower.endswith(".jsonl"):
+        export_jsonl(export_path, engine.items, engine.use_absolute,
+                     engine.show_header, work_dir)
+    elif lower.endswith(".ipynb"):
+        export_ipynb(export_path, engine.items, engine.use_absolute,
+                     engine.show_header, work_dir)
+    elif lower.endswith(".zip"):
+        from filecollector.zip_exporter import export_to_zip
+        export_to_zip(export_path, engine.items, engine.show_header, work_dir)
+    else:
+        # 默认纯文本 (对齐历史行为)
+        if not lower.endswith(".txt"):
+            export_path = export_path + ".txt"
+        engine.export(export_path)
+
+
 def run_cli():
     engine, show_help, save_path, export_path = parse_to_engine(sys.argv)
     if engine is None:
@@ -224,7 +263,7 @@ def run_cli():
             print("错误: 编排列表为空，无法导出", file=sys.stderr)
             return 1
         try:
-            engine.export(export_path)
+            _cli_export(engine, export_path)
             print(f"已导出到: {export_path}")
         except Exception as e:
             print(f"导出失败: {e}", file=sys.stderr)
@@ -243,3 +282,114 @@ def is_cli_mode(argv):
                    "-h", "--list-items"):
             return True
     return False
+
+
+def _cli_preprocess_binary_sync(engine, abs_path: str, print_feedback: bool) -> None:
+    """对二进制文件同步触发 VLM 预处理 (对齐 gnome cli.vala add_file).
+
+    CLI 无异步事件循环, 此处直接阻塞调用 VLM 完成转换:
+    1. 检查 .filecollector_cache 是否已转换 (命中则复用);
+    2. 未命中则调用 VLM 把二进制转为 Markdown, 写入缓存并挂到 item;
+    3. 任何失败仅告警并标记 FAILED, 不影响文件入列 (导出时按二进制原样处理).
+
+    仅当配置启用 VLM 且文件属于允许的二进制扩展名时触发.
+    """
+    from filecollector.config import (
+        get_allowed_binary_extensions, load_multimodal_ai_settings,
+    )
+    from filecollector.models import ItemData, PreprocessStatus
+
+    # 找到刚添加的这个 item (文件类型 + 该路径)
+    target = None
+    for it in engine.items:
+        if it.type == "file" and it.path == abs_path:
+            target = it
+            break
+    if target is None:
+        return
+
+    allowed = get_allowed_binary_extensions()
+    if not target.is_allowed_binary_target(allowed):
+        return
+    if engine.work_dir is None:
+        return
+
+    from filecollector.preprocess_cache import (
+        PreprocessCache, compute_file_hash,
+    )
+    from filecollector.binary_converter import (
+        convert_to_base64_images, get_output_mime_for_image,
+    )
+    from filecollector.multimodal_ai_client import (
+        MultimodalAIClient, MultimodalAIClientError,
+    )
+
+    try:
+        # 1. 配置检查 (VLM 未启用则直接跳过, 不尝试转换, 对齐 gnome)
+        settings = load_multimodal_ai_settings()
+        if not settings.get("enabled") or not (settings.get("api_key") or ""):
+            if print_feedback:
+                print(f"  ↳ VLM 未启用, 跳过预处理: {Path(abs_path).name}")
+            return
+
+        # 2. 缓存优先
+        file_hash = compute_file_hash(abs_path)
+        cache = PreprocessCache(str(engine.work_dir))
+        cached = cache.get_cached_markdown(abs_path, file_hash)
+        if cached is not None:
+            target.preprocessed_content = cached
+            target.preprocess_status = PreprocessStatus.COMPLETED
+            target.from_cache = True
+            target.update_token_stats()
+            if print_feedback:
+                print(f"  ↳ 已从缓存复用: {Path(abs_path).name}")
+            return
+
+        # 3. 转 base64
+        try:
+            images = convert_to_base64_images(abs_path)
+        except Exception as e:
+            if print_feedback:
+                print(f"  ⚠ 预处理 {Path(abs_path).name} 失败: {e}")
+            target.preprocess_status = PreprocessStatus.FAILED
+            return
+        if not images:
+            target.preprocess_status = PreprocessStatus.FAILED
+            return
+
+        # 4. 调 VLM (同步)
+        from filecollector.gui_flet.preprocess_runner import _get_prompt_for_item
+        mime_types = (["image/png"] * len(images)
+                      if not target.is_image_target() or len(images) != 1
+                      else [get_output_mime_for_image(abs_path)])
+        prompt = _get_prompt_for_item(target,
+                                      settings.get("system_prompt_override", "") or "")
+        client = MultimodalAIClient(
+            base_url=settings.get("base_url", ""),
+            api_key=settings.get("api_key", ""),
+            model=settings.get("model", ""),
+            prompt=prompt,
+            timeout=float(settings.get("timeout", 120.0) or 120.0),
+        )
+        md = client.process_images(images, mime_types).strip()
+
+        # 5. 写缓存 + 挂载
+        try:
+            cache.save_markdown(abs_path, file_hash, md)
+        except Exception as e:
+            if print_feedback:
+                print(f"  ⚠ 写缓存失败: {e}")
+        target.preprocessed_content = md
+        target.preprocess_status = PreprocessStatus.COMPLETED
+        target.from_cache = False
+        target.update_token_stats()
+        if print_feedback:
+            print(f"  ↳ 已调用 VLM 转换: {Path(abs_path).name}")
+    except MultimodalAIClientError as e:
+        if print_feedback:
+            print(f"  ⚠ VLM 调用失败: {e}")
+        target.preprocess_status = PreprocessStatus.FAILED
+    except Exception as e:
+        if print_feedback:
+            print(f"  ⚠ 预处理 {Path(abs_path).name} 失败: {e}")
+        target.preprocess_status = PreprocessStatus.FAILED
