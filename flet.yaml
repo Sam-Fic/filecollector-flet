@@ -1,8 +1,6 @@
 include_packages:
   - flet
   - chardet
-  - markdown-it-py
-  - pygments
   - keyring
 
 app_path: src/filecollector/gui_flet/__init__.py

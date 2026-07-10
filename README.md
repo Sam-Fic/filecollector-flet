@@ -9,7 +9,7 @@
 FileCollector 是一款跨平台的桌面小工具，用于高效收集、编排工作目录中的文件并生成合并文本。  
 它提供了可勾选的目录树、灵活的编排列表、文字插入和编码自动检测，非常适合将项目中的关键代码或文档快速整合成一个 TXT 文件，供后续分析或提交给大语言模型使用。内置的 AI 助手侧边栏支持自然语言驱动文件探索、勾选与编排。
 
-![Python](https://img.shields.io/badge/Python-3.8+-blue) ![Flet](https://img.shields.io/badge/GUI-Flet-green) ![markdown-it](https://img.shields.io/badge/Markdown-markdown--it--py-blue) ![pygments](https://img.shields.io/badge/Highlighting-Pygments-yellow) ![License](https://img.shields.io/badge/license-MIT-brightgreen)
+![Python](https://img.shields.io/badge/Python-3.8+-blue) ![Flet](https://img.shields.io/badge/GUI-Flet-green) ![Markdown](https://img.shields.io/badge/Markdown-Flet%20native-blue) ![License](https://img.shields.io/badge/license-MIT-brightgreen)
 
 ![FileCollector Screenshot](screenshots/screenshot.png)
 
@@ -392,10 +392,8 @@ FileCollector 内置了 Git 只读探查功能，方便开发者快速收集与�
 
 ## 致谢
 
-- [Flet](https://flet.dev/) - 跨平台 GUI 框架
+- [Flet](https://flet.dev/) - 跨平台 GUI 框架（内置 Markdown 渲染与代码高亮，无需额外依赖）
 - [chardet](https://github.com/chardet/chardet) - 编码检测库
-- [markdown-it-py](https://github.com/executablebooks/mdit-py) - Markdown 解析库，用于 AI 聊天面板的富文本渲染
-- [Pygments](https://pygments.org/) - 语法高亮库，用于 AI 聊天中代码块的着色显示
 - [keyring](https://github.com/jaraco/keyring) - 系统级密钥环存储，用于 API 密钥的安全保存
 - [tokenx](https://github.com/johannschopplich/tokenx) - Token 估算功能参考
 

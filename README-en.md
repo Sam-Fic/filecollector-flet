@@ -9,7 +9,7 @@
 FileCollector is a cross-platform desktop utility for efficiently collecting and organizing files from a working directory into a merged text file.  
 It features a checkable directory tree, flexible organization list, text insertion, and automatic encoding detection — perfect for quickly consolidating key code or documents from a project into a single TXT file for analysis or submission to a large language model. The built-in AI assistant sidebar supports natural language-driven file exploration, selection, and orchestration.
 
-![Python](https://img.shields.io/badge/Python-3.8+-blue) ![Flet](https://img.shields.io/badge/GUI-Flet-green) ![markdown-it](https://img.shields.io/badge/Markdown-markdown--it--py-blue) ![pygments](https://img.shields.io/badge/Highlighting-Pygments-yellow) ![License](https://img.shields.io/badge/license-MIT-brightgreen)
+![Python](https://img.shields.io/badge/Python-3.8+-blue) ![Flet](https://img.shields.io/badge/GUI-Flet-green) ![Markdown](https://img.shields.io/badge/Markdown-Flet%20native-blue) ![License](https://img.shields.io/badge/license-MIT-brightgreen)
 
 ![FileCollector Screenshot](screenshots/screenshot-en.png)
 
@@ -411,10 +411,8 @@ This project uses the **MIT License**, see the [LICENSE](LICENSE) file for detai
 
 ## Acknowledgments
 
-- [Flet](https://flet.dev/) - Cross-platform GUI framework
+- [Flet](https://flet.dev/) - Cross-platform GUI framework (built-in Markdown rendering and code highlighting, no extra deps)
 - [chardet](https://github.com/chardet/chardet) - Encoding detection library
-- [markdown-it-py](https://github.com/executablebooks/mdit-py) - Markdown parser for rich text rendering in the AI chat panel
-- [Pygments](https://pygments.org/) - Syntax highlighting library for code block coloring in AI chat
 - [keyring](https://github.com/jaraco/keyring) - System keyring storage for secure API key saving
 - [tokenx](https://github.com/johannschopplich/tokenx) - Reference for token estimation feature
 
