@@ -54,7 +54,7 @@ For the usage process and tips of the graphical interface, please refer to the [
 
 If you are using the **GNOME desktop environment**, we recommend using the GNOME-optimized version for a more native integration experience:
 
-[filecollector-gnome](https://github.com/Sam-Fic/filecollector-gnome)
+[filecollector-gnome](https://github.com/Sam-Fic/filecollector)
 
 This version is adapted and optimized for GNOME, including:
 
@@ -68,7 +68,7 @@ This version is adapted and optimized for GNOME, including:
 
 1. Clone the repository
    ```bash
-   git clone https://github.com/Sam-Fic/FileCollector.git
+   git clone https://github.com/Sam-Fic/FileCollector-flet.git
    cd FileCollector
    ```
 2. Install dependencies
@@ -89,7 +89,7 @@ Alternatively, use the one-click launcher in the project root to start the Flet 
 
 <!-- ### Download Pre-built Packages (Recommended)
 
-Visit the [Releases](https://github.com/Sam-Fic/FileCollector/releases) page to download the executable for your OS:
+Visit the [Releases](https://github.com/Sam-Fic/FileCollector-flet/releases) page to download the executable for your OS:
 
 - `FileCollector-Windows.zip`
 - `FileCollector-macOS.zip`

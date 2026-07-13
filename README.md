@@ -54,7 +54,7 @@ FileCollector 是一款跨平台的桌面小工具，用于高效收集、编排
 
 如果您使用的是 **GNOME 桌面环境**，推荐使用专为 GNOME 优化的版本，提供更原生的集成体验：
 
-[filecollector-gnome](https://github.com/Sam-Fic/filecollector-gnome)
+[filecollector-gnome](https://github.com/Sam-Fic/filecollector)
 
 该版本针对 GNOME 进行了适配和优化，包括：
 
@@ -68,7 +68,7 @@ FileCollector 是一款跨平台的桌面小工具，用于高效收集、编排
 
 1. 克隆仓库
    ```bash
-   git clone https://github.com/Sam-Fic/FileCollector.git
+   git clone https://github.com/Sam-Fic/FileCollector-flet.git
    cd FileCollector
    ```
 2. 安装依赖
@@ -89,7 +89,7 @@ FileCollector 是一款跨平台的桌面小工具，用于高效收集、编排
 
 <!-- ### 直接下载打包版（推荐）
 
-前往 [Releases](https://github.com/Sam-Fic/FileCollector/releases) 页面，下载对应操作系统的可执行文件：
+前往 [Releases](https://github.com/Sam-Fic/FileCollector-flet/releases) 页面，下载对应操作系统的可执行文件：
 
 - `FileCollector-Windows.zip`
 - `FileCollector-macOS.zip`
