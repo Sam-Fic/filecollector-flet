@@ -4,7 +4,9 @@
   <img src="icons/filecollector.svg" alt="FileCollector" width="128" height="128">
 </div>
 
-[English Version](README-en.md)
+[English](README-en.md)
+
+---
 
 FileCollector 是一款跨平台的桌面小工具，用于高效收集、编排工作目录中的文件并生成合并文本。  
 它提供了可勾选的目录树、灵活的编排列表、文字插入和编码自动检测，非常适合将项目中的关键代码或文档快速整合成一个 TXT 文件，供后续分析或提交给大语言模型使用。内置的 AI 助手侧边栏支持自然语言驱动文件探索、勾选与编排。

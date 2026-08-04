@@ -4,7 +4,9 @@
   <img src="icons/filecollector.svg" alt="FileCollector" width="128" height="128">
 </div>
 
-[中文版](README.md)
+[简体中文](README.md)
+
+---
 
 FileCollector is a cross-platform desktop utility for efficiently collecting and organizing files from a working directory into a merged text file.  
 It features a checkable directory tree, flexible organization list, text insertion, and automatic encoding detection — perfect for quickly consolidating key code or documents from a project into a single TXT file for analysis or submission to a large language model. The built-in AI assistant sidebar supports natural language-driven file exploration, selection, and orchestration.
